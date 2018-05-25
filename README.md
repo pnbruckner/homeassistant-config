@@ -3,6 +3,11 @@
 ### nest.py & camera/nest.py  
 Add service to set Nest Cam operation mode. (More details to come.)
 
+### life360.py & device_tracker/life360.py
+Life360 Device Tracker platform.
+
+See: https://community.home-assistant.io/t/life360-device-tracker-platform
+
 ### sensor/illuminance.py
 Estimate outdoor illuminance based on time of day and current weather conditions from Weather Underground.
 
