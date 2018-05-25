@@ -1,4 +1,7 @@
 # Home Assistant Configuration
+## custom_components: nest.py & camera/nest.py  
+Add service to set Nest Cam operation mode. (More details to come.)
+
 ## custom_components/sensor/illuminance.py
 Estimate outdoor illuminance based on time of day and current weather conditions from Weather Underground.
 
