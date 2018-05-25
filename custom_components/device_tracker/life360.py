@@ -11,7 +11,7 @@ except ImportError:
 from homeassistant.components.device_tracker import (ENTITY_ID_FORMAT,
     PLATFORM_SCHEMA, CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 from homeassistant.const import (CONF_USERNAME, CONF_PASSWORD, CONF_FILENAME,
-    STATE_UNKNOWN)
+    CONF_PREFIX, STATE_UNKNOWN)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
@@ -45,7 +45,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_SHOW_AS_STATE, default=[]): vol.All(
         cv.ensure_list_csv, [vol.In(SHOW_AS_STATE_OPTS)]),
     vol.Optional(CONF_MAX_UPDATE_WAIT): vol.All(
-        cv.time_period, cv.positive_timedelta)
+        cv.time_period, cv.positive_timedelta),
+    vol.Optional(CONF_PREFIX): cv.string
 })
 
 def exc_msg(exc, msg=None, extra=None):
@@ -102,22 +103,27 @@ def setup_scanner(hass, config, see, discovery_info=None):
     _LOGGER.debug('Life360 communication successful!')
     show_as_state = config[CONF_SHOW_AS_STATE]
     max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
-    Life360Scanner(hass, see, interval, show_as_state, max_update_wait, api)
+    prefix = config.get(CONF_PREFIX)
+    Life360Scanner(hass, see, interval, show_as_state, max_update_wait, prefix,
+                   api)
     return True
 
 class Life360Scanner(object):
-    def __init__(self, hass, see, interval, show_as_state, max_update_wait, api):
+    def __init__(self, hass, see, interval, show_as_state, max_update_wait,
+                 prefix, api):
         self._hass = hass
         self._see = see
         self._show_as_state = show_as_state
         self._max_update_wait = max_update_wait
+        self._prefix = '' if not prefix else prefix + '_'
         self._api = api
         self._dev_data = {}
         self._started = util.dt.utcnow()
         track_time_interval(self._hass, self._update_life360, interval)
 
     def _update_member(self, m):
-        dev_id = util.slugify('_'.join([m['firstName'], m['lastName']])
+        dev_id = util.slugify(self._prefix +
+                              '_'.join([m['firstName'], m['lastName']])
                                  .replace('-', '_'))
         prev_update, reported = self._dev_data.get(dev_id, (None, False))
 
