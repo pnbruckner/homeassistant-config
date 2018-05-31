@@ -1,7 +1,9 @@
 # Home Assistant Configuration
 ## custom_components
 ### nest.py & camera/nest.py  
-Add service to set Nest Cam operation mode. (More details to come.)
+Add service to set Nest Cam operation mode.
+
+See: https://community.home-assistant.io/t/enable-disable-nest-camera-recording
 
 ### life360.py & device_tracker/life360.py
 Life360 Device Tracker platform.
