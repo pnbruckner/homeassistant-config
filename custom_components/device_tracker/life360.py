@@ -140,7 +140,8 @@ class Life360Scanner(object):
             elif not overdue and reported:
                 self._hass.bus.fire('device_tracker.life360_update_restored',
                                     {'entity_id': ENTITY_ID_FORMAT.format(dev_id),
-                                     'wait': last_update - (prev_update or self._started)})
+                                     'wait': str(last_update - (prev_update or self._started))
+                                             .split('.')[0]})
                 reported = False
 
         if not loc:
