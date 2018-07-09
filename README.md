@@ -1,5 +1,8 @@
 # Home Assistant Configuration
 ## custom_components
+### amcrest.py, binary_sensor/amcrest.py & camera/amcrest.py
+Add several services to Amcrest Camera and create new binary sensor for motion detected.
+
 ### nest.py & camera/nest.py  
 Add service to set Nest Cam operation mode.
 
