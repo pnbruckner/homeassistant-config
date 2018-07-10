@@ -22,6 +22,7 @@ DEPENDENCIES = ['zone']
 
 CONF_SHOW_AS_STATE   = 'show_as_state'
 CONF_MAX_UPDATE_WAIT = 'max_update_wait'
+CONF_MEMBERS         = 'members'
 
 DEFAULT_FILENAME = 'life360.conf'
 
@@ -46,7 +47,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         cv.ensure_list_csv, [vol.In(SHOW_AS_STATE_OPTS)]),
     vol.Optional(CONF_MAX_UPDATE_WAIT): vol.All(
         cv.time_period, cv.positive_timedelta),
-    vol.Optional(CONF_PREFIX): cv.string
+    vol.Optional(CONF_PREFIX): cv.string,
+    vol.Optional(CONF_MEMBERS): vol.All(
+        cv.ensure_list, [cv.string])
 })
 
 def exc_msg(exc, msg=None, extra=None):
@@ -104,27 +107,45 @@ def setup_scanner(hass, config, see, discovery_info=None):
     show_as_state = config[CONF_SHOW_AS_STATE]
     max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
     prefix = config.get(CONF_PREFIX)
+    members = config.get(CONF_MEMBERS)
+    _LOGGER.debug('members = {}'.format(members))
+    if members:
+        _members = []
+        for member in members:
+            try:
+                f,l = member.split(',')
+            except (ValueError, AttributeError):
+                _LOGGER.error('Invalid member name: {}'.format(member))
+                return False
+            _members.append((f.strip(), l.strip()))
+        members = _members
+    _LOGGER.debug('processed members = {}'.format(members))
     Life360Scanner(hass, see, interval, show_as_state, max_update_wait, prefix,
-                   api)
+                   members, api)
     return True
 
 class Life360Scanner(object):
     def __init__(self, hass, see, interval, show_as_state, max_update_wait,
-                 prefix, api):
+                 prefix, members, api):
         self._hass = hass
         self._see = see
         self._show_as_state = show_as_state
         self._max_update_wait = max_update_wait
         self._prefix = '' if not prefix else prefix + '_'
+        self._members = members
         self._api = api
         self._dev_data = {}
         self._started = util.dt.utcnow()
         track_time_interval(self._hass, self._update_life360, interval)
 
     def _update_member(self, m):
-        dev_id = util.slugify(self._prefix +
-                              '_'.join([m['firstName'], m['lastName']])
-                                 .replace('-', '_'))
+        f = m['firstName']
+        l = m['lastName']
+        if self._members and (f, l) not in self._members:
+            return
+        _LOGGER.debug('Checking "{}, {}".'.format(f, l))
+
+        dev_id = util.slugify(self._prefix+'_'.join([f, l]).replace('-', '_'))
         prev_update, reported = self._dev_data.get(dev_id, (None, False))
 
         loc = m.get('location')
