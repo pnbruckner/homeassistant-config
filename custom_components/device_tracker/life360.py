@@ -102,24 +102,26 @@ def setup_scanner(hass, config, see, discovery_info=None):
     if not ok:
         _LOGGER.error('Life360 communication failed!')
         return False
-
     _LOGGER.debug('Life360 communication successful!')
+
     show_as_state = config[CONF_SHOW_AS_STATE]
     max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
     prefix = config.get(CONF_PREFIX)
     members = config.get(CONF_MEMBERS)
     _LOGGER.debug('members = {}'.format(members))
+
     if members:
         _members = []
         for member in members:
             try:
-                f,l = member.split(',')
+                f,l = member.lower().split(',')
             except (ValueError, AttributeError):
                 _LOGGER.error('Invalid member name: {}'.format(member))
                 return False
             _members.append((f.strip(), l.strip()))
         members = _members
-    _LOGGER.debug('processed members = {}'.format(members))
+        _LOGGER.debug('processed members = {}'.format(members))
+
     Life360Scanner(hass, see, interval, show_as_state, max_update_wait, prefix,
                    members, api)
     return True
@@ -141,11 +143,10 @@ class Life360Scanner(object):
     def _update_member(self, m):
         f = m['firstName']
         l = m['lastName']
-        if self._members and (f, l) not in self._members:
-            return
-        _LOGGER.debug('Checking "{}, {}".'.format(f, l))
+        #_LOGGER.debug('Checking "{}, {}"'.format(f, l))
 
-        dev_id = util.slugify(self._prefix+'_'.join([f, l]).replace('-', '_'))
+        dev_id = util.slugify(self._prefix +
+                              '_'.join([f, l]).replace('-', '_'))
         prev_update, reported = self._dev_data.get(dev_id, (None, False))
 
         loc = m.get('location')
@@ -161,7 +162,8 @@ class Life360Scanner(object):
             elif not overdue and reported:
                 self._hass.bus.fire('device_tracker.life360_update_restored',
                                     {'entity_id': ENTITY_ID_FORMAT.format(dev_id),
-                                     'wait': str(last_update - (prev_update or self._started))
+                                     'wait': str(last_update -
+                                                 (prev_update or self._started))
                                              .split('.')[0]})
                 reported = False
 
@@ -175,9 +177,9 @@ class Life360Scanner(object):
             _LOGGER.error('{}: {}'.format(dev_id, err_msg))
 
         elif prev_update is None or last_update > prev_update:
-            msg = 'Updating {}.'.format(dev_id)
+            msg = 'Updating {}'.format(dev_id)
             if prev_update is not None:
-                msg += ' Time since last update: {}.'.format(
+                msg += '; Time since last update: {}'.format(
                     last_update - prev_update)
             _LOGGER.debug(msg)
 
@@ -220,7 +222,8 @@ class Life360Scanner(object):
     def _update_life360(self, now=None):
         excs = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
 
-        _LOGGER.debug('Checking members.')
+        checked_ids = []
+        #_LOGGER.debug('Checking members')
         try:
             circles = self._api.get_circles()
         except excs as exc:
@@ -234,6 +237,13 @@ class Life360Scanner(object):
                 continue
             for m in members:
                 try:
-                    self._update_member(m)
+                    full_name = (m['firstName'].lower(), m['lastName'].lower())
+                    m_id = m['id']
+                    if ((not self._members or full_name in self._members) and
+                            m_id not in checked_ids):
+                        checked_ids.append(m_id)
+                        self._update_member(m)
                 except Exception as exc:
-                    exc_msg(exc, extra='m = {}'.format(m))
+                    #exc_msg(exc, extra='m = {}'.format(m))
+                    _LOGGER.debug('m = {}'.format(m))
+                    raise
