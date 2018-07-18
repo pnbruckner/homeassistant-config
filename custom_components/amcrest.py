@@ -100,16 +100,16 @@ def setup(hass, config):
     amcrest_cams = config[DOMAIN]
 
     for device in amcrest_cams:
-        camera = AmcrestCamera(device.get(CONF_HOST),
-                               device.get(CONF_PORT),
-                               device.get(CONF_USERNAME),
-                               device.get(CONF_PASSWORD),
-                               retries_connection=1,
-                               timeout_protocol=5).camera
         try:
+            camera = AmcrestCamera(device.get(CONF_HOST),
+                                   device.get(CONF_PORT),
+                                   device.get(CONF_USERNAME),
+                                   device.get(CONF_PASSWORD),
+                                   retries_connection=1,
+                                   timeout_protocol=5).camera
             camera.current_time
 
-        except (RequestException, ValueError) as ex:
+        except Exception as ex:
             _LOGGER.error("Unable to connect to Amcrest camera: %s", str(ex))
             hass.components.persistent_notification.create(
                 'Error: {}<br />'
