@@ -4,8 +4,6 @@ This component provides basic support for Amcrest IP cameras.
 For more details about this platform, please refer to the documentation at
 https://home-assistant.io/components/camera.amcrest/
 """
-#import sys
-#sys.path.insert(0, '../..')
 import asyncio
 import logging
 from requests import RequestException
@@ -41,6 +39,7 @@ _BOOL_TO_STATE = {True: STATE_ON, False: STATE_OFF}
 
 SERVICE_SET_OPERATION_MODE = 'amcrest_set_operation_mode'
 SERVICE_GOTO_PRESET        = 'amcrest_goto_preset'
+SERVICE_SET_COLOR_BW       = 'amcrest_set_color_bw'
 SERVICE_AUDIO_ON           = 'amcrest_audio_on'
 SERVICE_AUDIO_OFF          = 'amcrest_audio_off'
 SERVICE_MASK_ON            = 'amcrest_mask_on'
@@ -49,7 +48,13 @@ SERVICE_TOUR_ON            = 'amcrest_tour_on'
 SERVICE_TOUR_OFF           = 'amcrest_tour_off'
 
 ATTR_OPERATION_MODE = 'operation_mode'
-ATTR_PRESET = 'preset'
+ATTR_PRESET         = 'preset'
+ATTR_COLOR_BW       = 'color_bw'
+
+CBW_COLOR = 'color'
+CBW_AUTO  = 'auto'
+CBW_BW    = 'bw'
+CBW = [CBW_COLOR, CBW_AUTO, CBW_BW]
 
 SERVICE_SET_OPERATION_MODE_SCHEMA = CAMERA_SERVICE_SCHEMA.extend({
     vol.Required(ATTR_OPERATION_MODE):
@@ -57,6 +62,9 @@ SERVICE_SET_OPERATION_MODE_SCHEMA = CAMERA_SERVICE_SCHEMA.extend({
 })
 SERVICE_GOTO_PRESET_SCHEMA = CAMERA_SERVICE_SCHEMA.extend({
     vol.Required(ATTR_PRESET): vol.All(vol.Coerce(int), vol.Range(min=1)),
+})
+SERVICE_SET_COLOR_BW_SCHEMA = CAMERA_SERVICE_SCHEMA.extend({
+    vol.Required(ATTR_COLOR_BW): vol.In(CBW),
 })
 SERVICE_AUDIO_SCHEMA = CAMERA_SERVICE_SCHEMA
 SERVICE_MASK_SCHEMA  = CAMERA_SERVICE_SCHEMA
@@ -78,6 +86,28 @@ def set_operation_mode(hass, operation_mode, entity_id=None):
 
     hass.async_add_job(hass.services.async_call(
         DOMAIN, SERVICE_SET_OPERATION_MODE, data))
+
+@bind_hass
+def goto_preset(hass, preset, entity_id=None):
+    """Goto preset position."""
+    data = {ATTR_PRESET: preset}
+
+    if entity_id is not None:
+        data[ATTR_ENTITY_ID] = entity_id
+
+    hass.async_add_job(hass.services.async_call(
+        DOMAIN, SERVICE_GOTO_PRESET, data))
+
+@bind_hass
+def set_color_bw(hass, cbw, entity_id=None):
+    """Set DayNight color mode."""
+    data = {ATTR_COLOR_BW: cbw}
+
+    if entity_id is not None:
+        data[ATTR_ENTITY_ID] = entity_id
+
+    hass.async_add_job(hass.services.async_call(
+        DOMAIN, SERVICE_SET_COLOR_BW, data))
 
 
 @asyncio.coroutine
@@ -102,7 +132,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
                     yield camera
 
     @asyncio.coroutine
-    def async_operation_set_service(service):
+    def async_set_operation_mode(service):
         operation_mode = service.data.get(ATTR_OPERATION_MODE)
 
         update_tasks = []
@@ -121,6 +151,19 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
         update_tasks = []
         for camera in target_cameras(service):
             yield from camera.async_goto_preset(preset)
+            if not camera.should_poll:
+                continue
+            update_tasks.append(camera.async_update_ha_state(True))
+        if update_tasks:
+            yield from asyncio.wait(update_tasks, loop=hass.loop)
+
+    @asyncio.coroutine
+    def async_set_color_bw(service):
+        cbw = service.data.get(ATTR_COLOR_BW)
+
+        update_tasks = []
+        for camera in target_cameras(service):
+            yield from camera.async_set_color_bw(cbw)
             if not camera.should_poll:
                 continue
             update_tasks.append(camera.async_update_ha_state(True))
@@ -167,15 +210,16 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
             yield from asyncio.wait(update_tasks, loop=hass.loop)
 
     services = (
-        (SERVICE_SET_OPERATION_MODE, async_operation_set_service,
+        (SERVICE_SET_OPERATION_MODE, async_set_operation_mode,
             SERVICE_SET_OPERATION_MODE_SCHEMA),
-        (SERVICE_GOTO_PRESET, async_goto_preset, SERVICE_GOTO_PRESET_SCHEMA),
-        (SERVICE_AUDIO_OFF,   async_set_audio,   SERVICE_AUDIO_SCHEMA),
-        (SERVICE_AUDIO_ON,    async_set_audio,   SERVICE_AUDIO_SCHEMA),
-        (SERVICE_MASK_OFF,    async_set_mask,    SERVICE_MASK_SCHEMA),
-        (SERVICE_MASK_ON,     async_set_mask,    SERVICE_MASK_SCHEMA),
-        (SERVICE_TOUR_OFF,    async_tour,        SERVICE_TOUR_SCHEMA),
-        (SERVICE_TOUR_ON,     async_tour,        SERVICE_TOUR_SCHEMA))
+        (SERVICE_GOTO_PRESET,  async_goto_preset,  SERVICE_GOTO_PRESET_SCHEMA),
+        (SERVICE_SET_COLOR_BW, async_set_color_bw, SERVICE_SET_COLOR_BW_SCHEMA),
+        (SERVICE_AUDIO_OFF,    async_set_audio,    SERVICE_AUDIO_SCHEMA),
+        (SERVICE_AUDIO_ON,     async_set_audio,    SERVICE_AUDIO_SCHEMA),
+        (SERVICE_MASK_OFF,     async_set_mask,     SERVICE_MASK_SCHEMA),
+        (SERVICE_MASK_ON,      async_set_mask,     SERVICE_MASK_SCHEMA),
+        (SERVICE_TOUR_OFF,     async_tour,         SERVICE_TOUR_SCHEMA),
+        (SERVICE_TOUR_ON,      async_tour,         SERVICE_TOUR_SCHEMA))
     if not hass.services.has_service(DOMAIN, services[0][0]):
         for service in services:
             hass.services.async_register(DOMAIN, *service)
@@ -201,6 +245,7 @@ class AmcrestCam(Camera):
         self._is_motion_detection_on = None
         self._model = None
         # Amcrest Camera unique state attributes
+        self._color_bw = None
         self._is_audio_on = None
         self._is_mask_on = None
 
@@ -216,7 +261,8 @@ class AmcrestCam(Camera):
         try:
             response = self._camera.snapshot(channel=self._resolution)
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in camera_image: {}: {}'.format(exc.__class__.__name__, str(exc)))
+            _LOGGER.error('in camera_image: {}: {}'.format(
+                exc.__class__.__name__, str(exc)))
             return None
         else:
             return response.data
@@ -256,7 +302,7 @@ class AmcrestCam(Camera):
 
     @property
     def should_poll(self):
-        """Amcrest camera needs to be polled."""
+        """Amcrest camera will be polled only if OPTIMISTIC is False."""
         return not OPTIMISTIC
 
     @property
@@ -271,6 +317,8 @@ class AmcrestCam(Camera):
         if self.is_motion_detection_on is not None:
             attr['motion_detection'] = _BOOL_TO_STATE.get(
                 self.is_motion_detection_on)
+        if self.color_bw is not None:
+            attr[ATTR_COLOR_BW] = self.color_bw
         if self.is_audio_on is not None:
             attr['audio'] = _BOOL_TO_STATE.get(self.is_audio_on)
         if self.is_mask_on is not None:
@@ -322,10 +370,27 @@ class AmcrestCam(Camera):
         try:
             self._camera.motion_detection = str(enable).lower()
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in is_motion_detection_on setter: {}: {}'.format(exc.__class__.__name__, str(exc)))
+            _LOGGER.error('in is_motion_detection_on setter: {}: {}'.format(
+                exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
                 self._is_motion_detection_on = enable
+                self.schedule_update_ha_state()
+
+    @property
+    def color_bw(self):
+        return self._color_bw
+
+    @color_bw.setter
+    def color_bw(self, cbw):
+        try:
+            self._set_color_bw(cbw)
+        except (RequestException, ValueError, IndexError) as exc:
+            _LOGGER.error('in color_bw setter, cbw={}: {}: {}'.format(
+                cbw, exc.__class__.__name__, str(exc)))
+        else:
+            if OPTIMISTIC:
+                self._color_bw = cbw
                 self.schedule_update_ha_state()
 
     @property
@@ -337,7 +402,8 @@ class AmcrestCam(Camera):
         try:
             self._set_audio(enable)
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in is_audio_on setter: {}: {}'.format(exc.__class__.__name__, str(exc)))
+            _LOGGER.error('in is_audio_on setter: {}: {}'.format(
+                exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
                 self._is_audio_on = enable
@@ -352,7 +418,8 @@ class AmcrestCam(Camera):
         try:
             self._set_mask(enable)
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in is_mask_on setter: {}: {}'.format(exc.__class__.__name__, str(exc)))
+            _LOGGER.error('in is_mask_on setter: {}: {}'.format(
+                exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
                 self._is_mask_on = enable
@@ -369,12 +436,15 @@ class AmcrestCam(Camera):
             # Model should not be changing dynamically so only need to grab once.
             if self._model is None:
                 self._model = self._camera.device_type.split('=')[1].strip()
+            video_in_options = self._camera.video_in_options.split()
             video_widget_config = self._camera.video_widget_config.split()
         except (RequestException, ValueError) as exc:
             _LOGGER.error('in update: {}: {}'.format(exc.__class__.__name__, str(exc)))
         else:
             self.is_streaming = 'true' in [s.split('=')[-1]
                 for s in encode_media if '.VideoEnable=' in s]
+            self._color_bw = CBW[int([s.split('=')[-1]
+                for s in video_in_options if '].DayNightColor=' in s][0])]
             self._is_audio_on = 'true' in [s.split('=')[-1]
                 for s in encode_media if '.AudioEnable=' in s]
             self._is_mask_on = 'true' in [s.split('=')[-1]
@@ -398,7 +468,8 @@ class AmcrestCam(Camera):
             try:
                 self.is_recording = False
             except (RequestException, ValueError) as exc:
-                _LOGGER.error('while changing recording: {}: {}'.format(exc.__class__.__name__, str(exc)))
+                _LOGGER.error('while changing recording: {}: {}'.format(
+                    exc.__class__.__name__, str(exc)))
             else:
                 is_recording_changed = True
         new_video = None
@@ -410,14 +481,16 @@ class AmcrestCam(Camera):
             try:
                 self._set_video(new_video)
             except (RequestException, ValueError) as exc:
-                _LOGGER.error('while changing streaming: {}: {}'.format(exc.__class__.__name__, str(exc)))
+                _LOGGER.error('while changing streaming: {}: {}'.format(
+                    exc.__class__.__name__, str(exc)))
             else:
                 is_streaming_changed = True
         if not self.is_recording and operation_mode == STATE_RECORDING:
             try:
                 self.is_recording = True
             except (RequestException, ValueError) as exc:
-                _LOGGER.error('while changing recording: {}: {}'.format(exc.__class__.__name__, str(exc)))
+                _LOGGER.error('while changing recording: {}: {}'.format(
+                    exc.__class__.__name__, str(exc)))
             else:
                 is_recording_changed = True
         if OPTIMISTIC and (is_recording_changed or is_streaming_changed):
@@ -430,16 +503,25 @@ class AmcrestCam(Camera):
 
     def goto_preset(self, preset):
         """Move camera position and zoom to preset."""
+        #self.preset = preset
         try:
             self._check_result(
                 self._camera.go_to_preset(action='start', preset_point_number=preset),
                 'preset={}'.format(preset))
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in goto_preset: {}: {}'.format(exc.__class__.__name__, str(exc)))
+            _LOGGER.error('in goto_preset: {}: {}'.format(
+                exc.__class__.__name__, str(exc)))
 
     @asyncio.coroutine
     def async_goto_preset(self, preset):
         return self.hass.async_add_job(self.goto_preset, preset)
+
+    def set_color_bw(self, cbw):
+        self.color_bw = cbw
+
+    @asyncio.coroutine
+    def async_set_color_bw(self, cbw):
+        return self.hass.async_add_job(self.set_color_bw, cbw)
 
     def set_audio(self, enable):
         self.is_audio_on = enable
@@ -473,8 +555,15 @@ class AmcrestCam(Camera):
             msg = 'Camera operation failed'
             if data:
                 msg += ': ' + data
-            msg += '.'
             raise ValueError(msg)
+
+    def _set_color_bw(self, cbw):
+        self._check_result(
+            self._camera.command(
+                    'configManager.cgi?action=setConfig'
+                    '&VideoInOptions[0].DayNightColor={}'.format(CBW.index(cbw))
+                ).content.decode(),
+            'cbw = {}'.format(cbw))
 
     def _set_audio(self, enable):
         self._set_audio_video('Audio', enable)
