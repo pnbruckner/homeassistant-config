@@ -432,7 +432,7 @@ class AmcrestCam(Camera):
         try:
             encode_media = self._camera.encode_media.split()
             self._is_recording = self._camera.record_mode == 'Manual'
-            self._motion_detection_enabled = self._camera.is_motion_detector_on()
+            self._is_motion_detection_on = self._camera.is_motion_detector_on()
             # Model should not be changing dynamically so only need to grab once.
             if self._model is None:
                 self._model = self._camera.device_type.split('=')[1].strip()
