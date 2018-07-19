@@ -76,7 +76,7 @@ def setup(hass, config):
         # Override to change _cache from (value, last_update) to
         # (value, expiration). Also add delay parameter and default
         # to enough delay to allow next get to see recently updated values.
-        def _bust_cache(self, delay=5):
+        def _bust_cache(self, delay=7):
             if delay is None:
                 self._cache = (None, 0)
             elif self._cache[0]:
