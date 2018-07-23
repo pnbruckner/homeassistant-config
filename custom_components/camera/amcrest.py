@@ -7,16 +7,17 @@ https://home-assistant.io/components/camera.amcrest/
 import asyncio
 import logging
 from requests import RequestException
+from urllib3.exceptions import ReadTimeoutError
 
 import voluptuous as vol
 
 #from homeassistant.components.amcrest import (
 #    DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT)
 from custom_components.amcrest import (
-    DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT)
+    DATA_AMCREST, DATA_AMCREST_LOCK, STREAM_SOURCE_LIST, TIMEOUT)
 from homeassistant.components.camera import (
     Camera, DOMAIN, STATE_RECORDING, STATE_STREAMING, STATE_IDLE,
-    CAMERA_SERVICE_SCHEMA)
+    CAMERA_SERVICE_SCHEMA, MIN_STREAM_INTERVAL)
 from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.const import (
     ATTR_ENTITY_ID, CONF_NAME, STATE_ON, STATE_OFF)
@@ -118,8 +119,9 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
 
     device_name = discovery_info[CONF_NAME]
     amcrest = hass.data[DATA_AMCREST][device_name]
+    lock = hass.data[DATA_AMCREST_LOCK][device_name]
 
-    async_add_devices([AmcrestCam(hass, amcrest)], True)
+    async_add_devices([AmcrestCam(hass, amcrest, lock)], True)
 
     def target_cameras(service):
         if DATA_AMCREST_CAMS in hass.data:
@@ -230,7 +232,7 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
 class AmcrestCam(Camera):
     """An implementation of an Amcrest IP camera."""
 
-    def __init__(self, hass, amcrest):
+    def __init__(self, hass, amcrest, lock):
         """Initialize an Amcrest camera."""
         super(AmcrestCam, self).__init__()
         self._name = amcrest.name
@@ -240,6 +242,7 @@ class AmcrestCam(Camera):
         self._stream_source = amcrest.stream_source
         self._resolution = amcrest.resolution
         self._token = self._auth = amcrest.authentication
+        self._lock = lock
         self.is_streaming = None
         self._is_recording = None
         self._is_motion_detection_on = None
@@ -258,21 +261,25 @@ class AmcrestCam(Camera):
     def camera_image(self):
         """Return a still image response from the camera."""
         # Send the request to snap a picture and return raw jpg data
-        try:
-            response = self._camera.snapshot(channel=self._resolution)
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('in camera_image: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
-            return None
-        else:
-            return response.data
+        if self._lock.acquire(timeout=9):
+            try:
+                response = self._camera.snapshot(channel=self._resolution)
+            except (RequestException, ReadTimeoutError, ValueError) as exc:
+                _LOGGER.error('in camera_image: {}: {}'.format(
+                    exc.__class__.__name__, str(exc)))
+                return None
+            else:
+                return response.data
+            finally:
+                self._lock.release()
 
     @asyncio.coroutine
     def handle_async_mjpeg_stream(self, request):
         """Return an MJPEG stream."""
         # The snapshot implementation is handled by the parent class
         if self._stream_source == STREAM_SOURCE_LIST['snapshot']:
-            yield from super().handle_async_mjpeg_stream(request)
+            yield from super().handle_async_still_stream(request,
+                MIN_STREAM_INTERVAL)
             return
 
         elif self._stream_source == STREAM_SOURCE_LIST['mjpeg']:
@@ -289,14 +296,18 @@ class AmcrestCam(Camera):
             from haffmpeg import CameraMjpeg
 
             streaming_url = self._camera.rtsp_url(typeno=self._resolution)
-            stream = CameraMjpeg(self._ffmpeg.binary, loop=self.hass.loop)
-            yield from stream.open_camera(
-                streaming_url, extra_cmd=self._ffmpeg_arguments)
+            self._lock.acquire()
+            try:
+                stream = CameraMjpeg(self._ffmpeg.binary, loop=self.hass.loop)
+                yield from stream.open_camera(
+                    streaming_url, extra_cmd=self._ffmpeg_arguments)
 
-            yield from async_aiohttp_proxy_stream(
-                self.hass, request, stream,
-                'multipart/x-mixed-replace;boundary=ffserver')
-            yield from stream.close()
+                yield from async_aiohttp_proxy_stream(
+                    self.hass, request, stream,
+                    'multipart/x-mixed-replace;boundary=ffserver')
+                yield from stream.close()
+            finally:
+                self._lock.release()
 
     # Entity property overrides
 
