@@ -6,6 +6,7 @@ https://home-assistant.io/components/amcrest/
 """
 import logging
 from datetime import timedelta
+import threading
 
 import aiohttp
 import voluptuous as vol
@@ -35,6 +36,7 @@ DEFAULT_STREAM_SOURCE = 'snapshot'
 TIMEOUT = 10
 
 DATA_AMCREST = 'amcrest'
+DATA_AMCREST_LOCK = 'amcrest_lock'
 DOMAIN = 'amcrest'
 
 NOTIFICATION_ID = 'amcrest_notification'
@@ -96,7 +98,10 @@ def setup(hass, config):
     """Set up the Amcrest IP Camera component."""
     from amcrest import AmcrestCamera
 
-    hass.data[DATA_AMCREST] = {}
+    if DATA_AMCREST not in hass.data:
+        hass.data[DATA_AMCREST] = {}
+    if DATA_AMCREST_LOCK not in hass.data:
+        hass.data[DATA_AMCREST_LOCK] = {}
     amcrest_cams = config[DOMAIN]
 
     for device in amcrest_cams:
@@ -140,6 +145,7 @@ def setup(hass, config):
         hass.data[DATA_AMCREST][name] = AmcrestDevice(
             camera, name, authentication, ffmpeg_arguments, stream_source,
             resolution)
+        hass.data[DATA_AMCREST_LOCK][name] = threading.Lock()
 
         discovery.load_platform(
             hass, 'camera', DOMAIN, {
