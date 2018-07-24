@@ -261,6 +261,8 @@ class AmcrestCam(Camera):
     def camera_image(self):
         """Return a still image response from the camera."""
         # Send the request to snap a picture and return raw jpg data
+        if not self.is_streaming:
+            return None
         if self._lock.acquire(timeout=9):
             try:
                 response = self._camera.snapshot(channel=self._resolution)
