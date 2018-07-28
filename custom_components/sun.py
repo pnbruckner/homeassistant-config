@@ -14,7 +14,7 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import (
     async_track_point_in_utc_time, async_track_utc_time_change)
 from homeassistant.helpers.sun import (
-    get_astral_location, get_astral_event_next)
+    get_astral_location, get_astral_event_next, get_astral_event_date)
 from homeassistant.util import dt as dt_util
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,6 +34,8 @@ STATE_ATTR_NEXT_MIDNIGHT = 'next_midnight'
 STATE_ATTR_NEXT_NOON = 'next_noon'
 STATE_ATTR_NEXT_RISING = 'next_rising'
 STATE_ATTR_NEXT_SETTING = 'next_setting'
+STATE_ATTR_SUNRISE = 'sunrise'
+STATE_ATTR_SUNSET = 'sunset'
 
 
 @asyncio.coroutine
@@ -60,6 +62,7 @@ class Sun(Entity):
         self.hass = hass
         self.location = location
         self._state = self.next_rising = self.next_setting = None
+        self.sunrise = self.sunset = None
         self.next_dawn = self.next_dusk = None
         self.next_midnight = self.next_noon = None
         self.solar_elevation = self.solar_azimuth = None
@@ -89,6 +92,8 @@ class Sun(Entity):
             STATE_ATTR_NEXT_NOON: self.next_noon.isoformat(),
             STATE_ATTR_NEXT_RISING: self.next_rising.isoformat(),
             STATE_ATTR_NEXT_SETTING: self.next_setting.isoformat(),
+            STATE_ATTR_SUNRISE: self.sunrise.isoformat(),
+            STATE_ATTR_SUNSET: self.sunset.isoformat(),
             STATE_ATTR_ELEVATION: round(self.solar_elevation, 2),
             STATE_ATTR_AZIMUTH: round(self.solar_azimuth, 2)
         }
@@ -113,6 +118,10 @@ class Sun(Entity):
         self.next_rising = get_astral_event_next(
             self.hass, 'sunrise', utc_point_in_time)
         self.next_setting = get_astral_event_next(
+            self.hass, 'sunset', utc_point_in_time)
+        self.sunrise = get_astral_event_date(
+            self.hass, 'sunrise', utc_point_in_time)
+        self.sunset = get_astral_event_date(
             self.hass, 'sunset', utc_point_in_time)
 
     @callback
