@@ -101,8 +101,12 @@ class Sun(Entity):
     @property
     def next_change(self):
         """Datetime when the next change to the state is."""
+        # next_midnight is next solar midnight. So get actual midnight,
+        # but subtract a second because point_in_time_listener() will add one.
+        midnight = dt_util.as_utc(dt_util.start_of_local_day(
+            dt_util.now()+timedelta(1))-timedelta(seconds=1))
         return min(self.next_dawn, self.next_dusk, self.next_midnight,
-                   self.next_noon, self.next_rising, self.next_setting)
+                   self.next_noon, self.next_rising, self.next_setting, midnight)
 
     @callback
     def update_as_of(self, utc_point_in_time):
