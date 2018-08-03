@@ -207,10 +207,10 @@ class Life360Scanner(object):
             # to be shown as state, and current location is not in a HA zone,
             # then update location name accordingly.
             if not loc_name and not active_zone(self._hass, lat, lon, gps_accuracy):
-                if ATTR_DRIVING in self._show_as_state and attrs[ATTR_DRIVING]:
-                    loc_name = ATTR_DRIVING
-                elif ATTR_MOVING in self._show_as_state and attrs[ATTR_MOVING]:
-                    loc_name = ATTR_MOVING
+                if ATTR_DRIVING in self._show_as_state and attrs[ATTR_DRIVING] is True:
+                    loc_name = ATTR_DRIVING.capitalize()
+                elif ATTR_MOVING in self._show_as_state and attrs[ATTR_MOVING] is True:
+                    loc_name = ATTR_MOVING.capitalize()
 
             self._see(dev_id=dev_id, location_name=loc_name, gps=(lat, lon),
                       gps_accuracy=gps_accuracy,
