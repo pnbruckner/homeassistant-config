@@ -42,10 +42,14 @@ STATE_ATTR_NEXT_RISING = 'next_rising'
 STATE_ATTR_NEXT_SETTING = 'next_setting'
 STATE_ATTR_SUNRISE = 'sunrise'
 STATE_ATTR_SUNSET = 'sunset'
+STATE_ATTR_DAYLIGHT = 'daylight'
+STATE_ATTR_PREV_DAYLIGHT = 'prev_daylight'
+STATE_ATTR_NEXT_DAYLIGHT = 'next_daylight'
 DEFAULT_STATE_ATTRS = [STATE_ATTR_AZIMUTH, STATE_ATTR_ELEVATION,
     STATE_ATTR_NEXT_DAWN, STATE_ATTR_NEXT_DUSK, STATE_ATTR_NEXT_MIDNIGHT,
     STATE_ATTR_NEXT_NOON, STATE_ATTR_NEXT_RISING, STATE_ATTR_NEXT_SETTING]
-OPTIONAL_STATE_ATTRS = [STATE_ATTR_SUNRISE, STATE_ATTR_SUNSET]
+OPTIONAL_STATE_ATTRS = [STATE_ATTR_SUNRISE, STATE_ATTR_SUNSET,
+    STATE_ATTR_DAYLIGHT, STATE_ATTR_PREV_DAYLIGHT, STATE_ATTR_NEXT_DAYLIGHT]
 STATE_ATTRS = DEFAULT_STATE_ATTRS + OPTIONAL_STATE_ATTRS
 
 CONFIG_SCHEMA = vol.Schema({
@@ -136,6 +140,11 @@ class Sun(Entity):
                   STATE_ATTR_AZIMUTH]:
             if a in self._monitored_condtions:
                 attrs[a] = round(getattr(self, a), 2)
+        for a in [STATE_ATTR_DAYLIGHT,
+                  STATE_ATTR_PREV_DAYLIGHT,
+                  STATE_ATTR_NEXT_DAYLIGHT]:
+            if a in self._monitored_condtions:
+                attrs[a] = getattr(self, a)
         return attrs
 
     @property
@@ -153,11 +162,13 @@ class Sun(Entity):
                   STATE_ATTR_NEXT_NOON]:
             if a in self._monitored_condtions:
                 next_events.append(getattr(self, a))
-        # For sunrise and sunset, update at next "real" midnight (as opposed
-        # to next_midnight, which is solar midnight.) But subtract one
-        # second because point_in_time_listener() will add one.
-        if (STATE_ATTR_SUNRISE in self._monitored_condtions or
-                STATE_ATTR_SUNSET in self._monitored_condtions):
+        # For sunrise, sunset and daylights, update at next "real" midnight
+        # (as opposed to next_midnight, which is solar midnight.) But subtract
+        # one second because point_in_time_listener() will add one.
+        if any(a in self._monitored_condtions for a in
+                   (STATE_ATTR_SUNRISE, STATE_ATTR_SUNSET,
+                    STATE_ATTR_DAYLIGHT, STATE_ATTR_PREV_DAYLIGHT,
+                    STATE_ATTR_NEXT_DAYLIGHT)):
             next_events.append(dt_util.as_utc(dt_util.start_of_local_day(
             dt_util.now()+timedelta(days=1))-timedelta(seconds=1)))
         return min(next_events)
@@ -182,6 +193,13 @@ class Sun(Entity):
                      (STATE_ATTR_SUNSET, 'sunset')]:
             if a in self._monitored_condtions:
                 setattr(self, a, get_astral_event_date(self.hass, e, utc_time))
+        for a, d in [(STATE_ATTR_DAYLIGHT, 0),
+                     (STATE_ATTR_PREV_DAYLIGHT, -1),
+                     (STATE_ATTR_NEXT_DAYLIGHT, 1)]:
+            if a in self._monitored_condtions:
+                dl = get_astral_event_date(self.hass, 'daylight',
+                    utc_time+timedelta(days=d))
+                setattr(self, a, (dl[1]-dl[0]).total_seconds())
 
     @callback
     def update_sun_position(self, utc_time):
