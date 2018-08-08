@@ -10,6 +10,8 @@ See: https://community.home-assistant.io/t/life360-device-tracker-platform
 Estimate outdoor illuminance based on time of day and current weather conditions from Weather Underground.
 
 See: https://community.home-assistant.io/t/outdoor-illuminance-estimated-from-weather-conditions-reported-by-weather-underground
+### sun.py
+Add sunrise & sunset attributes updated at midnight.
 ## python_scripts
 ### light_store.py
 Save and restore state of switches and lights (and groups of them.)
