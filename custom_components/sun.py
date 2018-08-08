@@ -15,7 +15,8 @@ from homeassistant.core import callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.event import (
-    async_track_point_in_utc_time, async_track_utc_time_change)
+    async_track_point_in_utc_time, async_track_utc_time_change,
+    async_track_time_interval)
 from homeassistant.helpers.sun import (
     get_astral_location, get_astral_event_next, get_astral_event_date)
 from homeassistant.util import dt as dt_util
