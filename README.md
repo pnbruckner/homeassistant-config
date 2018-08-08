@@ -1,18 +1,11 @@
 # Home Assistant Configuration
 ## custom_components
 ### amcrest.py, binary_sensor/amcrest.py & camera/amcrest.py
-Add several services to Amcrest Camera and create new binary sensor for motion detected.
-
-### nest.py & camera/nest.py  
-Add service to set Nest Cam operation mode.
-
-See: https://community.home-assistant.io/t/enable-disable-nest-camera-recording
-
+Add several services to Amcrest Camera and create new binary sensor for motion detected. Add thread locking to avoid simultaneous camera commands that lead to constant errors.
 ### life360.py & device_tracker/life360.py
 Life360 Device Tracker platform.
 
 See: https://community.home-assistant.io/t/life360-device-tracker-platform
-
 ### sensor/illuminance.py
 Estimate outdoor illuminance based on time of day and current weather conditions from Weather Underground.
 
