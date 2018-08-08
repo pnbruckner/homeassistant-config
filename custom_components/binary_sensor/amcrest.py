@@ -1,9 +1,7 @@
-import sys
-sys.path.insert(0, '../..')
 import asyncio
 from datetime import timedelta
 import logging
-from requests import ConnectionError, Timeout
+from requests.exceptions import RequestException
 
 from homeassistant.components.binary_sensor import BinarySensorDevice
 #from homeassistant.components.amcrest import DATA_AMCREST, BINARY_SENSORS
@@ -63,5 +61,5 @@ class AmcrestBinarySensor(BinarySensorDevice):
         if self._sensor_type == 'motion_detected':
             try:
                 self._state = self._camera.is_motion_detected
-            except (ConnectionError, Timeout, ValueError) as exc:
+            except RequestException as exc:
                 _LOGGER.error('{}: {}'.format(exc.__class__.__name__, str(exc)))
