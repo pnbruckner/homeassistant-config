@@ -5,7 +5,7 @@ Add several services to Amcrest Camera and create new binary sensor for motion d
 ### life360.py & device_tracker/life360.py
 Life360 Device Tracker platform.
 
-See: https://community.home-assistant.io/t/life360-device-tracker-platform
+See: https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md
 ### sensor/illuminance.py
 Estimate outdoor illuminance based on time of day and current weather conditions from Weather Underground.
 
