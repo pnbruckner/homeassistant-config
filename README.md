@@ -9,7 +9,7 @@ Estimate outdoor illuminance based on time of day and current weather conditions
 
 See: https://community.home-assistant.io/t/outdoor-illuminance-estimated-from-weather-conditions-reported-by-weather-underground
 ### sun.py
-Add sunrise, sunset, daylight, prev_daylight & next_daylight attributes, all updated at midnight. Add monitored_conditions config item to specify which attributes to maintain. If not specified then original set will be used. For elevation and azimuth, add scan_interval (minimum of one minute.) If next_rising or next_setting are not specified they will not be added as attributes. However, they will always be maintained anyway so that sun's state can be determined/maintained.
+[Enhanced Sun component](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/sun.md)
 ## python_scripts
 ### light_store.py
 Save and restore state of switches and lights (and groups of them.)
