@@ -63,7 +63,6 @@ CONFIG_SCHEMA = vol.Schema({
 @asyncio.coroutine
 def async_setup(hass, config):
     """Track the state of the sun."""
-    _LOGGER.debug('config: {}'.format(config))
     if config.get(CONF_ELEVATION) is not None:
         _LOGGER.warning(
             "Elevation is now configured in home assistant core. "
