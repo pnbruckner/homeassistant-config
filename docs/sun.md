@@ -53,3 +53,33 @@ sun:
   scan_interval:
     minutes: 1
 ```
+## Example usage
+### Sensors
+```yaml
+sensor:
+  - platform: template
+    sensors:
+      sunrise:
+        friendly_name: Sunrise
+        value_template: "{{ as_timestamp(state_attr('sun.sun', 'sunrise'))|timestamp_local }}"
+      sunset:
+        friendly_name: Sunset
+        value_template: "{{ as_timestamp(state_attr('sun.sun', 'sunset'))|timestamp_local }}"
+      daylight_sec:
+        friendly_name: Daylight Seconds
+        value_template: "{{ state_attr('sun.sun', 'daylight')|int }}"
+        unit_of_measurement: sec
+      daylight_hr:
+        friendly_name: Daylight Hours
+        value_template: "{{ (state_attr('sun.sun', 'daylight')/(60*60))|round(1) }}"
+        unit_of_measurement: hr
+      daylight_hms:
+        friendly_name: "Daylight HH:MM:SS"
+        value_template: >
+          {{ state_attr('sun.sun', 'daylight')|int|timestamp_custom('%H:%M:%S', false) }}
+      daylight_chg:
+        friendly_name: Daylight Change from Yesterday
+        value_template: >
+          {{ (state_attr('sun.sun', 'daylight') - state_attr('sun.sun', 'prev_daylight'))|int }}
+        unit_of_measurement: sec
+```
