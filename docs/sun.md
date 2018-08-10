@@ -71,7 +71,7 @@ sensor:
         unit_of_measurement: sec
       daylight_hr:
         friendly_name: Daylight Hours
-        value_template: "{{ (state_attr('sun.sun', 'daylight')/(60*60))|round(1) }}"
+        value_template: "{{ (state_attr('sun.sun', 'daylight')/(60*60))|round(2) }}"
         unit_of_measurement: hr
       daylight_hms:
         friendly_name: "Daylight HH:MM:SS"
