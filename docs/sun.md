@@ -61,10 +61,10 @@ sensor:
     sensors:
       sunrise:
         friendly_name: Sunrise
-        value_template: "{{ as_timestamp(state_attr('sun.sun', 'sunrise'))|timestamp_local }}"
+        value_template: "{{ as_timestamp(state_attr('sun.sun', 'sunrise'))|timestamp_custom('%X') }}"
       sunset:
         friendly_name: Sunset
-        value_template: "{{ as_timestamp(state_attr('sun.sun', 'sunset'))|timestamp_local }}"
+        value_template: "{{ as_timestamp(state_attr('sun.sun', 'sunset'))|timestamp_custom('%X') }}"
       daylight_sec:
         friendly_name: Daylight Seconds
         value_template: "{{ state_attr('sun.sun', 'daylight')|int }}"
