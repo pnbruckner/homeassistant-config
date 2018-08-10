@@ -56,6 +56,7 @@ sun:
 ## Example usage
 ### Sensors
 ```yaml
+
 sensor:
   - platform: template
     sensors:
@@ -65,6 +66,7 @@ sensor:
       sunset:
         friendly_name: Sunset
         value_template: "{{ as_timestamp(state_attr('sun.sun', 'sunset'))|timestamp_custom('%X') }}"
+
       daylight_sec:
         friendly_name: Daylight Seconds
         value_template: "{{ state_attr('sun.sun', 'daylight')|int }}"
@@ -76,10 +78,25 @@ sensor:
       daylight_hms:
         friendly_name: "Daylight HH:MM:SS"
         value_template: >
-          {{ state_attr('sun.sun', 'daylight')|int|timestamp_custom('%H:%M:%S', false) }}
+          {{ state_attr('sun.sun', 'daylight')|int|timestamp_custom('%X', false) }}
+
       daylight_chg:
         friendly_name: Daylight Change from Yesterday
         value_template: >
           {{ (state_attr('sun.sun', 'daylight') - state_attr('sun.sun', 'prev_daylight'))|int }}
         unit_of_measurement: sec
+
+      daylight_remaing_min:
+        friendly_name: Daylight Remaining Minutes
+        entity_id: sensor.time
+        value_template: >
+          {{ ((as_timestamp(state_attr('sun.sun', 'sunset')) - now().timestamp())/60)|int }}
+        unit_of_measurement: min
+      daylight_remaing_hm:
+        friendly_name: "Daylight Remaining HH:MM"
+        entity_id: sensor.time
+        value_template: >
+          {{ (as_timestamp(state_attr('sun.sun', 'sunset')) - now().timestamp())
+             |timestamp_custom('%H:%M', false) }}
 ```
+Note that the last two examples use `now()` in the template. However, this by itself will not cause the template sensors to update when time changes. So we need some way to get them to update. By configuring sensor.time (see [Time & Date](https://www.home-assistant.io/components/sensor.time_date/)), we can use that via the entity_id parameter to force the template sensors to update once a minute.
