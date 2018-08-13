@@ -32,7 +32,7 @@ Attribute | Description
 `sunrise` | Today's sunrise (in UTC).
 `sunset` | Today's sunset (in UTC).
 ### Caveats
-`elevation`, `next_rising` and `next_setting` are used by the frontend. You can choose to exclude these attributes if you don't care about them, especially if don't display `sun.sun` in the frontend. If you do display it in the frontend and choose to exclude one or more of these, nothing will *break*, but obviously the corresponding data will not be available. Specifically, even if you exclude `next_rising` and/or `next_setting`, `sun.sun`'s state will still be correct. (Note that sun.py uses next_rising and next_setting internally to determine sun.sun's state. If you exclude them, they will still be maintained internally; they just won't be exposed as attributes.)
+`elevation`, `next_rising` and `next_setting` are used by the frontend. You can choose to exclude these attributes if you don't care about them, especially if you don't display `sun.sun` in the frontend. If you do display it in the frontend and choose to exclude one or more of these, nothing will *break*, but obviously the corresponding data will not be available. Specifically, even if you exclude `next_rising` and/or `next_setting`, `sun.sun`'s state will still be correct. (Note that sun.py uses next_rising and next_setting internally to determine sun.sun's state. If you exclude them, they will still be maintained internally; they just won't be exposed as attributes.)
 ## Example full configuration
 ```yaml
 sun:
