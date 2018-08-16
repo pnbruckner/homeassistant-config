@@ -10,6 +10,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.sensor import PLATFORM_SCHEMA, SCAN_INTERVAL
+import homeassistant.util.dt as dt_util
 
 CONF_QUERY = 'query'
 
@@ -18,7 +19,8 @@ MIN_SCAN_INTERVAL = dt.timedelta(minutes=5)
 DEFAULT_SCAN_INTERVAL = dt.timedelta(minutes=5)
 
 ATTR_SUNRISE = 'sunrise'
-ATTR_SUNSET  = 'sunset'
+ATTR_SUNSET = 'sunset'
+ATTR_CONDITIONS = 'conditions'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,6 +71,7 @@ class IlluminanceSensor(Entity):
         self._query = query
         self._state = None
         self._sun_data = None
+        self._conditions = None
 
     @property
     def name(self):
@@ -83,19 +86,20 @@ class IlluminanceSensor(Entity):
         if self._sun_data:
             attrs = {}
             attrs[ATTR_SUNRISE] = str(self._sun_data[1])
-            attrs[ATTR_SUNSET]  = str(self._sun_data[2])
+            attrs[ATTR_SUNSET] = str(self._sun_data[2])
+            attrs[ATTR_CONDITIONS] = self._conditions
             return attrs
         else:
             return None
 
     @property
     def unit_of_measurement(self):
-        return 'lux'
+        return 'lx'
 
     async def async_update(self):
         _LOGGER.debug('Updating {}'.format(self._name))
 
-        now = dt.datetime.now()
+        now = dt_util.now()
 
         features = ['conditions']
         if self._sun_data is None or self._sun_data[0] != now.date():
@@ -112,6 +116,7 @@ class IlluminanceSensor(Entity):
              sunrise_begin, sunrise_end,
              sunset_begin,  sunset_end) = self._sun_data
         else:
+            # Get tz unaware datetimes.
             sunrise = dt.datetime.combine(now.date(),
                 dt.time(int(resp['sun_phase']['sunrise']['hour']),
                         int(resp['sun_phase']['sunrise']['minute']),
@@ -120,6 +125,10 @@ class IlluminanceSensor(Entity):
                 dt.time(int(resp['sun_phase']['sunset'] ['hour']),
                         int(resp['sun_phase']['sunset'] ['minute']),
                         0))
+            # Convert to tz aware datetimes in local timezone.
+            sunrise = dt_util.as_local(dt_util.as_utc(sunrise))
+            sunset = dt_util.as_local(dt_util.as_utc(sunset))
+
             sunrise_begin = sunrise - dt.timedelta(minutes=20)
             sunrise_end   = sunrise + dt.timedelta(minutes=40)
             sunset_begin  = sunset  - dt.timedelta(minutes=40)
@@ -127,6 +136,8 @@ class IlluminanceSensor(Entity):
             self._sun_data = (now.date(), sunrise, sunset,
                               sunrise_begin, sunrise_end,
                               sunset_begin,  sunset_end)
+
+        self._conditions = icon = resp['current_observation']['icon']
 
         if sunrise_begin <= now <= sunset_end:
 
@@ -138,7 +149,6 @@ class IlluminanceSensor(Entity):
                        ( 7500, ('partlysunny', 'partlycloudy', 'mostlysunny', 'hazy')),
                        (10000, ('sunny', 'clear')))
 
-            icon = resp['current_observation']['icon']
             if not icon:
                 _LOGGER.error('No current observation icon')
                 return
