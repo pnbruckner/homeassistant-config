@@ -9,8 +9,11 @@ ATTR_ENTITY_ID  = 'entity_id'
 
 # Select light attributes to save/restore.
 ATTR_BRIGHTNESS = "brightness"
+ATTR_WHITE_VALUE = "white_value"
+ATTR_COLOR_TEMP = "color_temp"
 ATTR_HS_COLOR = "hs_color"
-LIGHT_ATTRS = [ATTR_BRIGHTNESS, ATTR_HS_COLOR]
+# Save only one of these attributes, in order of precedence.
+COLOR_ATTRS = [ATTR_WHITE_VALUE, ATTR_COLOR_TEMP, ATTR_HS_COLOR]
 
 def store_entity_id(store_name, entity_id):
     return '{}.{}'.format(store_name, entity_id.replace('.', '_'))
@@ -73,11 +76,14 @@ else:
                 logger.error('Could not get state of {}.'.format(entity_id))
             else:
                 attributes = {}
-                if entity_id.startswith('light.'):
-                    for attr in LIGHT_ATTRS:
-                        value = cur_state.attributes.get(attr)
-                        if value is not None:
-                            attributes[attr] = value
+                if entity_id.startswith('light.') and cur_state.state == 'on':
+                    if ATTR_BRIGHTNESS in cur_state.attributes:
+                        attributes[ATTR_BRIGHTNESS] = cur_state.attributes[
+                            ATTR_BRIGHTNESS]
+                    for attr in COLOR_ATTRS:
+                        if attr in cur_state.attributes:
+                            attributes[attr] = cur_state.attributes[attr]
+                            break
                 hass.states.set(store_entity_id(store_name, entity_id),
                                 cur_state.state, attributes)
     else:
@@ -90,11 +96,8 @@ else:
                 turn_on = old_state.state == 'on'
                 service_data = {'entity_id': entity_id}
                 component = entity_id.split('.')[0]
-                if component == 'light' and turn_on:
-                    for attr in LIGHT_ATTRS:
-                        value = old_state.attributes.get(attr)
-                        if value is not None:
-                            service_data[attr] = value
+                if component == 'light' and turn_on and old_state.attributes:
+                    service_data.update(old_state.attributes)
                 hass.services.call(component,
                                    'turn_on' if turn_on else 'turn_off',
                                    service_data)
