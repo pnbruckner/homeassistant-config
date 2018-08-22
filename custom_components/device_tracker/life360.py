@@ -144,9 +144,9 @@ class Life360Scanner(object):
         f = m['firstName']
         l = m['lastName']
         #_LOGGER.debug('Checking "{}, {}"'.format(f, l))
+        m_name = ('_'.join([f, l]) if f and l else f or l).replace('-', '_')
 
-        dev_id = util.slugify(self._prefix +
-                              '_'.join([f, l]).replace('-', '_'))
+        dev_id = util.slugify(self._prefix + m_name)
         prev_update, reported = self._dev_data.get(dev_id, (None, False))
 
         loc = m.get('location')
