@@ -194,7 +194,9 @@ class Life360Scanner(object):
 
             lat = float(loc['latitude'])
             lon = float(loc['longitude'])
-            gps_accuracy=round(float(loc['accuracy']))
+            # Life360 reports accuracy in feet, but Device Tracker expects
+            # gps_accuracy in meters.
+            gps_accuracy=round(float(loc['accuracy'])*0.3048)
 
             # Does user want location name to be shown as state?
             loc_name = loc['name'] if ATTR_PLACES in self._show_as_state else None
