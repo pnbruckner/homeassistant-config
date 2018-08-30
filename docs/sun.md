@@ -86,13 +86,13 @@ sensor:
           {{ (state_attr('sun.sun', 'daylight') - state_attr('sun.sun', 'prev_daylight'))|int }}
         unit_of_measurement: sec
 
-      daylight_remaing_min:
+      daylight_remaining_min:
         friendly_name: Daylight Remaining Minutes
         entity_id: sensor.time
         value_template: >
           {{ ((as_timestamp(state_attr('sun.sun', 'sunset')) - now().timestamp())/60)|int }}
         unit_of_measurement: min
-      daylight_remaing_hm:
+      daylight_remaining_hm:
         friendly_name: "Daylight Remaining HH:MM"
         entity_id: sensor.time
         value_template: >
