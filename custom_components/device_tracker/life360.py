@@ -26,7 +26,7 @@ CONF_MEMBERS         = 'members'
 
 DEFAULT_FILENAME = 'life360.conf'
 
-ATTR_LAST_UPDATE  = 'last_update'
+ATTR_LAST_SEEN    = 'last_seen'
 ATTR_AT_LOC_SINCE = 'at_loc_since'
 ATTR_MOVING       = 'moving'
 ATTR_CHARGING     = 'charging'
@@ -65,15 +65,6 @@ def utc_from_ts(val):
         return util.dt.utc_from_timestamp(float(val))
     except ValueError:
         return None
-
-def dt_attr_from_utc(val):
-    try:
-        return str(util.dt.as_local(val))
-    except ValueError:
-        return STATE_UNKNOWN
-
-def dt_attr_from_ts(val):
-    return dt_attr_from_utc(utc_from_ts(val))
 
 def bool_attr_from_int(val):
     try:
@@ -122,8 +113,8 @@ def setup_scanner(hass, config, see, discovery_info=None):
         members = _members
         _LOGGER.debug('processed members = {}'.format(members))
 
-    Life360Scanner(hass, see, interval, show_as_state, max_update_wait, prefix,
-                   members, api)
+    Life360Scanner(hass, see, interval, show_as_state, max_update_wait,
+                   prefix, members, api)
     return True
 
 class Life360Scanner(object):
@@ -147,24 +138,26 @@ class Life360Scanner(object):
         m_name = ('_'.join([f, l]) if f and l else f or l).replace('-', '_')
 
         dev_id = util.slugify(self._prefix + m_name)
-        prev_update, reported = self._dev_data.get(dev_id, (None, False))
+        prev_seen, reported = self._dev_data.get(dev_id, (None, False))
 
         loc = m.get('location')
-        last_update = None if not loc else utc_from_ts(loc['timestamp'])
+        last_seen = None if not loc else utc_from_ts(loc['timestamp'])
 
         if self._max_update_wait:
-            update = last_update or prev_update or self._started
+            update = last_seen or prev_seen or self._started
             overdue = util.dt.utcnow() - update > self._max_update_wait
             if overdue and not reported:
-                self._hass.bus.fire('device_tracker.life360_update_overdue',
-                                    {'entity_id': ENTITY_ID_FORMAT.format(dev_id)})
+                self._hass.bus.fire(
+                    'device_tracker.life360_update_overdue',
+                    {'entity_id': ENTITY_ID_FORMAT.format(dev_id)})
                 reported = True
             elif not overdue and reported:
-                self._hass.bus.fire('device_tracker.life360_update_restored',
-                                    {'entity_id': ENTITY_ID_FORMAT.format(dev_id),
-                                     'wait': str(last_update -
-                                                 (prev_update or self._started))
-                                             .split('.')[0]})
+                self._hass.bus.fire(
+                    'device_tracker.life360_update_restored', {
+                        'entity_id': ENTITY_ID_FORMAT.format(dev_id),
+                        'wait':
+                            str(last_seen - (prev_seen or self._started))
+                            .split('.')[0]})
                 reported = False
 
         if not loc:
@@ -176,16 +169,16 @@ class Life360Scanner(object):
                 err_msg = 'Location information missing'
             _LOGGER.error('{}: {}'.format(dev_id, err_msg))
 
-        elif prev_update is None or last_update > prev_update:
+        elif prev_seen is None or last_seen > prev_seen:
             msg = 'Updating {}'.format(dev_id)
-            if prev_update is not None:
+            if prev_seen is not None:
                 msg += '; Time since last update: {}'.format(
-                    last_update - prev_update)
+                    last_seen - prev_seen)
             _LOGGER.debug(msg)
 
             attrs = {
-                ATTR_LAST_UPDATE:  dt_attr_from_utc(last_update),
-                ATTR_AT_LOC_SINCE: dt_attr_from_ts(loc['since']),
+                ATTR_LAST_SEEN:    last_seen,
+                ATTR_AT_LOC_SINCE: utc_from_ts(loc['since']),
                 ATTR_MOVING:       bool_attr_from_int(loc['inTransit']),
                 ATTR_CHARGING:     bool_attr_from_int(loc['charge']),
                 ATTR_WIFI_ON:      bool_attr_from_int(loc['wifiState']),
@@ -219,7 +212,7 @@ class Life360Scanner(object):
                       battery=round(float(loc['battery'])),
                       attributes=attrs)
 
-        self._dev_data[dev_id] = last_update or prev_update, reported
+        self._dev_data[dev_id] = last_seen or prev_seen, reported
 
     def _update_life360(self, now=None):
         excs = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
