@@ -186,7 +186,7 @@ class Life360Scanner(object):
             }
             try:
                 picture = m['avatar'].strip()
-            except KeyError:
+            except AttributeError:
                 picture = None
             else:
                 picture = picture or None
