@@ -34,6 +34,7 @@ Attribute | Description
 at_loc_since | Date and time when first at current location (in UTC.)
 charging | Phone is charging (True/False.)
 driving | Phone movement indicates driving (True/False.)
+entity_picture | Member's "avatar" if one is provided by Life360.
 last_seen | Date and time when Life360 last updated your location (in UTC.)
 moving | Phone is moving (True/False.)
 wifi_on | Phone WiFi is turned on (True/False.)
