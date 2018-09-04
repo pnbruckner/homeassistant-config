@@ -184,6 +184,12 @@ class Life360Scanner(object):
                 ATTR_WIFI_ON:      bool_attr_from_int(loc['wifiState']),
                 ATTR_DRIVING:      bool_attr_from_int(loc['isDriving'])
             }
+            try:
+                picture = m['avatar'].strip()
+            except KeyError:
+                picture = None
+            else:
+                picture = picture or None
 
             lat = float(loc['latitude'])
             lon = float(loc['longitude'])
@@ -210,7 +216,8 @@ class Life360Scanner(object):
             self._see(dev_id=dev_id, location_name=loc_name, gps=(lat, lon),
                       gps_accuracy=gps_accuracy,
                       battery=round(float(loc['battery'])),
-                      attributes=attrs)
+                      attributes=attrs,
+                      picture=picture)
 
         self._dev_data[dev_id] = last_seen or prev_seen, reported
 
