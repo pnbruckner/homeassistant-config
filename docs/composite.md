@@ -3,7 +3,7 @@ This platform creates a composite device tracker from one or more other device t
 
 To use this custom component, place a copy of:
 
-[composite.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/composite.py) at `<config>/custom_components/device_tracker/composite.py`
+[composite.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/device_tracker/composite.py) at `<config>/custom_components/device_tracker/composite.py`
 
 where `<config>` is your Home Assistant configuration directory. Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
