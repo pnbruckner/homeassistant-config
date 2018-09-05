@@ -2,6 +2,8 @@
 ## custom_components
 ### amcrest.py, binary_sensor/amcrest.py & camera/amcrest.py
 Add several services to Amcrest Camera and create new binary sensor for motion detected. Add thread locking to avoid simultaneous camera commands that lead to constant errors.
+### device_tracker/composite.py
+[Composite Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md)
 ### life360.py & device_tracker/life360.py
 [Life360 Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md)
 ### sensor/illuminance.py
