@@ -63,13 +63,17 @@ def exc_msg(exc, msg=None, extra=None):
 def utc_from_ts(val):
     try:
         return util.dt.utc_from_timestamp(float(val))
-    except ValueError:
+    except (TypeError, ValueError):
         return None
+
+def utc_attr_from_ts(val):
+    res = utc_from_ts(val)
+    return res if res else STATE_UNKNOWN
 
 def bool_attr_from_int(val):
     try:
         return bool(int(val))
-    except ValueError:
+    except (TypeError, ValueError):
         return STATE_UNKNOWN
 
 def setup_scanner(hass, config, see, discovery_info=None):
@@ -117,7 +121,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
                    prefix, members, api)
     return True
 
-class Life360Scanner(object):
+class Life360Scanner:
     def __init__(self, hass, see, interval, show_as_state, max_update_wait,
                  prefix, members, api):
         self._hass = hass
@@ -141,7 +145,10 @@ class Life360Scanner(object):
         prev_seen, reported = self._dev_data.get(dev_id, (None, False))
 
         loc = m.get('location')
-        last_seen = None if not loc else utc_from_ts(loc['timestamp'])
+        try:
+            last_seen = utc_from_ts(loc.get('timestamp'))
+        except AttributeError:
+            last_seen = None
 
         if self._max_update_wait:
             update = last_seen or prev_seen or self._started
@@ -160,6 +167,8 @@ class Life360Scanner(object):
                             .split('.')[0]})
                 reported = False
 
+        self._dev_data[dev_id] = last_seen or prev_seen, reported
+
         if not loc:
             err_msg = m['issues']['title']
             if err_msg:
@@ -169,40 +178,45 @@ class Life360Scanner(object):
                 err_msg = 'Location information missing'
             _LOGGER.error('{}: {}'.format(dev_id, err_msg))
 
-        elif prev_seen is None or last_seen > prev_seen:
+        elif last_seen and (not prev_seen or last_seen > prev_seen):
             msg = 'Updating {}'.format(dev_id)
-            if prev_seen is not None:
+            if prev_seen:
                 msg += '; Time since last update: {}'.format(
                     last_seen - prev_seen)
             _LOGGER.debug(msg)
 
-            attrs = {
-                ATTR_LAST_SEEN:    last_seen,
-                ATTR_AT_LOC_SINCE: utc_from_ts(loc['since']),
-                ATTR_MOVING:       bool_attr_from_int(loc['inTransit']),
-                ATTR_CHARGING:     bool_attr_from_int(loc['charge']),
-                ATTR_WIFI_ON:      bool_attr_from_int(loc['wifiState']),
-                ATTR_DRIVING:      bool_attr_from_int(loc['isDriving'])
-            }
+            lat = loc.get('latitude')
+            lon = loc.get('longitude')
+            gps_accuracy = loc.get('accuracy')
             try:
-                picture = m['avatar'].strip()
-            except (KeyError, AttributeError):
-                picture = None
-            else:
-                picture = picture or None
-
-            lat = float(loc['latitude'])
-            lon = float(loc['longitude'])
-            # Life360 reports accuracy in feet, but Device Tracker expects
-            # gps_accuracy in meters.
-            gps_accuracy=round(float(loc['accuracy'])*0.3048)
+                lat = float(lat)
+                lon = float(lon)
+                # Life360 reports accuracy in feet, but Device Tracker expects
+                # gps_accuracy in meters.
+                gps_accuracy=round(float(gps_accuracy)*0.3048)
+            except (TypeError, ValueError):
+                _LOGGER.error('{}: GPS data invalid: {}, {}, {}'.format(
+                    dev_id, lat, lon, gps_accuracy))
+                return
 
             # Does user want location name to be shown as state?
-            loc_name = loc['name'] if ATTR_PLACES in self._show_as_state else None
-            # Make sure Home is always seen as exactly as home,
-            # which is the special device_tracker state for home.
-            if loc_name is not None and loc_name.lower() == 'home':
-                loc_name = 'home'
+            if ATTR_PLACES in self._show_as_state:
+                loc_name = loc.get('name') or None
+                # Make sure Home is always seen as exactly as home,
+                # which is the special device_tracker state for home.
+                if loc_name and loc_name.lower() == 'home':
+                    loc_name = 'home'
+            else:
+                loc_name = None
+
+            attrs = {
+                ATTR_LAST_SEEN:    last_seen,
+                ATTR_AT_LOC_SINCE: utc_attr_from_ts(loc.get('since')),
+                ATTR_MOVING:       bool_attr_from_int(loc.get('inTransit')),
+                ATTR_CHARGING:     bool_attr_from_int(loc.get('charge')),
+                ATTR_WIFI_ON:      bool_attr_from_int(loc.get('wifiState')),
+                ATTR_DRIVING:      bool_attr_from_int(loc.get('isDriving'))
+            }
 
             # If we don't have a location name yet and user wants driving or moving
             # to be shown as state, and current location is not in a HA zone,
@@ -213,13 +227,14 @@ class Life360Scanner(object):
                 elif ATTR_MOVING in self._show_as_state and attrs[ATTR_MOVING] is True:
                     loc_name = ATTR_MOVING.capitalize()
 
-            self._see(dev_id=dev_id, location_name=loc_name, gps=(lat, lon),
-                      gps_accuracy=gps_accuracy,
-                      battery=round(float(loc['battery'])),
-                      attributes=attrs,
-                      picture=picture)
+            try:
+                battery = float(loc.get('battery'))
+            except (TypeError, ValueError):
+                battery = None
 
-        self._dev_data[dev_id] = last_seen or prev_seen, reported
+            self._see(dev_id=dev_id, location_name=loc_name, gps=(lat, lon),
+                      gps_accuracy=gps_accuracy, battery=battery,
+                      attributes=attrs, picture=m.get('avatar'))
 
     def _update_life360(self, now=None):
         excs = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
