@@ -20,9 +20,10 @@ _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = ['zone']
 
-CONF_SHOW_AS_STATE   = 'show_as_state'
-CONF_MAX_UPDATE_WAIT = 'max_update_wait'
-CONF_MEMBERS         = 'members'
+CONF_SHOW_AS_STATE    = 'show_as_state'
+CONF_MAX_GPS_ACCURACY = 'max_gps_accuracy'
+CONF_MAX_UPDATE_WAIT  = 'max_update_wait'
+CONF_MEMBERS          = 'members'
 
 DEFAULT_FILENAME = 'life360.conf'
 
@@ -45,6 +46,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_FILENAME, default=DEFAULT_FILENAME): cv.string,
     vol.Optional(CONF_SHOW_AS_STATE, default=[]): vol.All(
         cv.ensure_list_csv, [vol.In(SHOW_AS_STATE_OPTS)]),
+    vol.Optional(CONF_MAX_GPS_ACCURACY): vol.Coerce(float),
     vol.Optional(CONF_MAX_UPDATE_WAIT): vol.All(
         cv.time_period, cv.positive_timedelta),
     vol.Optional(CONF_PREFIX): cv.string,
@@ -100,6 +102,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
     _LOGGER.debug('Life360 communication successful!')
 
     show_as_state = config[CONF_SHOW_AS_STATE]
+    max_gps_accuracy = config.get(CONF_MAX_GPS_ACCURACY)
     max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
     prefix = config.get(CONF_PREFIX)
     members = config.get(CONF_MEMBERS)
@@ -117,16 +120,17 @@ def setup_scanner(hass, config, see, discovery_info=None):
         members = _members
         _LOGGER.debug('processed members = {}'.format(members))
 
-    Life360Scanner(hass, see, interval, show_as_state, max_update_wait,
-                   prefix, members, api)
+    Life360Scanner(hass, see, interval, show_as_state, max_gps_accuracy,
+                   max_update_wait, prefix, members, api)
     return True
 
 class Life360Scanner:
-    def __init__(self, hass, see, interval, show_as_state, max_update_wait,
-                 prefix, members, api):
+    def __init__(self, hass, see, interval, show_as_state, max_gps_accuracy,
+                 max_update_wait, prefix, members, api):
         self._hass = hass
         self._see = see
         self._show_as_state = show_as_state
+        self._max_gps_accuracy = max_gps_accuracy
         self._max_update_wait = max_update_wait
         self._prefix = '' if not prefix else prefix + '_'
         self._members = members
@@ -197,6 +201,14 @@ class Life360Scanner:
             except (TypeError, ValueError):
                 _LOGGER.error('{}: GPS data invalid: {}, {}, {}'.format(
                     dev_id, lat, lon, gps_accuracy))
+                return
+
+            if (self._max_gps_accuracy is not None and
+                    gps_accuracy > self._max_gps_accuracy):
+                _LOGGER.info(
+                    "{}: Ignoring update because expected GPS "
+                    "accuracy {} is not met: {}".format(
+                        dev_id, gps_accuracy, self._max_gps_accuracy))
                 return
 
             # Does user want location name to be shown as state?
