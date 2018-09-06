@@ -2,7 +2,7 @@ import logging
 import voluptuous as vol
 
 from homeassistant.components.device_tracker import (
-    ATTR_BATTERY, PLATFORM_SCHEMA, see)
+    ATTR_BATTERY, PLATFORM_SCHEMA)
 from homeassistant.const import (
     ATTR_GPS_ACCURACY, ATTR_LATITUDE, ATTR_LONGITUDE, CONF_ENTITY_ID,
     CONF_NAME, EVENT_HOMEASSISTANT_START)
@@ -82,7 +82,7 @@ class CompositeScanner:
         battery = new_state.attributes.get(ATTR_BATTERY)
 
         attrs = {ATTR_LAST_SEEN: last_seen.replace(microsecond=0)}
-        see(self._hass, dev_id=self._dev_id, gps=gps,
-            gps_accuracy=gps_accuracy, battery=battery, attributes=attrs)
+        self._see(dev_id=self._dev_id, gps=gps, gps_accuracy=gps_accuracy,
+            battery=battery, attributes=attrs)
 
         self._prev_seen = last_seen
