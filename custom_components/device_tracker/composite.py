@@ -1,8 +1,8 @@
 """
 A Device Tracker platform that combines one or more GPS based device trackers.
 
-For more details about this platform, please refer to the documentation at
-https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md
+For more details about this platform, please refer to
+https://github.com/pnbruckner/homeassistant-config#device_trackercompositepy
 """
 
 import logging
