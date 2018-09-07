@@ -7,7 +7,7 @@
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/releases"
   }
-}
+},
 {
   "sensor.illuminance": {
     "updated_at": "2018-09-07",
