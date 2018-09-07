@@ -1,3 +1,10 @@
+"""
+A Device Tracker platform that retrieves location from Life360.
+
+For more details about this platform, please refer to
+https://github.com/pnbruckner/homeassistant-config#life360py--device_trackerlife360py
+"""
+
 import sys
 import datetime as dt
 from requests import HTTPError, ConnectionError, Timeout
@@ -15,6 +22,8 @@ from homeassistant.const import (CONF_USERNAME, CONF_PASSWORD, CONF_FILENAME,
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
+
+__version__ = '1.0.0'
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -1,4 +1,14 @@
 # Home Assistant Configuration
+## custom_components.json
+Lists custom components that can be managed by the Custom Updater. For more information, see:
+
+https://github.com/custom-components/custom_updater
+
+Add the following to your configuration:
+```
+custom_updater:
+  component_urls: https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components.json
+```
 ## custom_components
 ### amcrest.py, binary_sensor/amcrest.py & camera/amcrest.py
 Add several services to Amcrest Camera and create new binary sensor for motion detected. Add thread locking to avoid simultaneous camera commands that lead to constant errors.

@@ -1,7 +1,16 @@
+"""
+Low level python module for accessing Life360 REST API.
+
+For more details about this platform, please refer to
+https://github.com/pnbruckner/homeassistant-config#life360py--device_trackerlife360py
+"""
+
 import requests
 import json
 import os
 import stat
+
+__version__ = '1.0.0'
 
 _BASE_URL = 'https://api.life360.com/v3/'
 _TOKEN_URL = _BASE_URL + 'oauth2/token.json'

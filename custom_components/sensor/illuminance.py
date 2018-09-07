@@ -1,3 +1,11 @@
+"""
+A Sensor platform that estimates outdoor illuminance from Weather Underground
+current conditions.
+
+For more details about this platform, please refer to
+https://github.com/pnbruckner/homeassistant-config#sensorilluminancepy
+"""
+
 import datetime as dt
 import asyncio
 import aiohttp
@@ -11,6 +19,8 @@ from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.components.sensor import PLATFORM_SCHEMA, SCAN_INTERVAL
 import homeassistant.util.dt as dt_util
+
+__version__ = '1.0.0'
 
 CONF_QUERY = 'query'
 
