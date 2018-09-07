@@ -1,3 +1,10 @@
+"""
+A Device Tracker platform that combines one or more GPS based device trackers.
+
+For more details about this platform, please refer to the documentation at
+https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md
+"""
+
 import logging
 import voluptuous as vol
 
@@ -9,6 +16,8 @@ from homeassistant.const import (
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant.util import dt as dt_util
+
+__version__ = '1.0.0'
 
 _LOGGER = logging.getLogger(__name__)
 
