@@ -30,5 +30,13 @@
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sensor/illuminance.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/releases"
+  },
+  "sun": {
+    "updated_at": "2018-09-07",
+    "version": "1.0.0",
+    "local_location": "/custom_components/sun.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sun.py",
+    "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
+    "changelog": "https://github.com/pnbruckner/homeassistant-config/releases"
   }
 }
