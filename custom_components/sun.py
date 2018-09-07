@@ -22,6 +22,8 @@ from homeassistant.helpers.sun import (
     get_astral_location, get_astral_event_next, get_astral_event_date)
 from homeassistant.util import dt as dt_util
 
+__version__ = '1.0.0'
+
 _LOGGER = logging.getLogger(__name__)
 
 DOMAIN = 'sun'
