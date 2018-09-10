@@ -42,6 +42,7 @@ ATTR_MOVING       = 'moving'
 ATTR_CHARGING     = 'charging'
 ATTR_WIFI_ON      = 'wifi_on'
 ATTR_DRIVING      = 'driving'
+ATTR_ADDRESS      = 'address'
 
 ATTR_PLACES = 'places'
 SHOW_AS_STATE_OPTS = [ATTR_PLACES, ATTR_MOVING, ATTR_DRIVING]
@@ -220,9 +221,11 @@ class Life360Scanner:
                         dev_id, gps_accuracy, self._max_gps_accuracy))
                 return
 
+            place_name = loc.get('name') or None
+
             # Does user want location name to be shown as state?
             if ATTR_PLACES in self._show_as_state:
-                loc_name = loc.get('name') or None
+                loc_name = place_name
                 # Make sure Home is always seen as exactly as home,
                 # which is the special device_tracker state for home.
                 if loc_name and loc_name.lower() == 'home':
@@ -230,13 +233,27 @@ class Life360Scanner:
             else:
                 loc_name = None
 
+            # If a place name is given, then address will just be a copy of
+            # it, so don't bother with address. Otherwise, piece address
+            # lines together, depending on which are present.
+            if place_name:
+                address = None
+            else:
+                address1 = loc.get('address1') or None
+                address2 = loc.get('address2') or None
+                if address1 and address2:
+                    address = ', '.join([address1, address2])
+                else:
+                    address = address1 or address2
+
             attrs = {
                 ATTR_LAST_SEEN:    last_seen,
                 ATTR_AT_LOC_SINCE: utc_attr_from_ts(loc.get('since')),
                 ATTR_MOVING:       bool_attr_from_int(loc.get('inTransit')),
                 ATTR_CHARGING:     bool_attr_from_int(loc.get('charge')),
                 ATTR_WIFI_ON:      bool_attr_from_int(loc.get('wifiState')),
-                ATTR_DRIVING:      bool_attr_from_int(loc.get('isDriving'))
+                ATTR_DRIVING:      bool_attr_from_int(loc.get('isDriving')),
+                ATTR_ADDRESS:      address
             }
 
             # If we don't have a location name yet and user wants driving or moving
