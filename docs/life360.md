@@ -33,6 +33,7 @@ device_tracker:
 ## Additional attributes
 Attribute | Description
 -|-
+address | Address of current location, or None.
 at_loc_since | Date and time when first at current location (in UTC.)
 charging | Phone is charging (True/False.)
 driving | Phone movement indicates driving (True/False.)
