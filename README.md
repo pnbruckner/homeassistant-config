@@ -7,7 +7,8 @@ https://github.com/custom-components/custom_updater
 Add the following to your configuration:
 ```
 custom_updater:
-  component_urls: https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components.json
+  component_urls:
+    - https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components.json
 ```
 ## custom_components
 ### amcrest.py, binary_sensor/amcrest.py & camera/amcrest.py
