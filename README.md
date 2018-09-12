@@ -5,12 +5,7 @@
 > __NOTE__: The Amcrest Camera components are not supported via Custom Updater.
 ### [Composite Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md)
 ### [Life360 Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md)
-### [Illuminance Sensor]()
-__sensor/illuminance.py__
-
-Estimate outdoor illuminance based on time of day and current weather conditions from Weather Underground.
-
-See: https://community.home-assistant.io/t/outdoor-illuminance-estimated-from-weather-conditions-reported-by-weather-underground
+### [Illuminance Sensor](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/illuminance.md)
 ### [Enhanced Sun component](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/sun.md)
 ## Python Scripts
 ### light_store.py
