@@ -23,7 +23,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,13 +64,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         cv.ensure_list, [cv.string])
 })
 
-def exc_msg(exc, msg=None, extra=None):
-    _msg = '{}: {}'.format(exc.__class__.__name__, str(exc))
-    if msg:
-        _msg = '{}: '.format(msg) + _msg
-    if extra:
-        _msg += '; {}'.format(extra)
-    _LOGGER.error(_msg)
+def exc_msg(exc):
+    return '{}: {}'.format(exc.__class__.__name__, str(exc))
 
 def utc_from_ts(val):
     try:
@@ -105,7 +100,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
         if api.get_circles():
             ok = True
     except Exception as exc:
-        exc_msg(exc)
+        _LOGGER.error(exc_msg(exc))
     if not ok:
         _LOGGER.error('Life360 communication failed!')
         return False
@@ -145,9 +140,29 @@ class Life360Scanner:
         self._prefix = '' if not prefix else prefix + '_'
         self._members = members
         self._api = api
+
+        self._errs = {}
+        self._max_errs = 2
         self._dev_data = {}
         self._started = util.dt.utcnow()
+
         track_time_interval(self._hass, self._update_life360, interval)
+
+    def _ok(self, key):
+        if self._errs.get(key, 0) >= self._max_errs:
+            _LOGGER.error('{}: OK again'.format(key))
+        self._errs[key] = 0
+
+    def _err(self, key, err_msg):
+        _errs = self._errs.get(key, 0)
+        if _errs < self._max_errs:
+            self._errs[key] = _errs = _errs + 1
+            if _errs == self._max_errs:
+                err_msg = 'Squelching further errors until OK: ' + err_msg
+            _LOGGER.error('{}: {}'.format(key, err_msg))
+
+    def _exc(self, key, exc):
+        self._err(key, exc_msg(exc))
 
     def _update_member(self, m):
         f = m['firstName']
@@ -190,15 +205,10 @@ class Life360Scanner:
                     err_msg += ': ' + m['issues']['dialog']
             else:
                 err_msg = 'Location information missing'
-            _LOGGER.error('{}: {}'.format(dev_id, err_msg))
+            self._err(dev_id, err_msg)
+            return
 
-        elif last_seen and (not prev_seen or last_seen > prev_seen):
-            msg = 'Updating {}'.format(dev_id)
-            if prev_seen:
-                msg += '; Time since last update: {}'.format(
-                    last_seen - prev_seen)
-            _LOGGER.debug(msg)
-
+        if last_seen and (not prev_seen or last_seen > prev_seen):
             lat = loc.get('latitude')
             lon = loc.get('longitude')
             gps_accuracy = loc.get('accuracy')
@@ -209,15 +219,23 @@ class Life360Scanner:
                 # gps_accuracy in meters.
                 gps_accuracy=round(float(gps_accuracy)*0.3048)
             except (TypeError, ValueError):
-                _LOGGER.error('{}: GPS data invalid: {}, {}, {}'.format(
-                    dev_id, lat, lon, gps_accuracy))
+                self._err(dev_id, 'GPS data invalid: {}, {}, {}'.format(
+                    lat, lon, gps_accuracy))
                 return
+
+            self._ok(dev_id)
+
+            msg = 'Updating {}'.format(dev_id)
+            if prev_seen:
+                msg += '; Time since last update: {}'.format(
+                    last_seen - prev_seen)
+            _LOGGER.debug(msg)
 
             if (self._max_gps_accuracy is not None and
                     gps_accuracy > self._max_gps_accuracy):
                 _LOGGER.info(
-                    "{}: Ignoring update because expected GPS "
-                    "accuracy {} is not met: {}".format(
+                    '{}: Ignoring update because expected GPS '
+                    'accuracy {} is not met: {}'.format(
                         dev_id, gps_accuracy, self._max_gps_accuracy))
                 return
 
@@ -278,18 +296,24 @@ class Life360Scanner:
         excs = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
 
         checked_ids = []
+
         #_LOGGER.debug('Checking members')
         try:
             circles = self._api.get_circles()
         except excs as exc:
-            exc_msg(exc, 'get_circles')
+            self._exc('get_circles', exc)
             return
+        else:
+            self._ok('get_circles')
+
         for circle in circles:
             try:
                 members = self._api.get_circle(circle['id'])['members']
             except excs as exc:
-                exc_msg(exc, 'get_circle')
+                self._exc('get_circle', exc)
                 continue
+            else:
+                self._ok('get_circle')
             for m in members:
                 try:
                     full_name = (m['firstName'].lower(), m['lastName'].lower())
@@ -299,6 +323,5 @@ class Life360Scanner:
                         checked_ids.append(m_id)
                         self._update_member(m)
                 except Exception as exc:
-                    #exc_msg(exc, extra='m = {}'.format(m))
                     _LOGGER.debug('m = {}'.format(m))
                     raise
