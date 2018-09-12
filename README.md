@@ -25,13 +25,14 @@ Once components are installed they can easily be updated using the Tracker card.
 ```
 > __NOTE__: If you already have one or more of these custom components from before version numbers were added then they will not show up (by default) on the Tracker card or in `sensor.custom_component_tracker`, and cannot be updated via the `custom_updater.update_all` service. In this case use the `custom_upgrader.upgrade_single_component` service as mentioned above.
 ## Custom Components
-### Amcrest Camera (not supported via custom_updater)
+### [Installing and Updating]()
+### [Amcrest Camera (not supported via custom_updater)]()
 __amcrest.py, binary_sensor/amcrest.py & camera/amcrest.py__
 
 Add several services to Amcrest Camera and create new binary sensor for motion detected. Add thread locking to avoid simultaneous camera commands that lead to constant errors.
 ### [Composite Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md)
 ### [Life360 Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md)
-### Illuminance Sensor
+### [Illuminance Sensor]()
 __sensor/illuminance.py__
 
 Estimate outdoor illuminance based on time of day and current weather conditions from Weather Underground.
