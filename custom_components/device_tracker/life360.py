@@ -23,7 +23,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
 
-__version__ = '1.2.0'
+__version__ = '1.3.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,6 +83,13 @@ def bool_attr_from_int(val):
     except (TypeError, ValueError):
         return STATE_UNKNOWN
 
+def m_name(first, last=''):
+    first = first.strip().lower()
+    last = last.strip().lower()
+    if first and last:
+        return ','.join([first, last])
+    return first or last
+
 def setup_scanner(hass, config, see, discovery_info=None):
     from custom_components.life360 import life360
 
@@ -117,13 +124,18 @@ def setup_scanner(hass, config, see, discovery_info=None):
         _members = []
         for member in members:
             try:
-                f,l = member.lower().split(',')
-            except (ValueError, AttributeError):
-                _LOGGER.error('Invalid member name: {}'.format(member))
-                return False
-            _members.append((f.strip(), l.strip()))
+                name = m_name(*member.split(','))
+            except TypeError:
+                name = ''
+            if not name:
+                _LOGGER.error('Ignoring invalid member name: "{}"'.format(member))
+                continue
+            _members.append(name)
         members = _members
-        _LOGGER.debug('processed members = {}'.format(members))
+        _LOGGER.debug('Processed members = {}'.format(members))
+        if not members:
+            _LOGGER.error('No listed member names were valid')
+            return False
 
     Life360Scanner(hass, see, interval, show_as_state, max_gps_accuracy,
                    max_update_wait, prefix, members, api)
@@ -164,13 +176,10 @@ class Life360Scanner:
     def _exc(self, key, exc):
         self._err(key, exc_msg(exc))
 
-    def _update_member(self, m):
-        f = m['firstName']
-        l = m['lastName']
-        #_LOGGER.debug('Checking "{}, {}"'.format(f, l))
-        m_name = ('_'.join([f, l]) if f and l else f or l).replace('-', '_')
+    def _update_member(self, m, name):
+        name = name.replace(',', '_').replace('-', '_')
 
-        dev_id = util.slugify(self._prefix + m_name)
+        dev_id = util.slugify(self._prefix + name)
         prev_seen, reported = self._dev_data.get(dev_id, (None, False))
 
         loc = m.get('location')
@@ -315,13 +324,13 @@ class Life360Scanner:
             else:
                 self._ok('get_circle')
             for m in members:
-                try:
-                    full_name = (m['firstName'].lower(), m['lastName'].lower())
-                    m_id = m['id']
-                    if ((not self._members or full_name in self._members) and
-                            m_id not in checked_ids):
-                        checked_ids.append(m_id)
-                        self._update_member(m)
-                except Exception as exc:
-                    _LOGGER.debug('m = {}'.format(m))
-                    raise
+                m_id = m.get('id')
+                name = m_name(m.get('firstName', ''), m.get('lastName', ''))
+                if not m_id or not name:
+                    self._err('Member data', m)
+                    continue
+                self._ok('Member data')
+                if ((not self._members or name in self._members) and
+                        m_id not in checked_ids):
+                    checked_ids.append(m_id)
+                    self._update_member(m, name)
