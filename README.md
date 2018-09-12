@@ -1,10 +1,8 @@
 # Home Assistant Configuration
 ## Custom Components
 ### [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md)
-### [Amcrest Camera (not supported via custom_updater)]()
-__amcrest.py, binary_sensor/amcrest.py & camera/amcrest.py__
-
-Add several services to Amcrest Camera and create new binary sensor for motion detected. Add thread locking to avoid simultaneous camera commands that lead to constant errors.
+### [Amcrest Camera](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/amcrest.md)
+> __NOTE__: The Amcrest Camera components are not supported via Custom Updater.
 ### [Composite Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md)
 ### [Life360 Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md)
 ### [Illuminance Sensor]()
