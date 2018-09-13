@@ -99,3 +99,6 @@ Date | Version | Notes
 20180910 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/118178acacafb36c5529e79577dd4eaf4bcfc0b4/custom_components/device_tracker/life360.py) | Add address attribute.
 20180912 | [1.2.0](https://github.com/pnbruckner/homeassistant-config/blob/069e75a8d612ae8a75dcda114d79facca9ba9bae/custom_components/device_tracker/life360.py) | Filter excessive errors.
 20180912 | [1.3.0](https://github.com/pnbruckner/homeassistant-config/blob/2111accaad47052e4ae73a5528cdf70c7ff00426/custom_components/device_tracker/life360.py) | Allow entries in members configuration variable that only have one name to be entered without comma.
+
+[Life360 Communications Module Release Notes](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360_lib.md#release-notes)
+
