@@ -19,8 +19,7 @@ device_tracker:
     max_update_wait:
       minutes: 45
 ```
-## Configuration variables:
-
+## Configuration variables
 - **username**: Your Life360 username.
 - **password**: Your Life360 password.
 - **prefix** (*Optional*): Default is to name entities `device_tracker.<first_name>_<last_name>`, where `<first_name>` and `<last_name>` are specified by Life360. If a prefix is specified, then entity will be named `device_tracker.<prefix>_<first_name>_<last_name>`. If the member only has a first or last name in Life360, then the underscore that would normally separate the names is left out.
@@ -41,7 +40,8 @@ entity_picture | Member's "avatar" if one is provided by Life360.
 last_seen | Date and time when Life360 last updated your location (in UTC.)
 moving | Phone is moving (True/False.)
 wifi_on | Phone WiFi is turned on (True/False.)
-## Example full configuration
+## Examples
+### Example full configuration
 ```yaml
 device_tracker:
   - platform: life360
@@ -59,7 +59,7 @@ device_tracker:
       minutes: 30
     filename: life360.conf
 ```
-## Example overdue update automations
+### Example overdue update automations
 ```yaml
 - alias: Life360 Overdue Update
   trigger:
@@ -89,3 +89,10 @@ device_tracker:
           trigger.event.data.entity_id
         }} restored after {{ trigger.event.data.wait }}.
 ```
+## Release Notes
+Date | Version | Notes
+-|:-:|-
+20180907 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/d767bcce0fdff0c9298dc7a010d27af88817eac2/custom_components/device_tracker/life360.py) | Initial support for Custom Updater.
+20180910 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/118178acacafb36c5529e79577dd4eaf4bcfc0b4/custom_components/device_tracker/life360.py) | Add address attribute.
+20180912 | [1.2.0](https://github.com/pnbruckner/homeassistant-config/blob/069e75a8d612ae8a75dcda114d79facca9ba9bae/custom_components/device_tracker/life360.py) | Filter excessive errors.
+20180912 | [1.3.0](https://github.com/pnbruckner/homeassistant-config/blob/2111accaad47052e4ae73a5528cdf70c7ff00426/custom_components/device_tracker/life360.py) | Allow entries in members configuration variable that only have one name to be entered without comma.
