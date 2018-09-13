@@ -7,7 +7,11 @@ To use this custom component, place a copy of:
 
 [device_tracker/life360.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/device_tracker/life360.py) at `<config>/custom_components/device_tracker/life360.py`
 
-where `<config>` is your Home Assistant configuration directory. Then add the desired configuration. Here is an example of a typical configuration:
+where `<config>` is your Home Assistant configuration directory.
+
+> __NOTE__: If you're using Custom Updater to install `device_tracker.life360`, don't forget to also install `life360`.
+
+Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
 device_tracker:
   - platform: life360
