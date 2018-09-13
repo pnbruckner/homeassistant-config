@@ -3,8 +3,7 @@ This platform allows you to detect presence using [Life360](http://life360.com/)
 
 To use this custom component, place a copy of:
 
-[life360.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/life360.py) at `<config>/custom_components/life360.py` and
-
+[life360.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/life360.py) at `<config>/custom_components/life360.py` and  
 [device_tracker/life360.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/device_tracker/life360.py) at `<config>/custom_components/device_tracker/life360.py`
 
 where `<config>` is your Home Assistant configuration directory.
