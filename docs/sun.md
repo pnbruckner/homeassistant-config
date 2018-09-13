@@ -21,7 +21,7 @@ sun:
 ## Configuration variables
 - **monitored_conditions** (*Optional*): A list of `sun.sun` attributes to include. Options from the standard component: `azimuth`, `elevation`, `next_dawn`, `next_dusk`, `next_midnight` and `next_noon`. New options: `daylight`, `next_daylight`, `prev_daylight`, `sunrise` and `sunset`. The default is to include the options from the standard component.
 - **scan_interval** (*Optional*): If `azimuth` or `elevation` are included, then this controls how often they are updated. The default is the same behavior as the standard component (i.e., once a minute on the half minute.)
-### New attributes
+## New attributes
 Attribute | Description
 ---|---
 `daylight` | The amount of time from today's sunrise to today's sunset (in seconds).
@@ -29,9 +29,10 @@ Attribute | Description
 `prev_daylight` | Same as daylight, except for yesterday.
 `sunrise` | Today's sunrise (in UTC).
 `sunset` | Today's sunset (in UTC).
-### Caveats
+## Caveats
 `elevation` is used by the frontend. You can choose to exclude it if you don't care about it, especially if you don't display `sun.sun` in the frontend. If you do display it in the frontend and choose to exclude elevation, then its value will just be blank.
-## Example full configuration
+## Examples
+### Example full configuration
 ```yaml
 sun:
   monitored_conditions:
@@ -49,8 +50,8 @@ sun:
   scan_interval:
     minutes: 1
 ```
-## Example usage
-### Sensors
+### Example usage
+#### Sensors
 ```yaml
 
 sensor:
@@ -96,3 +97,7 @@ sensor:
              |timestamp_custom('%H:%M', false) }}
 ```
 Note that the last two examples use `now()` in the template. However, this by itself will not cause the template sensors to update when time changes. So we need some way to get them to update. By configuring sensor.time (see [Time & Date](https://www.home-assistant.io/components/sensor.time_date/)), we can use that via the entity_id parameter to force the template sensors to update once a minute.
+## Release Notes
+Date | Version | Notes
+-|:-:|-
+20180907 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/d767bcce0fdff0c9298dc7a010d27af88817eac2/custom_components/sun.py) | Initial support for Custom Updater.
