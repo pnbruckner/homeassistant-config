@@ -5,7 +5,7 @@ See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config
 
 Alternatively, place a copy of:
 
-[composite.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/device_tracker/composite.py) at `<config>/custom_components/device_tracker/composite.py`
+[device_tracker/composite.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/device_tracker/composite.py) at `<config>/custom_components/device_tracker/composite.py`
 
 where `<config>` is your Home Assistant configuration directory.
 
