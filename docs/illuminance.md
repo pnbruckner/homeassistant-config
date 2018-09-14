@@ -7,7 +7,7 @@ See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config
 
 Alternatively, place a copy of:
 
-[illuminance.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/sensor/illuminance.py) at `<config>/custom_components/sensor/illuminance.py`
+[sensor/illuminance.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/sensor/illuminance.py) at `<config>/custom_components/sensor/illuminance.py`
 
 where `<config>` is your Home Assistant configuration directory.
 ## Release Notes
