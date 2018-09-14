@@ -1,9 +1,15 @@
 # Illuminance Sensor
-__sensor/illuminance.py__
-
 Estimates outdoor illuminance based on time of day and current weather conditions from Weather Underground.
 
 See: https://community.home-assistant.io/t/outdoor-illuminance-estimated-from-weather-conditions-reported-by-weather-underground
+## Installation
+See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md) to use Custom Updater.
+
+Alternatively, place a copy of:
+
+[illuminance.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/sensor/illuminance.py) at `<config>/custom_components/sensor/illuminance.py`
+
+where `<config>` is your Home Assistant configuration directory.
 ## Release Notes
 Date | Version | Notes
 -|:-:|-
