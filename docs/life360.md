@@ -1,16 +1,16 @@
 # Life360
 This platform allows you to detect presence using [Life360](http://life360.com/).
+## Installation
+See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md) to use Custom Updater.
 
-To use this custom component, place a copy of:
+> __NOTE__: Don't forget to also install `life360`.
+
+Alternatively, place a copy of:
 
 [life360.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/life360.py) at `<config>/custom_components/life360.py` and  
 [device_tracker/life360.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/device_tracker/life360.py) at `<config>/custom_components/device_tracker/life360.py`
 
-where `<config>` is your Home Assistant configuration directory.
-
-> __NOTE__: If you're using Custom Updater to install `device_tracker.life360`, don't forget to also install `life360`.
-
-Then add the desired configuration. Here is an example of a typical configuration:
+where `<config>` is your Home Assistant configuration directory. Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
 device_tracker:
   - platform: life360
