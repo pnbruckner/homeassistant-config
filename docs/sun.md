@@ -10,7 +10,9 @@ Alternatively, place a copy of:
 
 [sun.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/sun.py) at `<config>/custom_components/sun.py`
 
-where `<config>` is your Home Assistant configuration directory. Then add the desired configuration. Here is an example of a typical configuration:
+where `<config>` is your Home Assistant configuration directory.
+
+Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
 sun:
   monitored_conditions:
