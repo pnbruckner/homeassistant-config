@@ -92,6 +92,8 @@ device_tracker:
           trigger.event.data.entity_id
         }} restored after {{ trigger.event.data.wait }}.
 ```
+## Disclaimer
+Life360 does not apparently officially support its REST API for use with other than its own apps. This integration is based on reverse engineering that has been done by the open source community, and an API token that was somehow discovered by the same community. At any time Life360 could disable that token or otherwise change its REST API such that this custom component would no longer work.
 ## Release Notes
 Date | Version | Notes
 -|:-:|-
