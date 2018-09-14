@@ -1,7 +1,9 @@
 # Composite Device Tracker
 This platform creates a composite device tracker from one or more other device trackers. It will update whenever one of the watched entities updates, taking the GPS and last_seen/last_updated (and possibly battery) data from the changing entity. The result can be a more accurate and up-to-date device tracker if the "input" device tracker's update irregularly.
+## Installation
+See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md) to use Custom Updater.
 
-To use this custom component, place a copy of:
+Alternatively, place a copy of:
 
 [composite.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/device_tracker/composite.py) at `<config>/custom_components/device_tracker/composite.py`
 
