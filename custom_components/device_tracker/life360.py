@@ -23,7 +23,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
 
-__version__ = '1.3.0'
+__version__ = '1.4.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,11 +83,15 @@ def bool_attr_from_int(val):
     except (TypeError, ValueError):
         return STATE_UNKNOWN
 
-def m_name(first, last=''):
+def m_name(first, last=None):
+    first = first or ''
+    last = last or ''
     first = first.strip().lower()
     last = last.strip().lower()
     if first and last:
         return ','.join([first, last])
+    if not (first or last):
+        raise ValueError('Must have at least first or last name')
     return first or last
 
 def setup_scanner(hass, config, see, discovery_info=None):
@@ -125,9 +129,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
         for member in members:
             try:
                 name = m_name(*member.split(','))
-            except TypeError:
-                name = ''
-            if not name:
+            except (TypeError, ValueError):
                 _LOGGER.error('Ignoring invalid member name: "{}"'.format(member))
                 continue
             _members.append(name)
@@ -170,7 +172,7 @@ class Life360Scanner:
         if _errs < self._max_errs:
             self._errs[key] = _errs = _errs + 1
             if _errs == self._max_errs:
-                err_msg = 'Squelching further errors until OK: ' + err_msg
+                err_msg = 'Suppressing further errors until OK: ' + err_msg
             _LOGGER.error('{}: {}'.format(key, err_msg))
 
     def _exc(self, key, exc):
@@ -307,30 +309,40 @@ class Life360Scanner:
         checked_ids = []
 
         #_LOGGER.debug('Checking members')
+        err_key = 'get_circles'
         try:
             circles = self._api.get_circles()
         except excs as exc:
-            self._exc('get_circles', exc)
+            self._exc(err_key, exc)
             return
-        else:
-            self._ok('get_circles')
+        self._ok(err_key)
 
         for circle in circles:
+            err_key = 'get_circle "{}"'.format(
+                circle.get('name') or circle.get('id'))
             try:
                 members = self._api.get_circle(circle['id'])['members']
             except excs as exc:
-                self._exc('get_circle', exc)
+                self._exc(err_key, exc)
                 continue
-            else:
-                self._ok('get_circle')
+            except KeyError:
+                self._err(err_key, circle)
+                continue
+            self._ok(err_key)
+
             for m in members:
-                m_id = m.get('id')
-                name = m_name(m.get('firstName', ''), m.get('lastName', ''))
-                if not m_id or not name:
-                    self._err('Member data', m)
+                err_key = 'Member data'
+                try:
+                    m_id = m['id']
+                    sharing = bool(int(m['features']['shareLocation']))
+                    name = m_name(m.get('firstName'), m.get('lastName'))
+                except (KeyError, TypeError, ValueError):
+                    self._err(err_key, m)
                     continue
-                self._ok('Member data')
-                if ((not self._members or name in self._members) and
-                        m_id not in checked_ids):
+                self._ok(err_key)
+
+                if (m_id not in checked_ids and
+                        (not self._members or name in self._members) and
+                        sharing):
                     checked_ids.append(m_id)
                     self._update_member(m, name)
