@@ -99,6 +99,8 @@ class CompositeScanner:
             except KeyError:
                 gps_accuracy = None
             battery = new_state.attributes.get(ATTR_BATTERY)
+            # Don't use location_name unless we have to.
+            location_name = None
 
             # What type of tracker is this?
             source_type = new_state.attributes.get(ATTR_SOURCE_TYPE)
@@ -134,6 +136,11 @@ class CompositeScanner:
                             gps = gps_accuracy = None
                     except (AttributeError, KeyError):
                         pass
+                # If no GPS data, or not using it, then we need to set
+                # location_name to 'home'. Otherwise component level code will
+                # get into "stale processing", which we don't want.
+                if gps is None or gps_accuracy is None:
+                    location_name = STATE_HOME
 
             else:
                 self._bad_entity(
