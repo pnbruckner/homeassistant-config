@@ -33,3 +33,4 @@ The watched devices, and the composite device, should all have `track` set to `t
 Date | Version | Notes
 -|:-:|-
 20180907 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/d767bcce0fdff0c9298dc7a010d27af88817eac2/custom_components/device_tracker/composite.py) | Initial support for Custom Updater.
+20180920 | [1.0.1](https://github.com/pnbruckner/homeassistant-config/blob/959a691afb5e2b98e946591b9ff58291f104a74a/custom_components/device_tracker/composite.py) | Add thread locking to protect against multiple entities updating too close together.
