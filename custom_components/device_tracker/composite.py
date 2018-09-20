@@ -149,7 +149,8 @@ class CompositeScanner:
                     remove_now=True)
 
             attrs = {ATTR_LAST_SEEN: last_seen.replace(microsecond=0)}
-            self._see(dev_id=self._dev_id, gps=gps, gps_accuracy=gps_accuracy,
-                battery=battery, attributes=attrs, source_type=source_type)
+            self._see(dev_id=self._dev_id, location_name=location_name,
+                gps=gps, gps_accuracy=gps_accuracy, battery=battery,
+                attributes=attrs, source_type=source_type)
 
             self._prev_seen = last_seen
