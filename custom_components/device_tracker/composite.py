@@ -120,26 +120,37 @@ class CompositeScanner:
                 if (new_state.state != STATE_HOME or
                         old_state and old_state.state == STATE_HOME):
                     return
-                # Don't use new GPS data if it's not complete, or if current
-                # composite tracker's state contains GPS data in 'zone.home'.
+
+                # Don't use new GPS data if it's not complete.
                 if gps is None or gps_accuracy is None:
                     gps = gps_accuracy = None
+                # Get current GPS data, if any, and determine if it is in
+                # 'zone.home'.
+                cur_state = self._hass.states.get(
+                    ENTITY_ID_FORMAT.format(self._dev_id))
+                try:
+                    cur_lat = cur_state.attributes[ATTR_LATITUDE]
+                    cur_lon = cur_state.attributes[ATTR_LONGITUDE]
+                    cur_acc = cur_state.attributes[ATTR_GPS_ACCURACY]
+                    cur_gps_is_home = (
+                        active_zone(self._hass, cur_lat, cur_lon, cur_acc)
+                        .entity_id == 'zone.home')
+                except (AttributeError, KeyError):
+                    cur_gps_is_home = False
+
+                # If current GPS data is available and is in 'zone.home',
+                # use it and make source_type GPS.
+                if cur_gps_is_home:
+                    gps = cur_lat, cur_lon
+                    gps_accuracy = cur_acc
+                    source_type = SOURCE_TYPE_GPS
+                # Otherwise, if new GPS data is valid,
+                # use it and make source_type GPS.
+                elif gps:
+                    source_type = SOURCE_TYPE_GPS
+                # Otherwise, don't use any GPS data, but set location_name to
+                # 'home' so component level "stale processing" is bypassed.
                 else:
-                    cur_state = self._hass.states.get(
-                        ENTITY_ID_FORMAT.format(self._dev_id))
-                    try:
-                        cur_lat = cur_state.attributes[ATTR_LATITUDE]
-                        cur_lon = cur_state.attributes[ATTR_LONGITUDE]
-                        cur_acc = cur_state.attributes[ATTR_GPS_ACCURACY]
-                        if (active_zone(self._hass, cur_lat, cur_lon, cur_acc)
-                                .entity_id) == 'zone.home':
-                            gps = gps_accuracy = None
-                    except (AttributeError, KeyError):
-                        pass
-                # If no GPS data, or not using it, then we need to set
-                # location_name to 'home'. Otherwise component level code will
-                # get into "stale processing", which we don't want.
-                if gps is None or gps_accuracy is None:
                     location_name = STATE_HOME
 
             else:
