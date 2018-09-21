@@ -17,7 +17,7 @@ try:
 except ImportError:
     from homeassistant.components.zone import active_zone
 from homeassistant.const import (
-    ATTR_GPS_ACCURACY, ATTR_LATITUDE, ATTR_LONGITUDE,
+    ATTR_GPS_ACCURACY, ATTR_LATITUDE, ATTR_LONGITUDE, ATTR_STATE,
     CONF_ENTITY_ID, CONF_NAME, EVENT_HOMEASSISTANT_START, STATE_HOME)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
@@ -28,6 +28,7 @@ __version__ = '1.1.0'
 _LOGGER = logging.getLogger(__name__)
 
 ATTR_LAST_SEEN = 'last_seen'
+ATTR_WARNED = 'warned'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_NAME): cv.string,
@@ -45,7 +46,12 @@ class CompositeScanner:
         self._hass = hass
         self._see = see
         entities = config[CONF_ENTITY_ID]
-        self._entities = dict.fromkeys(entities, False)
+        self._entities = {}
+        for entity_id in entities:
+            self._entities[entity_id] = {
+                ATTR_WARNED: False,
+                ATTR_SOURCE_TYPE: None,
+                ATTR_STATE: None}
         self._dev_id = config[CONF_NAME]
         self._lock = threading.Lock()
         self._prev_seen = None
@@ -56,7 +62,7 @@ class CompositeScanner:
     def _bad_entity(self, entity_id, message, remove_now=False):
         msg = '{} {}'.format(entity_id, message)
         # Has there already been a warning for this entity?
-        if self._entities[entity_id] or remove_now:
+        if self._entities[entity_id][ATTR_WARNED] or remove_now:
             _LOGGER.error(msg)
             self._remove()
             self._entities.pop(entity_id)
@@ -66,7 +72,24 @@ class CompositeScanner:
                     self._hass, self._entities.keys(), self._update_info)
         else:
             _LOGGER.warning(msg)
-            self._entities[entity_id] = True
+            self._entities[entity_id][ATTR_WARNED] = True
+
+    def _good_entity(self, entity_id, source_type, state=None):
+        self._entities[entity_id].update({
+            ATTR_WARNED: False,
+            ATTR_SOURCE_TYPE: source_type,
+            ATTR_STATE: state})
+
+    def _use_router_data(self, state):
+        if state == STATE_HOME:
+            return True
+        entities = self._entities.values()
+        if any(entity[ATTR_SOURCE_TYPE] == SOURCE_TYPE_GPS
+                for entity in entities):
+            return False
+        return all(entity[ATTR_STATE] != STATE_HOME
+            for entity in entities
+            if entity[ATTR_SOURCE_TYPE] == SOURCE_TYPE_ROUTER)
 
     def _update_info(self, entity_id, old_state, new_state):
         if new_state is None:
@@ -94,10 +117,7 @@ class CompositeScanner:
                        new_state.attributes[ATTR_LONGITUDE])
             except KeyError:
                 gps = None
-            try:
-                gps_accuracy = new_state.attributes[ATTR_GPS_ACCURACY]
-            except KeyError:
-                gps_accuracy = None
+            gps_accuracy = new_state.attributes.get(ATTR_GPS_ACCURACY)
             battery = new_state.attributes.get(ATTR_BATTERY)
             # Don't use location_name unless we have to.
             location_name = None
@@ -114,11 +134,12 @@ class CompositeScanner:
                     self._bad_entity(entity_id,
                                      'missing gps_accuracy attribute')
                     return
+                self._good_entity(entity_id, SOURCE_TYPE_GPS)
 
             elif source_type == SOURCE_TYPE_ROUTER:
-                # Only use transitions to 'home'.
-                if (new_state.state != STATE_HOME or
-                        old_state and old_state.state == STATE_HOME):
+                self._good_entity(
+                    entity_id, SOURCE_TYPE_ROUTER, new_state.state)
+                if not self._use_router_data(new_state.state):
                     return
 
                 # Don't use new GPS data if it's not complete.
@@ -138,26 +159,35 @@ class CompositeScanner:
                 except (AttributeError, KeyError):
                     cur_gps_is_home = False
 
-                # If current GPS data is available and is in 'zone.home',
-                # use it and make source_type GPS.
-                if cur_gps_is_home:
+                # It's important, for this composite tracker, to avoid the
+                # component level code's "stale processing." This can be done
+                # one of two ways: 1) provide GPS data w/ source_type of gps,
+                # or 2) provide a location_name (that will be used as the new
+                # state.)
+
+                # If router entity's state is 'home' and current GPS data from
+                # composite entity is available and is in 'zone.home',
+                # use it and make source_type gps.
+                if new_state.state == STATE_HOME and cur_gps_is_home:
                     gps = cur_lat, cur_lon
                     gps_accuracy = cur_acc
                     source_type = SOURCE_TYPE_GPS
-                # Otherwise, if new GPS data is valid,
-                # use it and make source_type GPS.
+                # Otherwise, if new GPS data is valid (which is unlikely if
+                # new state is not 'home'),
+                # use it and make source_type gps.
                 elif gps:
                     source_type = SOURCE_TYPE_GPS
                 # Otherwise, don't use any GPS data, but set location_name to
-                # 'home' so component level "stale processing" is bypassed.
+                # new state.
                 else:
-                    location_name = STATE_HOME
+                    location_name = new_state.state
 
             else:
                 self._bad_entity(
                     entity_id,
                     'unsupported source_type: {}'.format(source_type),
                     remove_now=True)
+                return
 
             attrs = {ATTR_LAST_SEEN: last_seen.replace(microsecond=0)}
             self._see(dev_id=self._dev_id, location_name=location_name,
