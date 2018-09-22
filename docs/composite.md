@@ -21,10 +21,10 @@ device_tracker:
 ## Configuration variables
 - **name**: Object ID of composite device: `device_tracker.NAME`
 - **entity_id**: Watched device tracker devices.
-## Watched device requirements
+## Watched device notes
 Watched GPS-based devices must have, at a minimum, the following attributes: `latitude`, `longitude` and `gps_accuracy`. If they don't they will not be used.
 
-For watched network-based devices, only state transitions to 'home' will be used. And GPS data, if present, will only be used if the previous state of the composite tracker did not already have valid GPS data that is located in the home zone.
+For watched network-based devices, which states are used and whether any GPS data (if present) is used depends on several factors. E.g., if GPS-based devices are in use then the 'not_home' state of network-based devices will be ignored. If only network-based devices are in use, then the composite device will be 'home' if any of the watched devices are 'home', and will be 'not_home' only when _all_ the watched devices are 'not_home'.
 
 If a watched device has a `last_seen` attribute, that will be used in the composite device. If not, then `last_updated` from the entity's state will be used instead.
 
