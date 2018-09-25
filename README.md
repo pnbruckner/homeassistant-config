@@ -1,12 +1,12 @@
 # Home Assistant Configuration
 ## Custom Components
-### [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md)
-### [Amcrest Camera](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/amcrest.md)
+### [Installing and Updating](docs/custom_updater.md)
+### [Amcrest Camera](docs/amcrest.md)
 > __NOTE__: The Amcrest Camera components are not supported via Custom Updater.
-### [Composite Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md)
-### [Life360 Device Tracker platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md)
-### [Illuminance Sensor](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/illuminance.md)
-### [Enhanced Sun component](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/sun.md)
+### [Composite Device Tracker platform](docs/composite.md)
+### [Life360 Device Tracker platform](docs/life360.md)
+### [Illuminance Sensor](docs/illuminance.md)
+### [Enhanced Sun component](docs/sun.md)
 ## Python Scripts
 ### light_store.py
 Save and restore state of switches and lights (and groups of them.)
