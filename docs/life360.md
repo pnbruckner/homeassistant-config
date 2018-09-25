@@ -1,14 +1,14 @@
 # Life360
 This platform allows you to detect presence using [Life360](http://life360.com/).
 ## Installation
-See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md) to use Custom Updater.
+See [Installing and Updating](custom_updater.md) to use Custom Updater.
 
 > __NOTE__: Don't forget to also install `life360`.
 
 Alternatively, place a copy of:
 
-[life360.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/life360.py) at `<config>/custom_components/life360.py` and  
-[device_tracker/life360.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/device_tracker/life360.py) at `<config>/custom_components/device_tracker/life360.py`
+[life360.py](../custom_components/life360.py) at `<config>/custom_components/life360.py` and  
+[device_tracker/life360.py](../custom_components/device_tracker/life360.py) at `<config>/custom_components/device_tracker/life360.py`
 
 where `<config>` is your Home Assistant configuration directory.
 
@@ -103,7 +103,7 @@ Date | Version | Notes
 20180910 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/118178acacafb36c5529e79577dd4eaf4bcfc0b4/custom_components/device_tracker/life360.py) | Add address attribute.
 20180912 | [1.2.0](https://github.com/pnbruckner/homeassistant-config/blob/069e75a8d612ae8a75dcda114d79facca9ba9bae/custom_components/device_tracker/life360.py) | Filter excessive errors.
 20180912 | [1.3.0](https://github.com/pnbruckner/homeassistant-config/blob/2111accaad47052e4ae73a5528cdf70c7ff00426/custom_components/device_tracker/life360.py) | Allow entries in members configuration variable that only have one name to be entered without comma.
-20180918 | [1.4.0](https://github.com/pnbruckner/homeassistant-config/blob/8d3bd58bf6512e7f51508d03542fb74a4bc3cb35/custom_components/device_tracker/life360.py) | Handle members that don't share their location in one or more circles.
+20180918 | [1.4.0](https://github.com/pnbruckner/homeassistant-config/blob/c0431151be81d402eaa25c87bfd069371c3bcd10/custom_components/device_tracker/life360.py) | Handle members that don't share their location in one or more circles.
 
-[Life360 Communications Module Release Notes](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360_lib.md#release-notes)
+[Life360 Communications Module Release Notes](life360_lib.md#release-notes)
 

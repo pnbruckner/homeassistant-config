@@ -1,5 +1,5 @@
 # Life360 Communications Module
-This module provides the low level communications functionality used by the [Life360 Device Tracker Platform](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md).
+This module provides the low level communications functionality used by the [Life360 Device Tracker Platform](life360.md).
 ## Release Notes
 Date | Version | Notes
 -|:-:|-

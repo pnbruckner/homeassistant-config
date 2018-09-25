@@ -3,11 +3,11 @@ Estimates outdoor illuminance based on time of day and current weather condition
 
 See: https://community.home-assistant.io/t/outdoor-illuminance-estimated-from-weather-conditions-reported-by-weather-underground
 ## Installation
-See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md) to use Custom Updater.
+See [Installing and Updating](custom_updater.md) to use Custom Updater.
 
 Alternatively, place a copy of:
 
-[sensor/illuminance.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/sensor/illuminance.py) at `<config>/custom_components/sensor/illuminance.py`
+[sensor/illuminance.py](../custom_components/sensor/illuminance.py) at `<config>/custom_components/sensor/illuminance.py`
 
 where `<config>` is your Home Assistant configuration directory.
 ## Release Notes

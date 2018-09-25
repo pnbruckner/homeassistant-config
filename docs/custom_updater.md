@@ -3,7 +3,7 @@ The custom components in this repo can be installed manually or by using [Custom
 ## Manual Installation
 See instructions provided on component's doc page.
 ## Custom Updater
-[custom_components.json](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components.json) provides the details Custom Updater needs. See [Custom Updater Installation](https://github.com/custom-components/custom_updater#installation) to install it.
+[custom_components.json](../custom_components.json) provides the details Custom Updater needs. See [Custom Updater Installation](https://github.com/custom-components/custom_updater#installation) to install it.
 ### Setup
 Add the following to your configuration:
 ```

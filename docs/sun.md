@@ -4,11 +4,11 @@ This is an enhanced version of the [standard Sun component](https://www.home-ass
 - Select which attributes sun.sun should have from the original set, as well as a few new ones.
 - Control how often azimuth and elevation are updated.
 ## Installation
-See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md) to use Custom Updater.
+See [Installing and Updating](custom_updater.md) to use Custom Updater.
 
 Alternatively, place a copy of:
 
-[sun.py](https://github.com/pnbruckner/homeassistant-config/blob/master/custom_components/sun.py) at `<config>/custom_components/sun.py`
+[sun.py](../custom_components/sun.py) at `<config>/custom_components/sun.py`
 
 where `<config>` is your Home Assistant configuration directory.
 
