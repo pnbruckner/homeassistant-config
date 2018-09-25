@@ -1,5 +1,7 @@
 # Composite Device Tracker
-This platform creates a composite device tracker from one or more other device trackers. It will update whenever one of the watched entities updates, taking the last_seen/last_updated (and possibly GPS and battery) data from the changing entity. The result can be a more accurate and up-to-date device tracker if the "input" device tracker's update irregularly. Currently device_tracker's with a source_type of gps or router are supported.
+This platform creates a composite device tracker from one or more other device trackers. It will update whenever one of the watched entities updates, taking the last_seen/last_updated (and possibly GPS and battery) data from the changing entity. The result can be a more accurate and up-to-date device tracker if the "input" device tracker's update irregularly.
+
+Currently device_tracker's with a source_type of gps or router are supported.
 ## Installation
 See [Installing and Updating](https://github.com/pnbruckner/homeassistant-config/blob/master/docs/custom_updater.md) to use Custom Updater.
 
@@ -30,7 +32,11 @@ If a watched device has a `last_seen` attribute, that will be used in the compos
 
 If a watched device has a `battery` attribute, that will be used to update the composite device.
 ## known_devices.yaml
-The watched devices, and the composite device, should all have `track` set to `true`. It's recommended, as well, to set `hide_if_away` to `true` for the watched devices (but leave it set to `false` for the composite device.) This way the map will only show the composite device (when it is out of the home zone.) It is also recommended to _not_ use the native merge feature of the device tracker component (i.e., do not add the MAC address from network-based trackers to a GPS-based tracker.)
+The watched devices, and the composite device, should all have `track` set to `true`.
+
+It's recommended, as well, to set `hide_if_away` to `true` for the watched devices (but leave it set to `false` for the composite device.) This way the map will only show the composite device (when it is out of the home zone.)
+
+Lastly, it is also recommended to _not_ use the native merge feature of the device tracker component (i.e., do not add the MAC address from network-based trackers to a GPS-based tracker. See more details in the [Device Tracker doc page](https://www.home-assistant.io/components/device_tracker/#using-gps-device-trackers-with-local-network-device-trackers).)
 ## Release Notes
 Date | Version | Notes
 -|:-:|-
