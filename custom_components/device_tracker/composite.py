@@ -13,7 +13,8 @@ import voluptuous as vol
 from homeassistant.components.binary_sensor import DOMAIN as BS_DOMAIN
 from homeassistant.components.device_tracker import (
     ATTR_BATTERY, ATTR_SOURCE_TYPE, ENTITY_ID_FORMAT, PLATFORM_SCHEMA,
-    SOURCE_TYPE_BLUETOOTH, SOURCE_TYPE_GPS, SOURCE_TYPE_ROUTER)
+    SOURCE_TYPE_BLUETOOTH, SOURCE_TYPE_BLUETOOTH_LE, SOURCE_TYPE_GPS,
+    SOURCE_TYPE_ROUTER)
 try:
     from homeassistant.components.zone.zone import active_zone
 except ImportError:
@@ -26,7 +27,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant.util import dt as dt_util
 
-__version__ = '1.2.0.b1'
+__version__ = '1.2.0.b2'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +41,8 @@ SOURCE_TYPE_BINARY_SENSOR = BS_DOMAIN
 STATE_BINARY_SENSOR_HOME = STATE_ON
 
 SOURCE_TYPE_NON_GPS = (
-    SOURCE_TYPE_BINARY_SENSOR, SOURCE_TYPE_BLUETOOTH, SOURCE_TYPE_ROUTER)
+    SOURCE_TYPE_BINARY_SENSOR, SOURCE_TYPE_BLUETOOTH, SOURCE_TYPE_BLUETOOTH_LE,
+    SOURCE_TYPE_ROUTER)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_NAME): cv.string,
