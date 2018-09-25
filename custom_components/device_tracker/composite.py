@@ -5,6 +5,7 @@ For more details about this platform, please refer to
 https://github.com/pnbruckner/homeassistant-config#device_trackercompositepy
 """
 
+from datetime import datetime
 import logging
 import threading
 import voluptuous as vol
@@ -23,12 +24,15 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant.util import dt as dt_util
 
-__version__ = '1.1.0.b1'
+__version__ = '1.1.0.b2'
 
 _LOGGER = logging.getLogger(__name__)
 
 ATTR_LAST_SEEN = 'last_seen'
-ATTR_WARNED = 'warned'
+
+WARNED = 'warned'
+SOURCE_TYPE = ATTR_SOURCE_TYPE
+STATE = ATTR_STATE
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_NAME): cv.string,
@@ -49,9 +53,9 @@ class CompositeScanner:
         self._entities = {}
         for entity_id in entities:
             self._entities[entity_id] = {
-                ATTR_WARNED: False,
-                ATTR_SOURCE_TYPE: None,
-                ATTR_STATE: None}
+                WARNED: False,
+                SOURCE_TYPE: None,
+                STATE: None}
         self._dev_id = config[CONF_NAME]
         self._lock = threading.Lock()
         self._prev_seen = None
@@ -62,7 +66,7 @@ class CompositeScanner:
     def _bad_entity(self, entity_id, message, remove_now=False):
         msg = '{} {}'.format(entity_id, message)
         # Has there already been a warning for this entity?
-        if self._entities[entity_id][ATTR_WARNED] or remove_now:
+        if self._entities[entity_id][WARNED] or remove_now:
             _LOGGER.error(msg)
             self._remove()
             self._entities.pop(entity_id)
@@ -72,24 +76,24 @@ class CompositeScanner:
                     self._hass, self._entities.keys(), self._update_info)
         else:
             _LOGGER.warning(msg)
-            self._entities[entity_id][ATTR_WARNED] = True
+            self._entities[entity_id][WARNED] = True
 
     def _good_entity(self, entity_id, source_type, state=None):
         self._entities[entity_id].update({
-            ATTR_WARNED: False,
-            ATTR_SOURCE_TYPE: source_type,
-            ATTR_STATE: state})
+            WARNED: False,
+            SOURCE_TYPE: source_type,
+            STATE: state})
 
     def _use_router_data(self, state):
         if state == STATE_HOME:
             return True
         entities = self._entities.values()
-        if any(entity[ATTR_SOURCE_TYPE] == SOURCE_TYPE_GPS
+        if any(entity[SOURCE_TYPE] == SOURCE_TYPE_GPS
                 for entity in entities):
             return False
-        return all(entity[ATTR_STATE] != STATE_HOME
+        return all(entity[STATE] != STATE_HOME
             for entity in entities
-            if entity[ATTR_SOURCE_TYPE] == SOURCE_TYPE_ROUTER)
+            if entity[SOURCE_TYPE] == SOURCE_TYPE_ROUTER)
 
     def _update_info(self, entity_id, old_state, new_state):
         if new_state is None:
@@ -101,9 +105,14 @@ class CompositeScanner:
             # new state object. Make sure last_seen is timezone aware in UTC.
             # Note that dt_util.as_utc assumes naive datetime is in local
             # timezone.
-            last_seen = dt_util.as_utc(
-                new_state.attributes.get(ATTR_LAST_SEEN,
-                                         new_state.last_updated))
+            last_seen = new_state.attributes.get(ATTR_LAST_SEEN)
+            if isinstance(last_seen, datetime):
+                last_seen = dt_util.as_utc(last_seen)
+            else:
+                try:
+                    last_seen = dt_util.utc_from_timestamp(float(last_seen))
+                except (TypeError, ValueError):
+                    last_seen = new_state.last_updated
 
             # Is this newer info than last update?
             if self._prev_seen and self._prev_seen >= last_seen:
