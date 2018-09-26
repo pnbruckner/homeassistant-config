@@ -23,18 +23,23 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
 
-__version__ = '1.4.0'
+__version__ = '1.5.0b1'
 
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = ['zone']
 
-CONF_SHOW_AS_STATE    = 'show_as_state'
-CONF_MAX_GPS_ACCURACY = 'max_gps_accuracy'
-CONF_MAX_UPDATE_WAIT  = 'max_update_wait'
-CONF_MEMBERS          = 'members'
+CONF_SHOW_AS_STATE     = 'show_as_state'
+CONF_MAX_GPS_ACCURACY  = 'max_gps_accuracy'
+CONF_MAX_UPDATE_WAIT   = 'max_update_wait'
+CONF_MEMBERS           = 'members'
+CONF_DRIVING_SPEED     = 'driving_speed'
+CONF_DRIVING_SPEED_MPH = 'driving_speed_mph'
+CONF_DRIVING_SPEED_KPH = 'driving_speed_kph'
 
 DEFAULT_FILENAME = 'life360.conf'
+SPEED_MPH_FACTOR = 2.25
+SPEED_KPH_FACTOR = SPEED_MPH_FACTOR * 1.61
 
 ATTR_LAST_SEEN    = 'last_seen'
 ATTR_AT_LOC_SINCE = 'at_loc_since'
@@ -43,6 +48,7 @@ ATTR_CHARGING     = 'charging'
 ATTR_WIFI_ON      = 'wifi_on'
 ATTR_DRIVING      = 'driving'
 ATTR_ADDRESS      = 'address'
+ATTR_SPEED        = 'speed'
 
 ATTR_PLACES = 'places'
 SHOW_AS_STATE_OPTS = [ATTR_PLACES, ATTR_MOVING, ATTR_DRIVING]
@@ -61,7 +67,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         cv.time_period, cv.positive_timedelta),
     vol.Optional(CONF_PREFIX): cv.string,
     vol.Optional(CONF_MEMBERS): vol.All(
-        cv.ensure_list, [cv.string])
+        cv.ensure_list, [cv.string]),
+    vol.Exclusive(CONF_DRIVING_SPEED, 'driving_speed'): vol.Coerce(float),
+    vol.Exclusive(CONF_DRIVING_SPEED_MPH, 'driving_speed'): vol.Coerce(float),
+    vol.Exclusive(CONF_DRIVING_SPEED_KPH, 'driving_speed'): vol.Coerce(float),
 })
 
 def exc_msg(exc):
@@ -122,6 +131,19 @@ def setup_scanner(hass, config, see, discovery_info=None):
     max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
     prefix = config.get(CONF_PREFIX)
     members = config.get(CONF_MEMBERS)
+    driving_speed = config.get(CONF_DRIVING_SPEED)
+    if driving_speed is None:
+        try:
+            driving_speed = config.get(
+                CONF_DRIVING_SPEED_MPH) / SPEED_MPH_FACTOR
+        except TypeError:
+            pass
+    if driving_speed is None:
+        try:
+            driving_speed = config.get(
+                CONF_DRIVING_SPEED_MPH) / SPEED_KPH_FACTOR
+        except TypeError:
+            pass
     _LOGGER.debug('members = {}'.format(members))
 
     if members:
@@ -140,12 +162,12 @@ def setup_scanner(hass, config, see, discovery_info=None):
             return False
 
     Life360Scanner(hass, see, interval, show_as_state, max_gps_accuracy,
-                   max_update_wait, prefix, members, api)
+                   max_update_wait, prefix, members, driving_speed, api)
     return True
 
 class Life360Scanner:
     def __init__(self, hass, see, interval, show_as_state, max_gps_accuracy,
-                 max_update_wait, prefix, members, api):
+                 max_update_wait, prefix, members, driving_speed, api):
         self._hass = hass
         self._see = see
         self._show_as_state = show_as_state
@@ -153,6 +175,7 @@ class Life360Scanner:
         self._max_update_wait = max_update_wait
         self._prefix = '' if not prefix else prefix + '_'
         self._members = members
+        self._driving_speed = driving_speed
         self._api = api
 
         self._errs = {}
@@ -275,14 +298,22 @@ class Life360Scanner:
                 else:
                     address = address1 or address2
 
+            driving = bool_attr_from_int(loc.get('isDriving'))
+            if driving in (STATE_UNKNOWN, False):
+                try:
+                    driving = float(loc.get('speed')) > self._driving_speed
+                except (TypeError, ValueError):
+                    pass
+
             attrs = {
                 ATTR_LAST_SEEN:    last_seen,
                 ATTR_AT_LOC_SINCE: utc_attr_from_ts(loc.get('since')),
                 ATTR_MOVING:       bool_attr_from_int(loc.get('inTransit')),
                 ATTR_CHARGING:     bool_attr_from_int(loc.get('charge')),
                 ATTR_WIFI_ON:      bool_attr_from_int(loc.get('wifiState')),
-                ATTR_DRIVING:      bool_attr_from_int(loc.get('isDriving')),
-                ATTR_ADDRESS:      address
+                ATTR_DRIVING:      driving,
+                ATTR_ADDRESS:      address,
+                ATTR_SPEED:        loc.get('speed')
             }
 
             # If we don't have a location name yet and user wants driving or moving
