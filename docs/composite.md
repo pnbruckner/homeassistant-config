@@ -37,6 +37,16 @@ The watched devices, and the composite device, should all have `track` set to `t
 It's recommended, as well, to set `hide_if_away` to `true` for the watched devices (but leave it set to `false` for the composite device.) This way the map will only show the composite device (when it is out of the home zone.)
 
 Lastly, it is also recommended to _not_ use the native merge feature of the device tracker component (i.e., do not add the MAC address from network-based trackers to a GPS-based tracker. See more details in the [Device Tracker doc page](https://www.home-assistant.io/components/device_tracker/#using-gps-device-trackers-with-local-network-device-trackers).)
+## Attributes
+Attribute | Description
+-|-
+battery | Battery level (in percent, if available.)
+entity_id | IDs of entities that have contributed to the state of the composite device.
+gps_accuracy | GPS accuracy radius (in meters, if available.)
+last_seen | Date and time when current location information was last updated.
+latitude | Latitude of current location (if available.)
+longitude | Longitude of current location (if available.)
+source_type | Source of current location information: `binary_sensor`, `bluetooth`, `bluetooth_le`, `gps` or `router`.
 ## Release Notes
 Date | Version | Notes
 -|:-:|-
@@ -44,3 +54,4 @@ Date | Version | Notes
 20180920 | [1.0.1](https://github.com/pnbruckner/homeassistant-config/blob/d5dd426bbf28a8f7bd5241bfe0603e67bc29f951/custom_components/device_tracker/composite.py) | Add thread locking to protect against multiple entities updating too close together.
 20180925 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/d57cc5bdae4eeee98d0eebb6cba493243e20c0cd/custom_components/device_tracker/composite.py) | Add support for network-based (aka router) device trackers.
 20180926 | [1.2.0](https://github.com/pnbruckner/homeassistant-config/blob/67ca1774af55c9d1b84672160ad07a7a34fbbf4c/custom_components/device_tracker/composite.py) | Add support for bluetooth device trackers and binary sensors.
+20180926 | [1.3.0]() | Add entity_id attribute.
