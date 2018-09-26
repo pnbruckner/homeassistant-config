@@ -27,7 +27,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant.util import dt as dt_util
 
-__version__ = '1.3.0.b2'
+__version__ = '1.3.0.b3'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ class CompositeScanner:
             _LOGGER.warning(msg)
             self._entities[entity_id][WARNED] = True
 
-    def _good_entity(self, entity_id, source_type, state=None):
+    def _good_entity(self, entity_id, source_type, state):
         self._entities[entity_id].update({
             WARNED: False,
             SOURCE_TYPE: source_type,
@@ -148,6 +148,8 @@ class CompositeScanner:
             else:
                 source_type = new_state.attributes.get(ATTR_SOURCE_TYPE)
 
+            state = new_state.state
+
             if source_type == SOURCE_TYPE_GPS:
                 # GPS coordinates and accuracy are required.
                 if gps is None:
@@ -157,20 +159,20 @@ class CompositeScanner:
                     self._bad_entity(entity_id,
                                      'missing gps_accuracy attribute')
                     return
-                self._good_entity(entity_id, SOURCE_TYPE_GPS)
+                self._good_entity(entity_id, SOURCE_TYPE_GPS, state)
 
             elif source_type in SOURCE_TYPE_NON_GPS:
                 # Convert 'on'/'off' state of binary_sensor
                 # to 'home'/'not_home'.
                 if source_type == SOURCE_TYPE_BINARY_SENSOR:
-                    if new_state.state == STATE_BINARY_SENSOR_HOME:
-                        new_state.state = STATE_HOME
+                    if state == STATE_BINARY_SENSOR_HOME:
+                        state = STATE_HOME
                     else:
-                        new_state.state = STATE_NOT_HOME
+                        state = STATE_NOT_HOME
 
                 self._good_entity(
-                    entity_id, source_type, new_state.state)
-                if not self._use_non_gps_data(new_state.state):
+                    entity_id, source_type, state)
+                if not self._use_non_gps_data(state):
                     return
 
                 # Don't use new GPS data if it's not complete.
@@ -199,7 +201,7 @@ class CompositeScanner:
                 # If router entity's state is 'home' and current GPS data from
                 # composite entity is available and is in 'zone.home',
                 # use it and make source_type gps.
-                if new_state.state == STATE_HOME and cur_gps_is_home:
+                if state == STATE_HOME and cur_gps_is_home:
                     gps = cur_lat, cur_lon
                     gps_accuracy = cur_acc
                     source_type = SOURCE_TYPE_GPS
@@ -211,7 +213,7 @@ class CompositeScanner:
                 # Otherwise, don't use any GPS data, but set location_name to
                 # new state.
                 else:
-                    location_name = new_state.state
+                    location_name = state
 
             else:
                 self._bad_entity(
