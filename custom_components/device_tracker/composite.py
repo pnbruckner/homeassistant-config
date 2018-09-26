@@ -27,11 +27,12 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant.util import dt as dt_util
 
-__version__ = '1.3.0.b1'
+__version__ = '1.3.0.b2'
 
 _LOGGER = logging.getLogger(__name__)
 
 ATTR_LAST_SEEN = 'last_seen'
+ATTR_LAST_ENTITY_ID = 'last_entity_id'
 
 WARNED = 'warned'
 SOURCE_TYPE = ATTR_SOURCE_TYPE
@@ -220,10 +221,11 @@ class CompositeScanner:
                 return
 
             attrs = {
-                ATTR_LAST_SEEN: last_seen.replace(microsecond=0),
                 ATTR_ENTITY_ID: tuple(
                     entity_id for entity_id, entity in self._entities.items()
-                    if entity[ATTR_SOURCE_TYPE] is not None)}
+                    if entity[ATTR_SOURCE_TYPE] is not None),
+                ATTR_LAST_ENTITY_ID: entity_id,
+                ATTR_LAST_SEEN: last_seen.replace(microsecond=0)}
             self._see(dev_id=self._dev_id, location_name=location_name,
                 gps=gps, gps_accuracy=gps_accuracy, battery=battery,
                 attributes=attrs, source_type=source_type)
