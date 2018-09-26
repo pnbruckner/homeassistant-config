@@ -20,14 +20,14 @@ try:
 except ImportError:
     from homeassistant.components.zone import active_zone
 from homeassistant.const import (
-    ATTR_GPS_ACCURACY, ATTR_LATITUDE, ATTR_LONGITUDE, ATTR_STATE,
-    CONF_ENTITY_ID, CONF_NAME, EVENT_HOMEASSISTANT_START, STATE_HOME,
-    STATE_NOT_HOME, STATE_ON)
+    ATTR_GPS_ACCURACY, ATTR_ENTITY_ID, ATTR_LATITUDE, ATTR_LONGITUDE,
+    ATTR_STATE, CONF_ENTITY_ID, CONF_NAME, EVENT_HOMEASSISTANT_START,
+    STATE_HOME, STATE_NOT_HOME, STATE_ON)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant.util import dt as dt_util
 
-__version__ = '1.2.0'
+__version__ = '1.3.0.b1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -219,7 +219,11 @@ class CompositeScanner:
                     remove_now=True)
                 return
 
-            attrs = {ATTR_LAST_SEEN: last_seen.replace(microsecond=0)}
+            attrs = {
+                ATTR_LAST_SEEN: last_seen.replace(microsecond=0),
+                ATTR_ENTITY_ID: tuple(
+                    entity_id for entity_id, entity in self._entities.items()
+                    if entity[ATTR_SOURCE_TYPE] is not None)}
             self._see(dev_id=self._dev_id, location_name=location_name,
                 gps=gps, gps_accuracy=gps_accuracy, battery=battery,
                 attributes=attrs, source_type=source_type)
