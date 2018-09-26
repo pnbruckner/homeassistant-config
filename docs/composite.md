@@ -1,7 +1,7 @@
 # Composite Device Tracker
-This platform creates a composite device tracker from one or more other device trackers. It will update whenever one of the watched entities updates, taking the last_seen/last_updated (and possibly GPS and battery) data from the changing entity. The result can be a more accurate and up-to-date device tracker if the "input" device tracker's update irregularly.
+This platform creates a composite device tracker from one or more other device trackers and/or binary sensors. It will update whenever one of the watched entities updates, taking the last_seen/last_updated (and possibly GPS and battery) data from the changing entity. The result can be a more accurate and up-to-date device tracker if the "input" device tracker's update irregularly.
 
-Currently device_tracker's with a source_type of gps or router are supported.
+Currently device_tracker's with a source_type of bluetooth, gps or router are supported, as well as binary_sensor's.
 ## Installation
 See [Installing and Updating](custom_updater.md) to use Custom Updater.
 
@@ -26,7 +26,7 @@ device_tracker:
 ## Watched device notes
 Watched GPS-based devices must have, at a minimum, the following attributes: `latitude`, `longitude` and `gps_accuracy`. If they don't they will not be used.
 
-For watched network-based devices, which states are used and whether any GPS data (if present) is used depends on several factors. E.g., if GPS-based devices are in use then the 'not_home' state of network-based devices will be ignored. If only network-based devices are in use, then the composite device will be 'home' if any of the watched devices are 'home', and will be 'not_home' only when _all_ the watched devices are 'not_home'.
+For watched non-GPS-based devices, which states are used and whether any GPS data (if present) is used depends on several factors. E.g., if GPS-based devices are in use then the 'not_home'/'off' state of non-GPS-based devices will be ignored. If only non-GPS-based devices are in use, then the composite device will be 'home' if any of the watched devices are 'home'/'on', and will be 'not_home' only when _all_ the watched devices are 'not_home'/'off'.
 
 If a watched device has a `last_seen` attribute, that will be used in the composite device. If not, then `last_updated` from the entity's state will be used instead.
 
@@ -42,4 +42,5 @@ Date | Version | Notes
 -|:-:|-
 20180907 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/d767bcce0fdff0c9298dc7a010d27af88817eac2/custom_components/device_tracker/composite.py) | Initial support for Custom Updater.
 20180920 | [1.0.1](https://github.com/pnbruckner/homeassistant-config/blob/d5dd426bbf28a8f7bd5241bfe0603e67bc29f951/custom_components/device_tracker/composite.py) | Add thread locking to protect against multiple entities updating too close together.
-20180925 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/d57cc5bdae4eeee98d0eebb6cba493243e20c0cd/custom_components/device_tracker/composite.py) | Add support for network-based device trackers.
+20180925 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/d57cc5bdae4eeee98d0eebb6cba493243e20c0cd/custom_components/device_tracker/composite.py) | Add support for network-based (aka router) device trackers.
+20180926 | [1.2.0]() | Add support for bluetooth device trackers and binary sensors.
