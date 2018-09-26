@@ -43,6 +43,7 @@ Attribute | Description
 battery | Battery level (in percent, if available.)
 entity_id | IDs of entities that have contributed to the state of the composite device.
 gps_accuracy | GPS accuracy radius (in meters, if available.)
+last_entity_id | ID of the last entity to update the composite device.
 last_seen | Date and time when current location information was last updated.
 latitude | Latitude of current location (if available.)
 longitude | Longitude of current location (if available.)
