@@ -1,6 +1,6 @@
 {
   "device_tracker.composite": {
-    "updated_at": "2018-09-25",
+    "updated_at": "2018-09-26",
     "version": "1.2.0",
     "local_location": "/custom_components/device_tracker/composite.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/device_tracker/composite.py",
