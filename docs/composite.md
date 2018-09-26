@@ -55,4 +55,4 @@ Date | Version | Notes
 20180920 | [1.0.1](https://github.com/pnbruckner/homeassistant-config/blob/d5dd426bbf28a8f7bd5241bfe0603e67bc29f951/custom_components/device_tracker/composite.py) | Add thread locking to protect against multiple entities updating too close together.
 20180925 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/d57cc5bdae4eeee98d0eebb6cba493243e20c0cd/custom_components/device_tracker/composite.py) | Add support for network-based (aka router) device trackers.
 20180926 | [1.2.0](https://github.com/pnbruckner/homeassistant-config/blob/67ca1774af55c9d1b84672160ad07a7a34fbbf4c/custom_components/device_tracker/composite.py) | Add support for bluetooth device trackers and binary sensors.
-20180926 | [1.3.0]() | Add entity_id attribute.
+20180926 | [1.3.0]() | Add entity_id and last_entity_id attributes. Fix bug in 1.2.0 that affected state of binary_sensors in state machine.
