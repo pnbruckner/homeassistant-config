@@ -19,7 +19,8 @@ device_tracker:
     username: !secret life360_username
     password: !secret life360_password
     prefix: life360
-    show_as_state: places, moving
+    show_as_state: driving, moving, places
+    driving_speed: 18
     max_gps_accuracy: 200
     max_update_wait:
       minutes: 45
@@ -28,9 +29,9 @@ device_tracker:
 - **username**: Your Life360 username.
 - **password**: Your Life360 password.
 - **prefix** (*Optional*): Default is to name entities `device_tracker.<first_name>_<last_name>`, where `<first_name>` and `<last_name>` are specified by Life360. If a prefix is specified, then entity will be named `device_tracker.<prefix>_<first_name>_<last_name>`. If the member only has a first or last name in Life360, then the underscore that would normally separate the names is left out.
-- **show_as_state** (*Optional*): Without it entities' states will be strictly determined by the device_tracker component. If specified must be one or more of: `places`, `driving` and `moving`. If `places` is specified then whenever Life360 reports a member is in a Life360 defined Place or has checked in, the corresponding name will become the state of the device_tracker entity. If `driving` is specified and Life360 reports isDriving as true, then the entity's state will be 'Driving'. If `moving` is specified and Life360 reports inTransit is true, then the entity's state will be 'Moving'. If multiple options are specified and more than one becomes true at the same time, `driving` takes precedence over `moving`, being in a HA zone takes precedence over those two, and `places` takes precedence over all the others.
+- **show_as_state** (*Optional*): One or more of: `driving`, `moving` and `places`. If `places` is specified and a member is in a Life360 defined Place or has checked in, the corresponding name will become the state of the device_tracker entity. If `places` is not specified and the device is in a HA defined zone, then it will become the state. (Note that the state for Home will always be `home`, whether determined by a Life360 Place or HA's home zone.) If `driving` is specified (and `places` is not and the device is not in a HA defined zone) and Life360 reports isDriving as true (also see `driving_speed` below), then the entity's state will be `Driving`. If `moving` is specified (and neither `places` nor `driving` is, and the device is not in a HA defined zone) and Life360 reports inTransit is true, then the entity's state will be `Moving`. Otherwise the state will be `not_home`.
 - **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
-- **driving_speed**, **driving_speed_mph** or **driving_speed_kph** (*Optional*): If specified, and if the `driving` attribute woud otherwise be 'unknown' or False, then if the speed indicated by the Life360 server is the specified value or above, then `driving` will be set to True. Use `driving_speed` to compare directly to the raw speed value provided by the Life360 server. Use `driving_speed_mph` or `driving_speed_kph` if you'd rather specify the threshold in mi/hr or km/hr. Note that it is unclear what the exact units are for the speed provided by the Life360 server, so in the latter case of using mi/hr or km/hr a best guess factor is used.
+- **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): If specified and the speed indicated by the Life360 server is the specified value or above, then the `driving` attribute will be set to True. This can also set the state to `Driving` (also see `show_as_state` above.)
 - **interval_seconds** (*Optional*): The default is 12. This defines how often the Life360 server will be queried. The resulting device_tracker entities will actually only be updated when the Life360 server provides new location information for each member.
 - **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
 - **max_update_wait** (*Optional*): If you specify it, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `device_tracker.life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `device_tracker.life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. Note that if you set the entity to _not_ be tracked via known_devices.yaml then the entity_id will not exist in the state machine. In this case it might be better to exclude the member via the members parameter above. See example automations below.
@@ -45,7 +46,8 @@ driving | Phone movement indicates driving (True/False.)
 entity_picture | Member's "avatar" if one is provided by Life360.
 last_seen | Date and time when Life360 last updated your location (in UTC.)
 moving | Phone is moving (True/False.)
-speed | "Raw" speed value provided by Life360 server. (Units unknown.)
+raw_speed | "Raw" speed value provided by Life360 server. (Units unknown.)
+speed | Estimated speed of device (in MPH or KPH depending on HA's unit system configuration.)
 wifi_on | Phone WiFi is turned on (True/False.)
 ## Examples
 ### Example full configuration
@@ -55,12 +57,12 @@ device_tracker:
     username: !secret life360_username
     password: !secret life360_password
     prefix: life360
-    show_as_state: places, driving, moving
+    show_as_state: driving, moving, places
     members:
       - mike, smith
       - Joe
       - Jones
-    driving_speed_mph: 18
+    driving_speed: 18
     interval_seconds: 10
     max_gps_accuracy: 200
     max_update_wait:
