@@ -23,7 +23,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
 
-__version__ = '1.5.0b3'
+__version__ = '1.5.0b4'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -290,6 +290,7 @@ class Life360Scanner:
                 if self._hass.config.units.is_metric:
                     speed = util.distance.convert(
                         speed, LENGTH_MILES, LENGTH_KILOMETERS)
+                speed = round(speed)
             except (TypeError, ValueError):
                 speed = STATE_UNKNOWN
             driving = bool_attr_from_int(loc.get('isDriving'))
