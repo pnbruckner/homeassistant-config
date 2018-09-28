@@ -66,7 +66,7 @@ device_tracker:
     interval_seconds: 10
     max_gps_accuracy: 200
     max_update_wait:
-      minutes: 30
+      minutes: 45
     filename: life360.conf
 ```
 ### Example overdue update automations
@@ -109,7 +109,7 @@ Date | Version | Notes
 20180912 | [1.2.0](https://github.com/pnbruckner/homeassistant-config/blob/069e75a8d612ae8a75dcda114d79facca9ba9bae/custom_components/device_tracker/life360.py) | Filter excessive errors.
 20180912 | [1.3.0](https://github.com/pnbruckner/homeassistant-config/blob/2111accaad47052e4ae73a5528cdf70c7ff00426/custom_components/device_tracker/life360.py) | Allow entries in members configuration variable that only have one name to be entered without comma.
 20180918 | [1.4.0](https://github.com/pnbruckner/homeassistant-config/blob/c0431151be81d402eaa25c87bfd069371c3bcd10/custom_components/device_tracker/life360.py) | Handle members that don't share their location in one or more circles.
-20180926 | [1.5.0]() | Add raw_speed and speed attributes and `driving_speed` config option. Derive `driving` attribute from speed if possible.
+20180928 | [1.5.0]() | Add raw_speed and speed attributes and `driving_speed` config option. Derive `driving` attribute from speed if possible.
 
 [Life360 Communications Module Release Notes](life360_lib.md#release-notes)
 
