@@ -29,26 +29,36 @@ device_tracker:
 - **username**: Your Life360 username.
 - **password**: Your Life360 password.
 - **prefix** (*Optional*): Default is to name entities `device_tracker.<first_name>_<last_name>`, where `<first_name>` and `<last_name>` are specified by Life360. If a prefix is specified, then entity will be named `device_tracker.<prefix>_<first_name>_<last_name>`. If the member only has a first or last name in Life360, then the underscore that would normally separate the names is left out.
-- **show_as_state** (*Optional*): One or more of: `driving`, `moving` and `places`. If `places` is specified and a member is in a Life360 defined Place or has checked in, the corresponding name will become the state of the device_tracker entity. If the state is not set by `places` and the device is in a HA defined zone, then it will become the state. (Note that the state for Home will always be `home`, whether determined by a Life360 Place or HA's home zone.) If `driving` is specified (and the state is not set by `places` or a HA defined zone) and Life360 reports isDriving as true (see also `driving_speed` below), then the entity's state will be `Driving`. If `moving` is specified (and the state is not set by `places`, a HA defined zone or `driving`) and Life360 reports inTransit is true, then the entity's state will be `Moving`. Otherwise the state will be `not_home`.
-- **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
-- **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): If specified and the speed indicated by the Life360 server is the specified value or above, then the `driving` attribute will be set to True. This can also set the state to `Driving` (see also `show_as_state` above.)
-- **interval_seconds** (*Optional*): The default is 12. This defines how often the Life360 server will be queried. The resulting device_tracker entities will actually only be updated when the Life360 server provides new location information for each member.
+- **show_as_state** (*Optional*): One or more of: `driving`, `moving` and `places`. Default is for Device Tracker Component to determine entity state as normal. When specified these can cause the entity's state to show other statuses according to the chart below, where precedence goes from higher to lower.
+
+show_as_state | State | Conditions
+-|-|-
+`places` | Place or check-in name | Member is in a Life360 defined "Place" or member has "checked in" via the Life360 app.
+N/A | HA zone name | Device GPS coordinates are located in a HA defined zone.
+`driving` | `Driving` | The Life360 server indicates the device "isDriving", or if `driving_speed` (see below) has been specified and the speed provided by the Life360 server is at or above that value.
+`moving` | `Moving` | The Life360 server indicates the device is "inTransit".
+N/A | `not_home` | None of the above are true.
+
+**Note**: If Life360 Place or check-in name, or HA zone name, are any form of the word "home", then the state will be all lowercase `home`.
+- **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered `driving`. (See also show_as_state above.)
 - **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
 - **max_update_wait** (*Optional*): If you specify it, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `device_tracker.life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `device_tracker.life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. Note that if you set the entity to _not_ be tracked via known_devices.yaml then the entity_id will not exist in the state machine. In this case it might be better to exclude the member via the members parameter above. See example automations below.
+- **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
+- **interval_seconds** (*Optional*): The default is 12. This defines how often the Life360 server will be queried. The resulting device_tracker entities will actually only be updated when the Life360 server provides new location information for each member.
 - **filename** (*Optional*): The default is life360.conf. The platform will get an authorization token from the Life360 server using your username and password, and it will save the token in a file in the HA config directory (with limited permissions) so that it can reuse it after restarts (and not have to get a new token every time.) If the token eventually expires, a new one will be acquired as needed.
 ## Additional attributes
 Attribute | Description
 -|-
 address | Address of current location, or None.
 at_loc_since | Date and time when first at current location (in UTC.)
-charging | Phone is charging (True/False.)
-driving | Phone movement indicates driving (True/False.)
+charging | Device is charging (True/False.)
+driving | Device movement indicates driving (True/False.)
 entity_picture | Member's "avatar" if one is provided by Life360.
 last_seen | Date and time when Life360 last updated your location (in UTC.)
-moving | Phone is moving (True/False.)
+moving | Device is moving (True/False.)
 raw_speed | "Raw" speed value provided by Life360 server. (Units unknown.)
 speed | Estimated speed of device (in MPH or KPH depending on HA's unit system configuration.)
-wifi_on | Phone WiFi is turned on (True/False.)
+wifi_on | Device WiFi is turned on (True/False.)
 ## Examples
 ### Example full configuration
 ```yaml
@@ -58,15 +68,15 @@ device_tracker:
     password: !secret life360_password
     prefix: life360
     show_as_state: driving, moving, places
+    driving_speed: 18
+    max_gps_accuracy: 200
+    max_update_wait:
+      minutes: 45
     members:
       - mike, smith
       - Joe
       - Jones
-    driving_speed: 18
     interval_seconds: 10
-    max_gps_accuracy: 200
-    max_update_wait:
-      minutes: 45
     filename: life360.conf
 ```
 ### Example overdue update automations
