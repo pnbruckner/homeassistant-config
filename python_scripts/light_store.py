@@ -1,3 +1,5 @@
+__version__ = '1.0.0'
+
 DOMAIN = 'light_store'
 
 ATTR_OPERATION  = 'operation'
