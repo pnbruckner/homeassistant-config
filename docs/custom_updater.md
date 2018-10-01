@@ -13,7 +13,7 @@ custom_updater:
     - python_scripts
   component_urls:
     - https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components.json
-  python_script_urls
+  python_script_urls:
     - https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/python_scripts.json
 ```
 ### Installing
