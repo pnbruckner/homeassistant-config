@@ -1,6 +1,6 @@
 # Home Assistant Configuration
+### [Installing & Updating Custom Components & Python Scripts](docs/custom_updater.md)
 ## Custom Components
-### [Installing and Updating](docs/custom_updater.md)
 ### [Amcrest Camera](docs/amcrest.md)
 > __NOTE__: The Amcrest Camera components are not supported via Custom Updater.
 ### [Composite Device Tracker platform](docs/composite.md)
