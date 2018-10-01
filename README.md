@@ -8,10 +8,7 @@
 ### [Illuminance Sensor](docs/illuminance.md)
 ### [Enhanced Sun component](docs/sun.md)
 ## Python Scripts
-### light_store.py
-Save and restore state of switches and lights (and groups of them.)
-
-See: https://community.home-assistant.io/t/python-script-to-save-and-restore-switches-and-lights
+### [Light Store](docs/light_store.md)
 ## Tools
 ### logcomps.py
 Script to generate a list of components that have written to home-assistant.log. Each line of the output is the component's name, the severity level, and the number of lines in the log that match. The list is sorted by the number of lines, and the total number of lines is also output last. This can be used to decide what to exclude from the log (via the logger config parameter) to reduce the size of the log and frequency with which it is written.

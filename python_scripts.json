@@ -1,0 +1,10 @@
+{
+  "light_store": {
+    "updated_at": "2018-09-28",
+    "version": "1.0.0",
+    "local_location": "/python_scripts/light_store.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/python_scripts/light_store.py",
+    "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
+    "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/light_store.md#release-notes"
+  }
+}
