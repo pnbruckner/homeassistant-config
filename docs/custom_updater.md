@@ -3,7 +3,7 @@ The custom components and Python scripts in this repo can be installed manually 
 ## Manual Installation
 See instructions provided on custom component's or Python script's doc page.
 ## Custom Updater
-[custom_components.json](../custom_components.json) and [python_scripts.json](../python_scripts.json) provide the details Custom Updater needs. See [Custom Updater Installation](https://github.com/custom-components/custom_updater#installation) to install it.
+[custom_components.json](../custom_components.json) and [python_scripts.json](../python_scripts.json) provide the details Custom Updater needs. See [Custom Updater Installation](https://github.com/custom-components/custom_updater/wiki/Installation) to install it.
 ### Setup
 Add the following to your configuration:
 ```
