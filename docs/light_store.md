@@ -64,4 +64,4 @@ If you have any light groups (i.e., an entity of the light domain that is actual
 ## Release Notes
 Date | Version | Notes
 -|:-:|-
-20180928 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/4d158997d6a9a1e1c2d7e6f7dff68a7a8f0ca42f/python_scripts/light_store.py) | Initial support for Custom Updater.
+20181002 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/62e517921e9f48625dbc7c7e3b9d6b4e665749f4/python_scripts/light_store.py) | Initial support for Custom Updater.
