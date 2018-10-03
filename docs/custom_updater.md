@@ -24,6 +24,6 @@ To install one of these custom components or Python scripts for the first time, 
 }
 ```
 ### Updating
-Once components/scripts are installed they can easily be updated using the Tracker card. If you're not using the Tracker card then you can use the [`custom_updater.update_all`](https://github.com/custom-components/custom_updater/wiki/Services#update-all) service.
+Once components/scripts are installed they can easily be updated using the [Tracker card](https://github.com/custom-cards/tracker-card). If you're not using the Tracker card then you can use the [`custom_updater.update_all`](https://github.com/custom-components/custom_updater/wiki/Services#update-all) service.
 
 > __NOTE__: If you already have one or more of these custom components or Python scripts from before version numbers were added then they cannot be updated via the `custom_updater.update_all` service. In this case you will need to install them following the instructions above (as if they had not yet been installed. There should be no need to remove them first.)
