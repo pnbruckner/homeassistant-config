@@ -33,13 +33,14 @@ device_tracker:
 
 show_as_state | State | Conditions
 -|-|-
-`places` | Place or check-in name | Member is in a Life360 defined "Place" or member has "checked in" via the Life360 app.
-N/A | HA zone name | Device GPS coordinates are located in a HA defined zone.
+`places` | `home` | Place or check-in name (see below) is any form of the word 'home'.
+`places` | Place or check-in name | Member is in a Life360 defined "Place" or member has "checked in" via the Life360 app (and name is not any form of the word 'home'.)
+N/A | `home` | Device GSP coordinates are located in the HA defined home zone.
+N/A | HA zone name | Device GPS coordinates are located in a HA defined zone (other than home.)
 `driving` | `Driving` | The Life360 server indicates the device "isDriving", or if `driving_speed` (see below) has been specified and the speed provided by the Life360 server is at or above that value.
 `moving` | `Moving` | The Life360 server indicates the device is "inTransit".
 N/A | `not_home` | None of the above are true.
 
-**Note**: If Life360 Place or check-in name, or HA zone name, are any form of the word "home", then the state will be all lowercase `home`.
 - **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered `driving`. (See also show_as_state above.)
 - **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
 - **max_update_wait** (*Optional*): If you specify it, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `device_tracker.life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `device_tracker.life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. Note that if you set the entity to _not_ be tracked via known_devices.yaml then the entity_id will not exist in the state machine. In this case it might be better to exclude the member via the members parameter above. See example automations below.
