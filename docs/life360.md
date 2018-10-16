@@ -124,7 +124,7 @@ Date | Version | Notes
 20180918 | [1.4.0](https://github.com/pnbruckner/homeassistant-config/blob/c0431151be81d402eaa25c87bfd069371c3bcd10/custom_components/device_tracker/life360.py) | Handle members that don't share their location in one or more circles.
 20180928 | [1.5.0](https://github.com/pnbruckner/homeassistant-config/blob/eb3dc1915c9289e741ba9db0471a271b0edd4677/custom_components/device_tracker/life360.py) | Add raw_speed and speed attributes and `driving_speed` config option. Derive `driving` attribute from speed if possible.
 20181002 | [1.5.1](https://github.com/pnbruckner/homeassistant-config/blob/6cf17f0a5e02ef556862247ee632d61ce58c7b09/custom_components/device_tracker/life360.py) | Limit speed attribute to non-negative values.
-20181016 | [1.6.0]() | Update as soon as initialization is complete.
+20181016 | [1.6.0](https://github.com/pnbruckner/homeassistant-config/blob/c24c65a06e78d1ec6b7d11df9f10a7b94a583d12/custom_components/device_tracker/life360.py) | Update as soon as initialization is complete.
 
 [Life360 Communications Module Release Notes](life360_lib.md#release-notes)
 
