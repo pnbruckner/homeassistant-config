@@ -25,9 +25,9 @@ from homeassistant.const import (
     STATE_HOME, STATE_NOT_HOME, STATE_ON)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
-from homeassistant.util import dt as dt_util
+from homeassistant import util
 
-__version__ = '1.3.0'
+__version__ = '1.4.0b1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ class CompositeScanner:
                 WARNED: False,
                 SOURCE_TYPE: None,
                 STATE: None}
-        self._dev_id = config[CONF_NAME]
+        self._dev_id = util.slugify(config[CONF_NAME])
         self._lock = threading.Lock()
         self._prev_seen = None
 
@@ -114,14 +114,14 @@ class CompositeScanner:
             # Get time device was last seen, which is the entity's last_seen
             # attribute, or if that doesn't exist, then last_updated from the
             # new state object. Make sure last_seen is timezone aware in UTC.
-            # Note that dt_util.as_utc assumes naive datetime is in local
+            # Note that util.dt.as_utc assumes naive datetime is in local
             # timezone.
             last_seen = new_state.attributes.get(ATTR_LAST_SEEN)
             if isinstance(last_seen, datetime):
-                last_seen = dt_util.as_utc(last_seen)
+                last_seen = util.dt.as_utc(last_seen)
             else:
                 try:
-                    last_seen = dt_util.utc_from_timestamp(float(last_seen))
+                    last_seen = util.dt.utc_from_timestamp(float(last_seen))
                 except (TypeError, ValueError):
                     last_seen = new_state.last_updated
 
