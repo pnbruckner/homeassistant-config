@@ -23,7 +23,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
 
-__version__ = '1.5.1'
+__version__ = '1.6.0b1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -169,6 +169,7 @@ class Life360Scanner:
         self._dev_data = {}
         self._started = util.dt.utcnow()
 
+        self._update_life360()
         track_time_interval(self._hass, self._update_life360, interval)
 
     def _ok(self, key):
