@@ -27,7 +27,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant import util
 
-__version__ = '1.4.0'
+__version__ = '1.5.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,9 +51,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 })
 
 def setup_scanner(hass, config, see, discovery_info=None):
-    def run_setup(event):
-        CompositeScanner(hass, config, see)
-    hass.bus.listen_once(EVENT_HOMEASSISTANT_START, run_setup)
+    CompositeScanner(hass, config, see)
     return True
 
 class CompositeScanner:
@@ -73,6 +71,9 @@ class CompositeScanner:
 
         self._remove = track_state_change(
             hass, entities, self._update_info)
+
+        for entity_id in entities:
+            self._update_info(entity_id, None, hass.states.get(entity_id))
 
     def _bad_entity(self, entity_id, message, remove_now=False):
         msg = '{} {}'.format(entity_id, message)
