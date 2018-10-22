@@ -27,7 +27,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant import util
 
-__version__ = '1.5.0'
+__version__ = '1.5.1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,12 +73,13 @@ class CompositeScanner:
             hass, entities, self._update_info)
 
         for entity_id in entities:
-            self._update_info(entity_id, None, hass.states.get(entity_id))
+            self._update_info(entity_id, None, hass.states.get(entity_id),
+                              init=True)
 
-    def _bad_entity(self, entity_id, message, remove_now=False):
+    def _bad_entity(self, entity_id, message, init):
         msg = '{} {}'.format(entity_id, message)
         # Has there already been a warning for this entity?
-        if self._entities[entity_id][WARNED] or remove_now:
+        if self._entities[entity_id][WARNED]:
             _LOGGER.error(msg)
             self._remove()
             self._entities.pop(entity_id)
@@ -88,7 +89,8 @@ class CompositeScanner:
                     self._hass, self._entities.keys(), self._update_info)
         else:
             _LOGGER.warning(msg)
-            self._entities[entity_id][WARNED] = True
+            # Don't count warnings during init.
+            self._entities[entity_id][WARNED] = not init
 
     def _good_entity(self, entity_id, source_type, state):
         self._entities[entity_id].update({
@@ -107,11 +109,13 @@ class CompositeScanner:
             for entity in entities
             if entity[SOURCE_TYPE] in SOURCE_TYPE_NON_GPS)
 
-    def _update_info(self, entity_id, old_state, new_state):
+    def _update_info(self, entity_id, old_state, new_state, init=False):
         if new_state is None:
             return
 
         with self._lock:
+            composite_entity_id = ENTITY_ID_FORMAT.format(self._dev_id)
+
             # Get time device was last seen, which is the entity's last_seen
             # attribute, or if that doesn't exist, then last_updated from the
             # new state object. Make sure last_seen is timezone aware in UTC.
@@ -128,8 +132,11 @@ class CompositeScanner:
 
             # Is this newer info than last update?
             if self._prev_seen and self._prev_seen >= last_seen:
-                _LOGGER.debug('Skipping: prv({}) >= new({})'.format(
-                    self._prev_seen, last_seen))
+                _LOGGER.debug(
+                    'For {} skipping update from {}: '
+                    'last_seen older than previous update ({} < {})'
+                    .format(composite_entity_id, entity_id, last_seen,
+                        self._prev_seen))
                 return
 
             # Try to get GPS and battery data.
@@ -154,11 +161,12 @@ class CompositeScanner:
             if source_type == SOURCE_TYPE_GPS:
                 # GPS coordinates and accuracy are required.
                 if gps is None:
-                    self._bad_entity(entity_id, 'missing gps attributes')
+                    self._bad_entity(entity_id,
+                                     'missing gps attributes', init)
                     return
                 if gps_accuracy is None:
                     self._bad_entity(entity_id,
-                                     'missing gps_accuracy attribute')
+                                     'missing gps_accuracy attribute', init)
                     return
                 self._good_entity(entity_id, SOURCE_TYPE_GPS, state)
 
@@ -181,8 +189,7 @@ class CompositeScanner:
                     gps = gps_accuracy = None
                 # Get current GPS data, if any, and determine if it is in
                 # 'zone.home'.
-                cur_state = self._hass.states.get(
-                    ENTITY_ID_FORMAT.format(self._dev_id))
+                cur_state = self._hass.states.get(composite_entity_id)
                 try:
                     cur_lat = cur_state.attributes[ATTR_LATITUDE]
                     cur_lon = cur_state.attributes[ATTR_LONGITUDE]
@@ -220,7 +227,7 @@ class CompositeScanner:
                 self._bad_entity(
                     entity_id,
                     'unsupported source_type: {}'.format(source_type),
-                    remove_now=True)
+                    init)
                 return
 
             attrs = {
