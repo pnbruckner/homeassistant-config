@@ -58,4 +58,4 @@ Date | Version | Notes
 20180926 | [1.3.0](https://github.com/pnbruckner/homeassistant-config/blob/ed9bab69ea9cdd2bb2a892cf3a1b23f930119f0b/custom_components/device_tracker/composite.py) | Add entity_id and last_entity_id attributes. Fix bug in 1.2.0 that affected state of binary_sensors in state machine.
 20181016 | [1.4.0](https://github.com/pnbruckner/homeassistant-config/blob/42faa22bdc3cc7cc63df3744a81bc235507996b6/custom_components/device_tracker/composite.py) | Make sure name is valid object ID.
 20181019 | [1.5.0](https://github.com/pnbruckner/homeassistant-config/blob/d1fffc42d5c309bc6a99ff74d81469c00a4fa71b/custom_components/device_tracker/composite.py) | Remove initialization delay and update immediately according to current state of entities.
-20181022 | [1.5.1]() | Log, but otherwise ignore, invalid states of watched entities during init. Improve "skipping" debug message.
+20181022 | [1.5.1](https://github.com/pnbruckner/homeassistant-config/blob/111ce69063dfeda57f4c62a5207cce7d605c5928/custom_components/device_tracker/composite.py) | Log, but otherwise ignore, invalid states of watched entities during init. Improve "skipping" debug message.
