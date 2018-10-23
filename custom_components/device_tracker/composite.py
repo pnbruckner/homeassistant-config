@@ -27,7 +27,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant import util
 
-__version__ = '1.5.1'
+__version__ = '1.5.2b1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ SOURCE_TYPE_NON_GPS = (
     SOURCE_TYPE_ROUTER)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Required(CONF_NAME): cv.string,
+    vol.Required(CONF_NAME): cv.slugify,
     vol.Required(CONF_ENTITY_ID): cv.entity_ids
 })
 
@@ -65,7 +65,7 @@ class CompositeScanner:
                 WARNED: False,
                 SOURCE_TYPE: None,
                 STATE: None}
-        self._dev_id = util.slugify(config[CONF_NAME])
+        self._dev_id = config[CONF_NAME]
         self._lock = threading.Lock()
         self._prev_seen = None
 
