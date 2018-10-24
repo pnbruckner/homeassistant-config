@@ -13,21 +13,52 @@ import async_timeout
 import logging
 import voluptuous as vol
 
-from homeassistant.const import CONF_NAME, CONF_API_KEY, CONF_SCAN_INTERVAL
+from homeassistant.const import (
+    ATTR_ATTRIBUTION, CONF_ENTITY_ID, CONF_API_KEY, CONF_NAME,
+    CONF_SCAN_INTERVAL)
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.components.sensor import PLATFORM_SCHEMA, SCAN_INTERVAL
+from homeassistant.components.sensor.darksky import (
+    CONF_ATTRIBUTION as DSS_ATTRIBUTION)
+from homeassistant.components.sensor.yr import (
+    CONF_ATTRIBUTION as YRS_ATTRIBUTION)
+from homeassistant.components.weather.darksky import (
+    ATTRIBUTION as DSW_ATTRIBUTION, MAP_CONDITION as DSW_MAP_CONDITION)
 import homeassistant.util.dt as dt_util
 
-__version__ = '2.0.0b1'
-
-CONF_QUERY = 'query'
+__version__ = '2.0.0b2'
 
 DEFAULT_NAME = 'Illuminance'
 MIN_SCAN_INTERVAL = dt.timedelta(minutes=5)
 DEFAULT_SCAN_INTERVAL = dt.timedelta(minutes=5)
+
+WU_MAPPING = (
+    (  200, ('tstorms',)),
+    ( 1000, ('cloudy', 'fog', 'rain', 'sleet', 'snow', 'flurries',
+             'chanceflurries', 'chancerain', 'chancesleet', 
+             'chancesnow','chancetstorms')),
+    ( 2500, ('mostlycloudy',)),
+    ( 7500, ('partlysunny', 'partlycloudy', 'mostlysunny', 'hazy')),
+    (10000, ('sunny', 'clear')))
+YR_MAPPING = (
+    (  200, (6, 11, 14, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
+             33, 34)),
+    ( 1000, (5, 7, 8, 9, 10, 12, 13, 15, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+             49, 50)),
+    ( 2500, (4, )),
+    ( 7500, (2, 3)),
+    (10000, (1, )))
+DARKSKY_MAPPING = (
+    (  200, ('hail', 'lightning')),
+    ( 1000, ('fog', 'rainy', 'snowy', 'snowy-rainy')),
+    ( 2500, ('cloudy', )),
+    ( 7500, ('partlycloudy', )),
+    (10000, ('clear-night', 'sunny', 'windy')))
+
+CONF_QUERY = 'query'
 
 ATTR_SUNRISE = 'sunrise'
 ATTR_SUNSET = 'sunset'
@@ -35,13 +66,18 @@ ATTR_CONDITIONS = 'conditions'
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    vol.Inclusive(CONF_API_KEY, 'wu'): cv.string,
-    vol.Inclusive(CONF_QUERY, 'wu'): cv.string,
-    vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL):
-        vol.All(cv.time_period, vol.Range(min=MIN_SCAN_INTERVAL)),
-})
+PLATFORM_SCHEMA = vol.All(
+    PLATFORM_SCHEMA.extend({
+        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+        vol.Exclusive(CONF_API_KEY, 'source'): cv.string,
+        vol.Optional(CONF_QUERY): cv.string,
+        vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL):
+            vol.All(cv.time_period, vol.Range(min=MIN_SCAN_INTERVAL)),
+        vol.Exclusive(CONF_ENTITY_ID, 'source'): cv.entity_id,
+    }),
+    cv.has_at_least_one_key(CONF_API_KEY, CONF_ENTITY_ID),
+    cv.key_dependency(CONF_API_KEY, CONF_QUERY),
+)
 
 _API_URL = 'http://api.wunderground.com/api/{api_key}/{features}/q/{query}.json'
 
@@ -64,30 +100,29 @@ async def _async_get_data(hass, session, api_key, features, query):
 
 async def async_setup_platform(hass, config, async_add_entities,
                                discovery_info=None):
-    name = config[CONF_NAME]
-    if CONF_API_KEY in config:
-        api_key = config[CONF_API_KEY]
-        query   = config[CONF_QUERY]
-
+    using_wu = CONF_API_KEY in config
+    session = None
+    if using_wu:
         session = async_get_clientsession(hass)
-        if not await _async_get_data(hass, session, api_key, [], query):
+        if not await _async_get_data(
+                hass, session, config[CONF_API_KEY], [], config[CONF_QUERY]):
             return False
-            
-        sensor = IlluminanceSensor(name, session, api_key, query)
-    else:
-        sensor = IlluminanceSensor(name)
 
-    async_add_entities([sensor], True)
+    async_add_entities([IlluminanceSensor(using_wu, config, session)], True)
 
 class IlluminanceSensor(Entity):
-    def __init__(self, name, session=None, api_key=None, query=None):
-        self._name = name
-        self._session = session
-        self._api_key = api_key
-        self._query = query
+    def __init__(self, using_wu, config, session):
+        self._using_wu = using_wu
+        if using_wu:
+            self._api_key = config[CONF_API_KEY]
+            self._query = config[CONF_QUERY]
+            self._session = session
+            self._conditions = None
+        else:
+            self._entity_id = config[CONF_ENTITY_ID]
+        self._name = config[CONF_NAME]
         self._state = None
         self._sun_data = None
-        self._conditions = None
 
     @property
     def name(self):
@@ -98,8 +133,8 @@ class IlluminanceSensor(Entity):
         return self._state
 
     @property
-    def state_attributes(self):
-        if self._sun_data and self._api_key:
+    def device_state_attributes(self):
+        if self._sun_data and self._using_wu:
             attrs = {}
             attrs[ATTR_SUNRISE] = str(self._sun_data[1])
             attrs[ATTR_SUNSET] = str(self._sun_data[2])
@@ -120,7 +155,7 @@ class IlluminanceSensor(Entity):
         if self._sun_data and self._sun_data[0] != now_date:
             self._sun_data = None
 
-        if self._api_key:
+        if self._using_wu:
             features = ['conditions']
             if self._sun_data is None:
                 features.append('astronomy')
@@ -131,12 +166,34 @@ class IlluminanceSensor(Entity):
                 return
 
             conditions = self._conditions = resp['current_observation']['icon']
+            mapping = WU_MAPPING
         else:
-            try:
-                conditions = int(self.hass.states.get('sensor.yr_symbol').state)
-            except (AttributeError, TypeError, ValueError):
-                _LOGGER.error(
-                    'sensor.yr_symbol state not available or not a number')
+            state = self.hass.states.get(self._entity_id)
+            if state is None:
+                _LOGGER.error('State not found: {}'.format(self._entity_id))
+                return
+            attribution = state.attributes.get(ATTR_ATTRIBUTION)
+            if not attribution:
+                _LOGGER.error('No {} attribute: {}'.format(
+                    ATTR_ATTRIBUTION, self._entity_id))
+                return
+            conditions = state.state
+            if attribution in (DSS_ATTRIBUTION, DSW_ATTRIBUTION):
+                # In case entity is a darksky icon sensor try mapping to
+                # conditions used by darksky weather platform.
+                conditions = DSW_MAP_CONDITION.get(conditions, conditions)
+                mapping = DARKSKY_MAPPING
+            elif attribution == YRS_ATTRIBUTION:
+                try:
+                    conditions = int(conditions)
+                except (TypeError, ValueError):
+                    _LOGGER.error(
+                        'State of YR sensor not a number: {}'
+                        .format(self._entity_id))
+                    return
+                mapping = YR_MAPPING
+            else:
+                _LOGGER.error('Unsupported sensor: {}'.format(self._entity_id))
                 return
 
         if self._sun_data:
@@ -144,7 +201,7 @@ class IlluminanceSensor(Entity):
              sunrise_begin, sunrise_end,
              sunset_begin,  sunset_end) = self._sun_data
         else:
-            if self._api_key:
+            if self._using_wu:
                 # Get tz unaware datetimes.
                 sunrise = dt.datetime.combine(now_date,
                     dt.time(int(resp['sun_phase']['sunrise']['hour']),
@@ -171,27 +228,6 @@ class IlluminanceSensor(Entity):
                               sunset_begin,  sunset_end)
 
         if sunrise_begin <= now <= sunset_end:
-            if not conditions:
-                _LOGGER.error('No current observation')
-                return
-
-            if self._api_key:
-                mapping = ((  200, ('tstorms',)),
-                           ( 1000, ('cloudy', 'fog', 'rain', 'sleet', 'snow', 'flurries',
-                                    'chanceflurries', 'chancerain', 'chancesleet', 
-                                    'chancesnow','chancetstorms')),
-                           ( 2500, ('mostlycloudy',)),
-                           ( 7500, ('partlysunny', 'partlycloudy', 'mostlysunny', 'hazy')),
-                           (10000, ('sunny', 'clear')))
-            else:
-                mapping = ((  200, (6, 11, 14, 20, 21, 22, 23, 24, 25, 26, 27,
-                                    28, 29, 30, 31, 32, 33, 34)),
-                           ( 1000, (5, 7, 8, 9, 10, 12, 13, 15, 40, 41, 42,
-                                    43, 44, 45, 46, 47, 48, 49, 50)),
-                           ( 2500, (4, )),
-                           ( 7500, (2, 3)),
-                           (10000, (1, )))
-
             illuminance = 0
             for i, c in mapping:
                 if conditions in c:
