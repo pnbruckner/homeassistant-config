@@ -8,8 +8,8 @@
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md#release-notes"
   },
   "device_tracker.life360": {
-    "updated_at": "2018-10-16",
-    "version": "1.6.0",
+    "updated_at": "2018-10-24",
+    "version": "1.6.1",
     "local_location": "/custom_components/device_tracker/life360.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/device_tracker/life360.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
