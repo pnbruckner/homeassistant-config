@@ -32,7 +32,7 @@ device_tracker:
 - **show_as_state** (*Optional*): One or more of: `driving`, `moving` and `places`. Default is for Device Tracker Component to determine entity state as normal. When specified these can cause the entity's state to show other statuses according to the States chart below.
 - **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered to be "driving" (and which will also set the `driving` attribute to True. See also `Driving` state in chart below.)
 - **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
-- **max_update_wait** (*Optional*): If you specify it, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `device_tracker.life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `device_tracker.life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. See example automations below. 
+- **max_update_wait** (*Optional*): If you specify it, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. See example automations below. 
 >Note: If you set the entity to _not_ be tracked via known_devices.yaml then the entity_id will not exist in the state machine. In this case it might be better to exclude the member via the members parameter (see below.)
 - **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
 - **interval_seconds** (*Optional*): The default is 12. This defines how often the Life360 server will be queried. The resulting device_tracker entities will actually only be updated when the Life360 server provides new location information for each member.
@@ -87,7 +87,7 @@ device_tracker:
 - alias: Life360 Overdue Update
   trigger:
     platform: event
-    event_type: device_tracker.life360_update_overdue
+    event_type: life360_update_overdue
   action:
     service: notify.email_me
     data_template:
@@ -101,7 +101,7 @@ device_tracker:
 - alias: Life360 Update Restored
   trigger:
     platform: event
-    event_type: device_tracker.life360_update_restored
+    event_type: life360_update_restored
   action:
     service: notify.email_me
     data_template:
@@ -125,6 +125,7 @@ Date | Version | Notes
 20180928 | [1.5.0](https://github.com/pnbruckner/homeassistant-config/blob/eb3dc1915c9289e741ba9db0471a271b0edd4677/custom_components/device_tracker/life360.py) | Add raw_speed and speed attributes and `driving_speed` config option. Derive `driving` attribute from speed if possible.
 20181002 | [1.5.1](https://github.com/pnbruckner/homeassistant-config/blob/6cf17f0a5e02ef556862247ee632d61ce58c7b09/custom_components/device_tracker/life360.py) | Limit speed attribute to non-negative values.
 20181016 | [1.6.0](https://github.com/pnbruckner/homeassistant-config/blob/c24c65a06e78d1ec6b7d11df9f10a7b94a583d12/custom_components/device_tracker/life360.py) | Update as soon as initialization is complete.
+20181024 | [1.6.1]() | __BREAKING CHANGE__: Event names were too long. Shorten them by removing `device_tracker.` prefixes.
 
 [Life360 Communications Module Release Notes](life360_lib.md#release-notes)
 
