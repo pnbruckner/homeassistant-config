@@ -23,7 +23,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_time_interval
 from homeassistant import util
 
-__version__ = '1.6.0'
+__version__ = '1.6.1b1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -205,12 +205,12 @@ class Life360Scanner:
             overdue = util.dt.utcnow() - update > self._max_update_wait
             if overdue and not reported:
                 self._hass.bus.fire(
-                    'device_tracker.life360_update_overdue',
+                    'life360_update_overdue',
                     {'entity_id': ENTITY_ID_FORMAT.format(dev_id)})
                 reported = True
             elif not overdue and reported:
                 self._hass.bus.fire(
-                    'device_tracker.life360_update_restored', {
+                    'life360_update_restored', {
                         'entity_id': ENTITY_ID_FORMAT.format(dev_id),
                         'wait':
                             str(last_seen - (prev_seen or self._started))
