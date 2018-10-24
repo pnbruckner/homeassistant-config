@@ -1,6 +1,6 @@
 """
 A Sensor platform that estimates outdoor illuminance from Weather Underground
-current conditions.
+or YR current conditions.
 
 For more details about this platform, please refer to
 https://github.com/pnbruckner/homeassistant-config#sensorilluminancepy
@@ -17,10 +17,11 @@ from homeassistant.const import CONF_NAME, CONF_API_KEY, CONF_SCAN_INTERVAL
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity import Entity
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.sun import get_astral_event_date
 from homeassistant.components.sensor import PLATFORM_SCHEMA, SCAN_INTERVAL
 import homeassistant.util.dt as dt_util
 
-__version__ = '1.0.0'
+__version__ = '2.0.0b1'
 
 CONF_QUERY = 'query'
 
@@ -36,8 +37,8 @@ _LOGGER = logging.getLogger(__name__)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-    vol.Required(CONF_API_KEY): cv.string,
-    vol.Required(CONF_QUERY): cv.string,
+    vol.Inclusive(CONF_API_KEY, 'wu'): cv.string,
+    vol.Inclusive(CONF_QUERY, 'wu'): cv.string,
     vol.Optional(CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL):
         vol.All(cv.time_period, vol.Range(min=MIN_SCAN_INTERVAL)),
 })
@@ -63,18 +64,23 @@ async def _async_get_data(hass, session, api_key, features, query):
 
 async def async_setup_platform(hass, config, async_add_entities,
                                discovery_info=None):
-    api_key = config[CONF_API_KEY]
-    query   = config[CONF_QUERY]
+    name = config[CONF_NAME]
+    if CONF_API_KEY in config:
+        api_key = config[CONF_API_KEY]
+        query   = config[CONF_QUERY]
 
-    session = async_get_clientsession(hass)
-    if not await _async_get_data(hass, session, api_key, [], query):
-        return False
+        session = async_get_clientsession(hass)
+        if not await _async_get_data(hass, session, api_key, [], query):
+            return False
+            
+        sensor = IlluminanceSensor(name, session, api_key, query)
+    else:
+        sensor = IlluminanceSensor(name)
 
-    async_add_entities([IlluminanceSensor(
-        config[CONF_NAME], session, api_key, query)], True)
+    async_add_entities([sensor], True)
 
 class IlluminanceSensor(Entity):
-    def __init__(self, name, session, api_key, query):
+    def __init__(self, name, session=None, api_key=None, query=None):
         self._name = name
         self._session = session
         self._api_key = api_key
@@ -93,7 +99,7 @@ class IlluminanceSensor(Entity):
 
     @property
     def state_attributes(self):
-        if self._sun_data:
+        if self._sun_data and self._api_key:
             attrs = {}
             attrs[ATTR_SUNRISE] = str(self._sun_data[1])
             attrs[ATTR_SUNSET] = str(self._sun_data[2])
@@ -110,66 +116,89 @@ class IlluminanceSensor(Entity):
         _LOGGER.debug('Updating {}'.format(self._name))
 
         now = dt_util.now()
-
-        features = ['conditions']
-        if self._sun_data is None or self._sun_data[0] != now.date():
-            features.append('astronomy')
+        now_date = now.date()
+        if self._sun_data and self._sun_data[0] != now_date:
             self._sun_data = None
 
-        resp = await _async_get_data(self.hass, self._session,
-                                     self._api_key, features, self._query)
-        if not resp:
-            return
+        if self._api_key:
+            features = ['conditions']
+            if self._sun_data is None:
+                features.append('astronomy')
+
+            resp = await _async_get_data(self.hass, self._session,
+                                         self._api_key, features, self._query)
+            if not resp:
+                return
+
+            conditions = self._conditions = resp['current_observation']['icon']
+        else:
+            try:
+                conditions = int(self.hass.states.get('sensor.yr_symbol').state)
+            except (AttributeError, TypeError, ValueError):
+                _LOGGER.error(
+                    'sensor.yr_symbol state not available or not a number')
+                return
 
         if self._sun_data:
             (_, sunrise, sunset,
              sunrise_begin, sunrise_end,
              sunset_begin,  sunset_end) = self._sun_data
         else:
-            # Get tz unaware datetimes.
-            sunrise = dt.datetime.combine(now.date(),
-                dt.time(int(resp['sun_phase']['sunrise']['hour']),
-                        int(resp['sun_phase']['sunrise']['minute']),
-                        0))
-            sunset  = dt.datetime.combine(now.date(),
-                dt.time(int(resp['sun_phase']['sunset'] ['hour']),
-                        int(resp['sun_phase']['sunset'] ['minute']),
-                        0))
-            # Convert to tz aware datetimes in local timezone.
-            sunrise = dt_util.as_local(dt_util.as_utc(sunrise))
-            sunset = dt_util.as_local(dt_util.as_utc(sunset))
+            if self._api_key:
+                # Get tz unaware datetimes.
+                sunrise = dt.datetime.combine(now_date,
+                    dt.time(int(resp['sun_phase']['sunrise']['hour']),
+                            int(resp['sun_phase']['sunrise']['minute']),
+                            0))
+                sunset  = dt.datetime.combine(now_date,
+                    dt.time(int(resp['sun_phase']['sunset'] ['hour']),
+                            int(resp['sun_phase']['sunset'] ['minute']),
+                            0))
+                # Convert to tz aware datetimes in local timezone.
+                sunrise = dt_util.as_local(dt_util.as_utc(sunrise))
+                sunset = dt_util.as_local(dt_util.as_utc(sunset))
+            else:
+                # UTC times are fine since we won't be displaying them
+                sunrise = get_astral_event_date(self.hass, 'sunrise', now_date)
+                sunset = get_astral_event_date(self.hass, 'sunset', now_date)
 
             sunrise_begin = sunrise - dt.timedelta(minutes=20)
             sunrise_end   = sunrise + dt.timedelta(minutes=40)
             sunset_begin  = sunset  - dt.timedelta(minutes=40)
             sunset_end    = sunset  + dt.timedelta(minutes=20)
-            self._sun_data = (now.date(), sunrise, sunset,
+            self._sun_data = (now_date, sunrise, sunset,
                               sunrise_begin, sunrise_end,
                               sunset_begin,  sunset_end)
 
-        self._conditions = icon = resp['current_observation']['icon']
-
         if sunrise_begin <= now <= sunset_end:
-
-            mapping = ((  200, ('tstorms',)),
-                       ( 1000, ('cloudy', 'fog', 'rain', 'sleet', 'snow', 'flurries',
-                                'chanceflurries', 'chancerain', 'chancesleet', 
-                                'chancesnow','chancetstorms')),
-                       ( 2500, ('mostlycloudy',)),
-                       ( 7500, ('partlysunny', 'partlycloudy', 'mostlysunny', 'hazy')),
-                       (10000, ('sunny', 'clear')))
-
-            if not icon:
-                _LOGGER.error('No current observation icon')
+            if not conditions:
+                _LOGGER.error('No current observation')
                 return
+
+            if self._api_key:
+                mapping = ((  200, ('tstorms',)),
+                           ( 1000, ('cloudy', 'fog', 'rain', 'sleet', 'snow', 'flurries',
+                                    'chanceflurries', 'chancerain', 'chancesleet', 
+                                    'chancesnow','chancetstorms')),
+                           ( 2500, ('mostlycloudy',)),
+                           ( 7500, ('partlysunny', 'partlycloudy', 'mostlysunny', 'hazy')),
+                           (10000, ('sunny', 'clear')))
+            else:
+                mapping = ((  200, (6, 11, 14, 20, 21, 22, 23, 24, 25, 26, 27,
+                                    28, 29, 30, 31, 32, 33, 34)),
+                           ( 1000, (5, 7, 8, 9, 10, 12, 13, 15, 40, 41, 42,
+                                    43, 44, 45, 46, 47, 48, 49, 50)),
+                           ( 2500, (4, )),
+                           ( 7500, (2, 3)),
+                           (10000, (1, )))
 
             illuminance = 0
             for i, c in mapping:
-                if icon in c:
+                if conditions in c:
                     illuminance = i
                     break
             if illuminance == 0:
-                _LOGGER.error('Unexpected current observation icon: {}'.format(icon))
+                _LOGGER.error('Unexpected current observation: {}'.format(conditions))
                 return
 
             if sunrise_begin <= now <= sunrise_end:
