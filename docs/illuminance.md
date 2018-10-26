@@ -24,7 +24,7 @@ sensor:
 - **api_key**: Weather Underground API key. Required when using WU.
 - **entity_id**: Entity ID of Dark Sky or YR entity. See examples below. Required when using Dark Sky or YR.
 - **name** (*Optional*): Name of the sensor. Default is `Illuminance`.
-- **scan_interval** (*Optional*): Polling interval.  Only useful when using WU. Minimum is 5 minutes. Default is 5 minutes.
+- **scan_interval** (*Optional*): Polling interval.  For non-WU configs only applies during ramp up period around sunrise and ramp down period around sunset. Minimum is 5 minutes. Default is 5 minutes.
 - **query**: Weather Underground query. See https://www.wunderground.com/weather/api/d/docs?d=data/index. Required when using WU.
 ## Examples
 ### Dark Sky Sensor
