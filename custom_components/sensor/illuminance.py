@@ -29,11 +29,12 @@ from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.event import async_track_state_change
+from homeassistant.helpers.event import (
+    async_track_state_change, async_track_time_change)
 from homeassistant.helpers.sun import get_astral_event_date
 import homeassistant.util.dt as dt_util
 
-__version__ = '2.0.0b3'
+__version__ = '2.0.0b4'
 
 DEFAULT_NAME = 'Illuminance'
 MIN_SCAN_INTERVAL = dt.timedelta(minutes=5)
@@ -112,8 +113,7 @@ async def async_setup_platform(hass, config, async_add_entities,
                 hass, session, config[CONF_API_KEY], [], config[CONF_QUERY]):
             return False
 
-    async_add_entities([IlluminanceSensor(using_wu, config, session)],
-                       using_wu)
+    async_add_entities([IlluminanceSensor(using_wu, config, session)], True)
 
 class IlluminanceSensor(Entity):
     def __init__(self, using_wu, config, session):
@@ -128,10 +128,15 @@ class IlluminanceSensor(Entity):
         self._name = config[CONF_NAME]
         self._state = None
         self._sun_data = None
+        self._init_complete = False
 
     async def async_added_to_hass(self):
         if self._using_wu:
             return
+
+        @callback
+        def midnight_listener(now):
+            self.async_schedule_update_ha_state(True)
 
         @callback
         def sensor_state_listener(entity, old_state, new_state):
@@ -141,9 +146,17 @@ class IlluminanceSensor(Entity):
 
         @callback
         def sensor_startup(event):
+            self._init_complete = True
+
+            # Update at midnight to get new sun data.
+            async_track_time_change(
+                self.hass, midnight_listener, hour=0, minute=0, second=0)
+
+            # Update whenever source entity changes.
             async_track_state_change(
                 self.hass, self._entity_id, sensor_state_listener)
 
+            # Update now that source entity has had a chance to initialize.
             self.async_schedule_update_ha_state(True)
 
         self.hass.bus.async_listen_once(
@@ -151,7 +164,19 @@ class IlluminanceSensor(Entity):
 
     @property
     def should_poll(self):
-        return self._using_wu
+        # For the system (i.e., EntityPlatform) to configure itself to
+        # periodically call our async_update method any call to this method
+        # during initializaton must return True. After that, for WU we'll
+        # always poll, and for others we'll only need to poll during the ramp
+        # up and down periods around sunrise and sunset.
+        if not self._init_complete or self._using_wu:
+            return True
+        (_, _, _,
+         sunrise_begin, sunrise_end,
+         sunset_begin,  sunset_end) = self._sun_data
+        now = dt_util.now()
+        return (sunrise_begin <= now <= sunrise_end or
+                sunset_begin <= now <= sunset_end)
 
     @property
     def name(self):
@@ -163,11 +188,8 @@ class IlluminanceSensor(Entity):
 
     @property
     def device_state_attributes(self):
-        if self._sun_data and self._using_wu:
-            attrs = {}
-            attrs[ATTR_SUNRISE] = str(self._sun_data[1])
-            attrs[ATTR_SUNSET] = str(self._sun_data[2])
-            attrs[ATTR_CONDITIONS] = self._conditions
+        if self._using_wu:
+            attrs = {ATTR_CONDITIONS: self._conditions}
             return attrs
         else:
             return None
@@ -181,8 +203,30 @@ class IlluminanceSensor(Entity):
 
         now = dt_util.now()
         now_date = now.date()
+        # If we have sun data, but it's from yesterday, throw it out.
         if self._sun_data and self._sun_data[0] != now_date:
             self._sun_data = None
+
+        if self._sun_data:
+            (_, sunrise, sunset,
+             sunrise_begin, sunrise_end,
+             sunset_begin,  sunset_end) = self._sun_data
+        else:
+            sunrise = get_astral_event_date(self.hass, 'sunrise',
+                                            now_date)
+            sunset = get_astral_event_date(self.hass, 'sunset', now_date)
+
+            sunrise_begin = sunrise - dt.timedelta(minutes=20)
+            sunrise_end   = sunrise + dt.timedelta(minutes=40)
+            sunset_begin  = sunset  - dt.timedelta(minutes=40)
+            sunset_end    = sunset  + dt.timedelta(minutes=20)
+            self._sun_data = (now_date, sunrise, sunset,
+                              sunrise_begin, sunrise_end,
+                              sunset_begin,  sunset_end)
+
+        if now < sunrise_begin or now > sunset_end:
+            self._state = 10
+            return
 
         if self._using_wu:
             features = ['conditions']
@@ -201,12 +245,18 @@ class IlluminanceSensor(Entity):
         else:
             state = self.hass.states.get(self._entity_id)
             if state is None:
-                _LOGGER.error('State not found: {}'.format(self._entity_id))
+                # If our initialization happens before the source entity has a
+                # chance to initialize then we won't find its state. Don't log
+                # that as an error.
+                if self._init_complete:
+                    _LOGGER.error('State not found: {}'.format(
+                        self._entity_id))
                 return
             attribution = state.attributes.get(ATTR_ATTRIBUTION)
             if not attribution:
-                _LOGGER.error('No {} attribute: {}'.format(
-                    ATTR_ATTRIBUTION, self._entity_id))
+                if self._init_complete:
+                    _LOGGER.error('No {} attribute: {}'.format(
+                        ATTR_ATTRIBUTION, self._entity_id))
                 return
             raw_conditions = state.state
             if attribution in (DSS_ATTRIBUTION, DSW_ATTRIBUTION):
@@ -219,69 +269,36 @@ class IlluminanceSensor(Entity):
                 try:
                     conditions = int(raw_conditions)
                 except (TypeError, ValueError):
-                    _LOGGER.error(
-                        'State of YR sensor not a number: {}'
-                        .format(self._entity_id))
+                    if self._init_complete:
+                        _LOGGER.error(
+                            'State of YR sensor not a number: {}'
+                            .format(self._entity_id))
                     return
                 mapping = YR_MAPPING
             else:
-                _LOGGER.error('Unsupported sensor: {}'.format(
-                    self._entity_id))
+                if self._init_complete:
+                    _LOGGER.error('Unsupported sensor: {}'.format(
+                        self._entity_id))
                 return
 
-        if self._sun_data:
-            (_, sunrise, sunset,
-             sunrise_begin, sunrise_end,
-             sunset_begin,  sunset_end) = self._sun_data
-        else:
-            if self._using_wu:
-                # Get tz unaware datetimes.
-                sunrise = dt.datetime.combine(now_date,
-                    dt.time(int(resp['sun_phase']['sunrise']['hour']),
-                            int(resp['sun_phase']['sunrise']['minute']),
-                            0))
-                sunset  = dt.datetime.combine(now_date,
-                    dt.time(int(resp['sun_phase']['sunset'] ['hour']),
-                            int(resp['sun_phase']['sunset'] ['minute']),
-                            0))
-                # Convert to tz aware datetimes in local timezone.
-                sunrise = dt_util.as_local(dt_util.as_utc(sunrise))
-                sunset = dt_util.as_local(dt_util.as_utc(sunset))
-            else:
-                # UTC times are fine since we won't be displaying them
-                sunrise = get_astral_event_date(self.hass, 'sunrise',
-                                                now_date)
-                sunset = get_astral_event_date(self.hass, 'sunset', now_date)
-
-            sunrise_begin = sunrise - dt.timedelta(minutes=20)
-            sunrise_end   = sunrise + dt.timedelta(minutes=40)
-            sunset_begin  = sunset  - dt.timedelta(minutes=40)
-            sunset_end    = sunset  + dt.timedelta(minutes=20)
-            self._sun_data = (now_date, sunrise, sunset,
-                              sunrise_begin, sunrise_end,
-                              sunset_begin,  sunset_end)
-
-        if sunrise_begin <= now <= sunset_end:
-            illuminance = 0
-            for i, c in mapping:
-                if conditions in c:
-                    illuminance = i
-                    break
-            if illuminance == 0:
+        illuminance = 0
+        for i, c in mapping:
+            if conditions in c:
+                illuminance = i
+                break
+        if illuminance == 0:
+            if self._init_complete:
                 _LOGGER.error('Unexpected current observation: {}'.format(
                     raw_conditions))
-                return
+            return
 
-            if sunrise_begin <= now <= sunrise_end:
-                illuminance = 10 + int(
-                    (illuminance-10) * (now-sunrise_begin).total_seconds() /
-                    (60*60))
-            elif sunset_begin <= now <= sunset_end:
-                illuminance = 10 + int(
-                    (illuminance-10) * (sunset_end-now).total_seconds() /
-                    (60*60))
+        if sunrise_begin <= now <= sunrise_end:
+            illuminance = 10 + int(
+                (illuminance-10) * (now-sunrise_begin).total_seconds() /
+                (60*60))
+        elif sunset_begin <= now <= sunset_end:
+            illuminance = 10 + int(
+                (illuminance-10) * (sunset_end-now).total_seconds() /
+                (60*60))
 
-            self._state = illuminance
-
-        else:
-            self._state = 10
+        self._state = illuminance
