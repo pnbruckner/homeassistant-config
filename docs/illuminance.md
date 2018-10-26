@@ -1,5 +1,11 @@
 # Illuminance Sensor
-Estimates outdoor illuminance based on time of day and current weather conditions. The following sources of weather data are supported:
+Estimates outdoor illuminance based on current weather conditions and time of day. At night the value is 10. From a little before sunrise to a little after the value is ramped up to whatever the current conditions indicate. The same happens around sunset, except the value is ramped down. Below is an example of what that might look like over a three day period.
+
+<p align="center">
+  <img src=images/illuminance_history.png>
+</p>
+
+The following sources of weather data are supported:
 
 * [Dark Sky Sensor (icon)](https://www.home-assistant.io/components/sensor.darksky/)
 * [Dark Sky Weather](https://www.home-assistant.io/components/weather.darksky/)
