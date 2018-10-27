@@ -34,7 +34,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.sun import get_astral_event_date
 import homeassistant.util.dt as dt_util
 
-__version__ = '2.0.0b4'
+__version__ = '2.0.0b5'
 
 DEFAULT_NAME = 'Illuminance'
 MIN_SCAN_INTERVAL = dt.timedelta(minutes=5)
@@ -65,8 +65,6 @@ DARKSKY_MAPPING = (
 
 CONF_QUERY = 'query'
 
-ATTR_SUNRISE = 'sunrise'
-ATTR_SUNSET = 'sunset'
 ATTR_CONDITIONS = 'conditions'
 
 _LOGGER = logging.getLogger(__name__)
@@ -86,6 +84,9 @@ PLATFORM_SCHEMA = vol.All(
 
 _WU_API_URL = 'http://api.wunderground.com/api/'\
               '{api_key}/{features}/q/{query}.json'
+
+_20_MIN = dt.timedelta(minutes=20)
+_40_MIN = dt.timedelta(minutes=40)
 
 async def _async_get_wu_data(hass, session, api_key, features, query):
     try:
@@ -129,14 +130,11 @@ class IlluminanceSensor(Entity):
         self._state = None
         self._sun_data = None
         self._init_complete = False
+        self._was_changing = False
 
     async def async_added_to_hass(self):
         if self._using_wu:
             return
-
-        @callback
-        def midnight_listener(now):
-            self.async_schedule_update_ha_state(True)
 
         @callback
         def sensor_state_listener(entity, old_state, new_state):
@@ -147,10 +145,6 @@ class IlluminanceSensor(Entity):
         @callback
         def sensor_startup(event):
             self._init_complete = True
-
-            # Update at midnight to get new sun data.
-            async_track_time_change(
-                self.hass, midnight_listener, hour=0, minute=0, second=0)
 
             # Update whenever source entity changes.
             async_track_state_change(
@@ -168,15 +162,18 @@ class IlluminanceSensor(Entity):
         # periodically call our async_update method any call to this method
         # during initializaton must return True. After that, for WU we'll
         # always poll, and for others we'll only need to poll during the ramp
-        # up and down periods around sunrise and sunset.
+        # up and down periods around sunrise and sunset, and then once more
+        # when period is done to make sure ramping is completed.
         if not self._init_complete or self._using_wu:
             return True
-        (_, _, _,
-         sunrise_begin, sunrise_end,
-         sunset_begin,  sunset_end) = self._sun_data
-        now = dt_util.now()
-        return (sunrise_begin <= now <= sunrise_end or
-                sunset_begin <= now <= sunset_end)
+        changing = 0 < self.sun_factor(dt_util.now()) < 1
+        if changing:
+            self._was_changing = True
+            return True
+        if self._was_changing:
+            self._was_changing = False
+            return True
+        return False
 
     @property
     def name(self):
@@ -201,37 +198,16 @@ class IlluminanceSensor(Entity):
     async def async_update(self):
         _LOGGER.debug('Updating {}'.format(self._name))
 
-        now = dt_util.now()
-        now_date = now.date()
-        # If we have sun data, but it's from yesterday, throw it out.
-        if self._sun_data and self._sun_data[0] != now_date:
-            self._sun_data = None
+        sun_factor = self.sun_factor(dt_util.now())
 
-        if self._sun_data:
-            (_, sunrise, sunset,
-             sunrise_begin, sunrise_end,
-             sunset_begin,  sunset_end) = self._sun_data
-        else:
-            sunrise = get_astral_event_date(self.hass, 'sunrise',
-                                            now_date)
-            sunset = get_astral_event_date(self.hass, 'sunset', now_date)
-
-            sunrise_begin = sunrise - dt.timedelta(minutes=20)
-            sunrise_end   = sunrise + dt.timedelta(minutes=40)
-            sunset_begin  = sunset  - dt.timedelta(minutes=40)
-            sunset_end    = sunset  + dt.timedelta(minutes=20)
-            self._sun_data = (now_date, sunrise, sunset,
-                              sunrise_begin, sunrise_end,
-                              sunset_begin,  sunset_end)
-
-        if now < sunrise_begin or now > sunset_end:
+        # No point in getting conditions because estimated illuminance derived
+        # from it will just be multiplied by zero. I.e., it's nighttime.
+        if sun_factor == 0:
             self._state = 10
             return
 
         if self._using_wu:
             features = ['conditions']
-            if self._sun_data is None:
-                features.append('astronomy')
 
             resp = await _async_get_wu_data(
                 self.hass, self._session, self._api_key, features,
@@ -292,13 +268,34 @@ class IlluminanceSensor(Entity):
                     raw_conditions))
             return
 
-        if sunrise_begin <= now <= sunrise_end:
-            illuminance = 10 + int(
-                (illuminance-10) * (now-sunrise_begin).total_seconds() /
-                (60*60))
-        elif sunset_begin <= now <= sunset_end:
-            illuminance = 10 + int(
-                (illuminance-10) * (sunset_end-now).total_seconds() /
-                (60*60))
+        self._state = round(illuminance * sun_factor)
 
-        self._state = illuminance
+    def sun_factor(self, now):
+        now_date = now.date()
+
+        if self._sun_data and self._sun_data[0] == now_date:
+            (sunrise_begin, sunrise_end,
+             sunset_begin, sunset_end) = self._sun_data[1]
+        else:
+            sunrise = get_astral_event_date(self.hass, 'sunrise', now_date)
+            sunset = get_astral_event_date(self.hass, 'sunset', now_date)
+            sunrise_begin = sunrise - _20_MIN
+            sunrise_end = sunrise + _40_MIN
+            sunset_begin = sunset - _40_MIN
+            sunset_end = sunset + _20_MIN
+            self._sun_data = (
+                now_date,
+                (sunrise_begin, sunrise_end, sunset_begin, sunset_end))
+
+        if sunrise_end < now < sunset_begin:
+            # Daytime
+            return 1
+        if now < sunrise_begin or sunset_end < now:
+            # Nighttime
+            return 0
+        if now <= sunrise_end:
+            # Sunrise
+            return (now-sunrise_begin).total_seconds() / (60*60)
+        else:
+            # Sunset
+            return (sunset_end-now).total_seconds() / (60*60)
