@@ -34,7 +34,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.sun import get_astral_event_date
 import homeassistant.util.dt as dt_util
 
-__version__ = '2.0.0b5'
+__version__ = '2.0.0'
 
 DEFAULT_NAME = 'Illuminance'
 MIN_SCAN_INTERVAL = dt.timedelta(minutes=5)
