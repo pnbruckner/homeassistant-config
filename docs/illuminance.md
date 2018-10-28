@@ -80,4 +80,4 @@ Weather Underground no long provides free API keys. In fact, as of this writing 
 Date | Version | Notes
 -|:-:|-
 20180907 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/d767bcce0fdff0c9298dc7a010d27af88817eac2/custom_components/sensor/illuminance.py) | Initial support for Custom Updater.
-20181028 | [2.0.0]() | Add support for using Dark Sky or YR entity as source of weather conditions.
+20181028 | [2.0.0](https://github.com/pnbruckner/homeassistant-config/blob/e4fbbfe5ccc48cc08045226197c5c27767ec081e/custom_components/sensor/illuminance.py) | Add support for using Dark Sky or YR entity as source of weather conditions.
