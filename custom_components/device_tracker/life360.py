@@ -31,7 +31,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.0.0b1'
+__version__ = '2.0.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,17 +39,19 @@ DEPENDENCIES = ['zone']
 
 DEFAULT_FILENAME = 'life360.conf'
 SPEED_FACTOR_MPH = 2.25
-DEFAULT_PLACE_INTERVAL = timedelta(minutes=15)
+MIN_ZONE_INTERVAL = timedelta(minutes=1)
 ICON_LIFE360_PLACE = 'mdi:map-marker'
 
 _AUTHORIZATION_TOKEN = 'cFJFcXVnYWJSZXRyZTRFc3RldGhlcnVmcmVQdW1hbUV4dWNyRU'\
                        'h1YzptM2ZydXBSZXRSZXN3ZXJFQ2hBUHJFOTZxYWtFZHI0Vg=='
 
+CONF_ADD_ZONES = 'add_zones'
 CONF_DRIVING_SPEED = 'driving_speed'
 CONF_MAX_GPS_ACCURACY = 'max_gps_accuracy'
 CONF_MAX_UPDATE_WAIT = 'max_update_wait'
 CONF_MEMBERS = 'members'
 CONF_SHOW_AS_STATE = 'show_as_state'
+CONF_ZONE_INTERVAL = 'zone_interval'
 
 SHOW_DRIVING = 'driving'
 SHOW_MOVING = 'moving'
@@ -79,6 +81,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_MEMBERS): vol.All(
         cv.ensure_list, [cv.string]),
     vol.Optional(CONF_DRIVING_SPEED): vol.Coerce(float),
+    vol.Optional(CONF_ADD_ZONES): cv.boolean,
+    vol.Optional(CONF_ZONE_INTERVAL):
+        vol.All(cv.time_period, vol.Range(min=MIN_ZONE_INTERVAL)),
 })
 
 _API_EXCS = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
@@ -214,9 +219,15 @@ def setup_scanner(hass, config, see, discovery_info=None):
                 zone = zone_from_place(add_place)
                 zones[add_place] = zone
 
-    zones = {}
-    zones_from_places()
-    track_time_interval(hass, zones_from_places, DEFAULT_PLACE_INTERVAL)
+    add_zones = config.get(CONF_ADD_ZONES)
+    zone_interval = config.get(CONF_ZONE_INTERVAL)
+    if add_zones or zone_interval and add_zones != False:
+        _LOGGER.debug('Checking Places')
+        zones = {}
+        zones_from_places()
+        if zone_interval:
+            _LOGGER.debug('Will check Places every: {}'.format(zone_interval))
+            track_time_interval(hass, zones_from_places, zone_interval)
 
     Life360Scanner(hass, see, interval, show_as_state, max_gps_accuracy,
                    max_update_wait, prefix, members, driving_speed, api)
