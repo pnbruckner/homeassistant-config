@@ -27,7 +27,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 from homeassistant import util
 
-__version__ = '1.5.2b1'
+__version__ = '1.5.2'
 
 _LOGGER = logging.getLogger(__name__)
 
