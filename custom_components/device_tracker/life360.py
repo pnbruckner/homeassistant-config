@@ -2,7 +2,7 @@
 A Device Tracker platform that retrieves location from Life360.
 
 For more details about this platform, please refer to
-https://github.com/pnbruckner/homeassistant-config#life360py--device_trackerlife360py
+https://github.com/pnbruckner/homeassistant-config#life360-device-tracker-platform
 """
 
 from collections import namedtuple
@@ -31,7 +31,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.0.0b2'
+__version__ = '2.0.0b3'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +40,6 @@ DEPENDENCIES = ['zone']
 DEFAULT_FILENAME = 'life360.conf'
 SPEED_FACTOR_MPH = 2.25
 MIN_ZONE_INTERVAL = timedelta(minutes=1)
-ICON_LIFE360_PLACE = 'mdi:map-marker'
 
 _AUTHORIZATION_TOKEN = 'cFJFcXVnYWJSZXRyZTRFc3RldGhlcnVmcmVQdW1hbUV4dWNyRU'\
                        'h1YzptM2ZydXBSZXRSZXN3ZXJFQ2hBUHJFOTZxYWtFZHI0Vg=='
@@ -191,7 +190,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
                 return places
 
     def zone_from_place(place):
-        zone = Zone(hass, *place, ICON_LIFE360_PLACE, DEFAULT_PASSIVE)
+        zone = Zone(hass, *place, None, DEFAULT_PASSIVE)
         zone.entity_id = generate_entity_id(ZN_ENTITY_ID_FORMAT, place.name,
                                             None, hass)
         zone.schedule_update_ha_state()
