@@ -1,5 +1,5 @@
 # Life360
-This platform allows you to detect presence using [Life360](http://life360.com/).
+This platform allows you to detect presence using [Life360](http://life360.com/). It can also automatically create Home Assistant zones based on Life360 Places.
 ## Installation
 See [Installing and Updating](custom_updater.md) to use Custom Updater.
 
@@ -37,6 +37,8 @@ device_tracker:
 - **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
 - **interval_seconds** (*Optional*): The default is 12. This defines how often the Life360 server will be queried. The resulting device_tracker entities will actually only be updated when the Life360 server provides new location information for each member.
 - **filename** (*Optional*): The default is life360.conf. The platform will get an authorization token from the Life360 server using your username and password, and it will save the token in a file in the HA config directory (with limited permissions) so that it can reuse it after restarts (and not have to get a new token every time.) If the token eventually expires, a new one will be acquired as needed.
+- **add_zones** (*Optional*): The default is true if `zone_interval` is specified, false otherwise. If true create HA zones based on Life360 Places. Note: Life360 Places named Home (case insensitive) will not be used.
+- **zone_interval** (*Optional*): The default is only to create HA zones at startup (assuming `add_zones` is true.) If specified, will also update HA zones per Life360 Places periodically.
 ## States
 show_as_state | State | Conditions
 -|-|-
@@ -80,6 +82,9 @@ device_tracker:
       - Joe
       - Jones
     interval_seconds: 10
+    add_zones: true
+    zone_interval:
+      minutes: 15
     filename: life360.conf
 ```
 ### Example overdue update automations
@@ -126,6 +131,7 @@ Date | Version | Notes
 20181002 | [1.5.1](https://github.com/pnbruckner/homeassistant-config/blob/6cf17f0a5e02ef556862247ee632d61ce58c7b09/custom_components/device_tracker/life360.py) | Limit speed attribute to non-negative values.
 20181016 | [1.6.0](https://github.com/pnbruckner/homeassistant-config/blob/c24c65a06e78d1ec6b7d11df9f10a7b94a583d12/custom_components/device_tracker/life360.py) | Update as soon as initialization is complete.
 20181025 | [1.6.1](https://github.com/pnbruckner/homeassistant-config/blob/4320553f30b40e08b5bed27552b6242ab2908879/custom_components/device_tracker/life360.py) | __BREAKING CHANGE__: Event names were too long. Shorten them by removing `device_tracker.` prefixes.
+201811xx | [2.0.0]() | Add optional feature to create HA zones based on Life360 Places.
 
 [Life360 Communications Module Release Notes](life360_lib.md#release-notes)
 
