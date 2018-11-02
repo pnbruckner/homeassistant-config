@@ -131,7 +131,6 @@ Date | Version | Notes
 20181002 | [1.5.1](https://github.com/pnbruckner/homeassistant-config/blob/6cf17f0a5e02ef556862247ee632d61ce58c7b09/custom_components/device_tracker/life360.py) | Limit speed attribute to non-negative values.
 20181016 | [1.6.0](https://github.com/pnbruckner/homeassistant-config/blob/c24c65a06e78d1ec6b7d11df9f10a7b94a583d12/custom_components/device_tracker/life360.py) | Update as soon as initialization is complete.
 20181025 | [1.6.1](https://github.com/pnbruckner/homeassistant-config/blob/4320553f30b40e08b5bed27552b6242ab2908879/custom_components/device_tracker/life360.py) | __BREAKING CHANGE__: Event names were too long. Shorten them by removing `device_tracker.` prefixes.
-201811xx | [2.0.0]() | Add optional feature to create HA zones based on Life360 Places.
+201811xx | [2.0.0](https://github.com/pnbruckner/homeassistant-config/blob/da9bdcf9923f8e93820f23a49289af35c6371a71/custom_components/device_tracker/life360.py) | Add optional feature to create HA zones based on Life360 Places.
 
 [Life360 Communications Module Release Notes](life360_lib.md#release-notes)
-
