@@ -10,7 +10,7 @@ import json
 import os
 import stat
 
-__version__ = '1.1.0b1'
+__version__ = '1.1.0'
 
 _BASE_URL = 'https://api.life360.com/v3/'
 _TOKEN_URL = _BASE_URL + 'oauth2/token.json'
