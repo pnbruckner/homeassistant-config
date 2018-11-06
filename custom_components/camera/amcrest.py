@@ -271,13 +271,12 @@ class AmcrestCam(Camera):
             return None
         if self._lock.acquire(timeout=9):
             try:
-                response = self._camera.snapshot(channel=self._resolution)
-            except (RequestException, ReadTimeoutError, ValueError) as exc:
-                _LOGGER.error('in camera_image: {}: {}'.format(
+                return self._camera.snapshot(channel=self._resolution).data
+#            except (RequestException, ReadTimeoutError, ValueError) as exc:
+            except Exception as exc:
+                _LOGGER.error('In camera_image: {}: {}'.format(
                     exc.__class__.__name__, str(exc)))
                 return None
-            else:
-                return response.data
             finally:
                 self._lock.release()
 
@@ -364,7 +363,7 @@ class AmcrestCam(Camera):
         try:
             self._camera.record_mode = rec_mode['Manual' if enable else 'Automatic']
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in is_recording setter: {}: {}'.format(
+            _LOGGER.error('In is_recording setter: {}: {}'.format(
                 exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
@@ -407,7 +406,7 @@ class AmcrestCam(Camera):
         try:
             self._set_video(enable)
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in is_streaming_on setter: {}: {}'.format(
+            _LOGGER.error('In is_streaming_on setter: {}: {}'.format(
                 exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
@@ -424,7 +423,7 @@ class AmcrestCam(Camera):
         try:
             self._camera.motion_detection = str(enable).lower()
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in is_motion_detection_on setter: {}: {}'.format(
+            _LOGGER.error('In is_motion_detection_on setter: {}: {}'.format(
                 exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
@@ -440,7 +439,7 @@ class AmcrestCam(Camera):
         try:
             self._set_color_bw(cbw)
         except (RequestException, ValueError, IndexError) as exc:
-            _LOGGER.error('in color_bw setter, cbw={}: {}: {}'.format(
+            _LOGGER.error('In color_bw setter, cbw={}: {}: {}'.format(
                 cbw, exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
@@ -456,7 +455,7 @@ class AmcrestCam(Camera):
         try:
             self._set_audio(enable)
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in is_audio_on setter: {}: {}'.format(
+            _LOGGER.error('In is_audio_on setter: {}: {}'.format(
                 exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
@@ -472,7 +471,7 @@ class AmcrestCam(Camera):
         try:
             self._set_mask(enable)
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in is_mask_on setter: {}: {}'.format(
+            _LOGGER.error('In is_mask_on setter: {}: {}'.format(
                 exc.__class__.__name__, str(exc)))
         else:
             if OPTIMISTIC:
@@ -493,7 +492,7 @@ class AmcrestCam(Camera):
             video_in_options = self._camera.video_in_options.split()
             video_widget_config = self._camera.video_widget_config.split()
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in update: {}: {}'.format(exc.__class__.__name__, str(exc)))
+            _LOGGER.error('In update: {}: {}'.format(exc.__class__.__name__, str(exc)))
         else:
             self.is_streaming = 'true' in [s.split('=')[-1]
                 for s in encode_media if '.VideoEnable=' in s]
@@ -551,7 +550,7 @@ class AmcrestCam(Camera):
                 self._camera.go_to_preset(action='start', preset_point_number=preset),
                 'preset={}'.format(preset))
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in goto_preset: {}: {}'.format(
+            _LOGGER.error('In goto_preset: {}: {}'.format(
                 exc.__class__.__name__, str(exc)))
 
     @callback
@@ -597,7 +596,7 @@ class AmcrestCam(Camera):
         try:
             self._tour(True)
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in tour_on: {}: {}'.format(exc.__class__.__name__, str(exc)))
+            _LOGGER.error('In tour_on: {}: {}'.format(exc.__class__.__name__, str(exc)))
 
     @callback
     def async_tour_on(self):
@@ -607,7 +606,7 @@ class AmcrestCam(Camera):
         try:
             self._tour(False)
         except (RequestException, ValueError) as exc:
-            _LOGGER.error('in tour_off: {}: {}'.format(exc.__class__.__name__, str(exc)))
+            _LOGGER.error('In tour_off: {}: {}'.format(exc.__class__.__name__, str(exc)))
 
     @callback
     def async_tour_off(self):
