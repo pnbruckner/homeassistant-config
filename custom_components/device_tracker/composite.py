@@ -15,10 +15,8 @@ from homeassistant.components.device_tracker import (
     ATTR_BATTERY, ATTR_SOURCE_TYPE, ENTITY_ID_FORMAT, PLATFORM_SCHEMA,
     SOURCE_TYPE_BLUETOOTH, SOURCE_TYPE_BLUETOOTH_LE, SOURCE_TYPE_GPS,
     SOURCE_TYPE_ROUTER)
-try:
-    from homeassistant.components.zone.zone import active_zone
-except ImportError:
-    from homeassistant.components.zone import active_zone
+from homeassistant.components.zone import ENTITY_ID_HOME
+from homeassistant.components.zone.zone import active_zone
 from homeassistant.const import (
     ATTR_BATTERY_CHARGING, ATTR_BATTERY_LEVEL,
     ATTR_ENTITY_ID, ATTR_GPS_ACCURACY, ATTR_LATITUDE, ATTR_LONGITUDE,
@@ -29,7 +27,7 @@ from homeassistant.helpers.event import track_state_change
 from homeassistant import util
 
 
-__version__ = '1.6.0b1'
+__version__ = '1.6.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +68,7 @@ class CompositeScanner:
                 SOURCE_TYPE: None,
                 STATE: None}
         self._dev_id = config[CONF_NAME]
+        self._entity_id = ENTITY_ID_FORMAT.format(self._dev_id)
         self._lock = threading.Lock()
         self._prev_seen = None
 
@@ -118,8 +117,6 @@ class CompositeScanner:
             return
 
         with self._lock:
-            composite_entity_id = ENTITY_ID_FORMAT.format(self._dev_id)
-
             # Get time device was last seen, which is the entity's last_seen
             # attribute, or if that doesn't exist, then last_updated from the
             # new state object. Make sure last_seen is timezone aware in UTC.
@@ -139,7 +136,7 @@ class CompositeScanner:
                 _LOGGER.debug(
                     'For {} skipping update from {}: '
                     'last_seen not newer than previous update ({} <= {})'
-                    .format(composite_entity_id, entity_id, last_seen,
+                    .format(self._entity_id, entity_id, last_seen,
                         self._prev_seen))
                 return
 
@@ -196,14 +193,14 @@ class CompositeScanner:
                     gps = gps_accuracy = None
                 # Get current GPS data, if any, and determine if it is in
                 # 'zone.home'.
-                cur_state = self._hass.states.get(composite_entity_id)
+                cur_state = self._hass.states.get(self._entity_id)
                 try:
                     cur_lat = cur_state.attributes[ATTR_LATITUDE]
                     cur_lon = cur_state.attributes[ATTR_LONGITUDE]
                     cur_acc = cur_state.attributes[ATTR_GPS_ACCURACY]
                     cur_gps_is_home = (
                         active_zone(self._hass, cur_lat, cur_lon, cur_acc)
-                        .entity_id == 'zone.home')
+                        .entity_id == ENTITY_ID_HOME)
                 except (AttributeError, KeyError):
                     cur_gps_is_home = False
 
