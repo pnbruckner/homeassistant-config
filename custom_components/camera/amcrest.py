@@ -148,7 +148,8 @@ def tour_off(hass, entity_id=None):
 
 
 
-async def async_setup_platform(hass, config, async_add_devices, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities,
+                               discovery_info=None):
     """Set up an Amcrest IP Camera."""
     if discovery_info is None:
         return
@@ -157,7 +158,7 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info=N
     amcrest = hass.data[DATA_AMCREST][device_name]
     lock = hass.data[DATA_AMCREST_LOCK][device_name]
 
-    async_add_devices([AmcrestCam(hass, amcrest, lock)], True)
+    async_add_entities([AmcrestCam(hass, amcrest, lock)], True)
 
     def target_cameras(service):
         if DATA_AMCREST_CAMS in hass.data:
@@ -301,7 +302,8 @@ class AmcrestCam(Camera):
             from haffmpeg import CameraMjpeg
 
             streaming_url = self._camera.rtsp_url(typeno=self._resolution)
-            self._lock.acquire()
+            # Need to use lock here but lock is not asyncio!
+            #self._lock.acquire()
             try:
                 stream = CameraMjpeg(self._ffmpeg.binary, loop=self.hass.loop)
                 await stream.open_camera(
@@ -312,7 +314,8 @@ class AmcrestCam(Camera):
                     'multipart/x-mixed-replace;boundary=ffserver')
                 await stream.close()
             finally:
-                self._lock.release()
+                #self._lock.release()
+                pass
 
     # Entity property overrides
 
