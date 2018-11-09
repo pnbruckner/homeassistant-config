@@ -27,7 +27,7 @@ from homeassistant.helpers.event import track_state_change
 from homeassistant import util
 
 
-__version__ = '1.6.0b3'
+__version__ = '1.6.0'
 
 _LOGGER = logging.getLogger(__name__)
 
