@@ -27,7 +27,7 @@ from homeassistant.helpers.event import track_state_change
 from homeassistant import util
 
 
-__version__ = '1.6.0b2'
+__version__ = '1.6.0b3'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -147,10 +147,10 @@ class CompositeScanner:
             except KeyError:
                 gps = None
             gps_accuracy = new_state.attributes.get(ATTR_GPS_ACCURACY)
-            battery = (new_state.attributes.get(ATTR_BATTERY) or
-                       new_state.attributes.get(ATTR_BATTERY_LEVEL))
-            charging = (new_state.attributes.get(ATTR_BATTERY_CHARGING) or
-                        new_state.attributes.get(ATTR_CHARGING))
+            battery = new_state.attributes.get(
+                ATTR_BATTERY, new_state.attributes.get(ATTR_BATTERY_LEVEL))
+            charging = new_state.attributes.get(
+                ATTR_BATTERY_CHARGING, new_state.attributes.get(ATTR_CHARGING))
             # Don't use location_name unless we have to.
             location_name = None
 
