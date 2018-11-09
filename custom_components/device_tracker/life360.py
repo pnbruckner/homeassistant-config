@@ -21,8 +21,9 @@ from homeassistant.components.zone import (
     DEFAULT_PASSIVE, ENTITY_ID_FORMAT as ZN_ENTITY_ID_FORMAT, HOME_ZONE, Zone)
 from homeassistant.components.zone.zone import active_zone
 from homeassistant.const import (
-    CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX, CONF_USERNAME, LENGTH_FEET,
-    LENGTH_KILOMETERS, LENGTH_METERS, LENGTH_MILES, STATE_HOME, STATE_UNKNOWN)
+    ATTR_BATTERY_CHARGING, CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX,
+    CONF_USERNAME, LENGTH_FEET, LENGTH_KILOMETERS, LENGTH_METERS, LENGTH_MILES,
+    STATE_HOME, STATE_UNKNOWN)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import generate_entity_id
 from homeassistant.helpers.event import track_time_interval
@@ -31,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.0.0'
+__version__ = '2.1.0b1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,7 +60,6 @@ SHOW_AS_STATE_OPTS = [SHOW_DRIVING, SHOW_MOVING, SHOW_PLACES]
 
 ATTR_ADDRESS = 'address'
 ATTR_AT_LOC_SINCE = 'at_loc_since'
-ATTR_CHARGING = 'charging'
 ATTR_DRIVING = SHOW_DRIVING
 ATTR_LAST_SEEN = 'last_seen'
 ATTR_MOVING = SHOW_MOVING
@@ -385,7 +385,7 @@ class Life360Scanner:
             attrs = {
                 ATTR_ADDRESS: address,
                 ATTR_AT_LOC_SINCE: utc_attr_from_ts(loc.get('since')),
-                ATTR_CHARGING: bool_attr_from_int(loc.get('charge')),
+                ATTR_BATTERY_CHARGING: bool_attr_from_int(loc.get('charge')),
                 ATTR_DRIVING: driving,
                 ATTR_LAST_SEEN: last_seen,
                 ATTR_MOVING: moving,
@@ -404,7 +404,7 @@ class Life360Scanner:
                     loc_name = SHOW_MOVING.capitalize()
 
             try:
-                battery = float(loc.get('battery'))
+                battery = int(float(loc.get('battery')))
             except (TypeError, ValueError):
                 battery = None
 
