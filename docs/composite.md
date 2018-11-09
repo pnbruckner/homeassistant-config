@@ -21,8 +21,8 @@ device_tracker:
       - device_tracker.platform2_me
 ```
 ## Configuration variables
-- **name**: Object ID of composite device: `device_tracker.NAME`
-- **entity_id**: Watched device tracker devices.
+- **name**: Object ID (i.e., part of entity ID after the dot) of composite device. For example, `NAME` would result in an entity ID of `device_tracker.NAME`.
+- **entity_id**: Entity IDs of watched device tracker devices. Can be a single entity ID, a list of entity IDs, or a string containing multiple entity IDs separated by commas.
 ## Watched device notes
 Watched GPS-based devices must have, at a minimum, the following attributes: `latitude`, `longitude` and `gps_accuracy`. If they don't they will not be used.
 
@@ -61,4 +61,4 @@ Date | Version | Notes
 20181019 | [1.5.0](https://github.com/pnbruckner/homeassistant-config/blob/d1fffc42d5c309bc6a99ff74d81469c00a4fa71b/custom_components/device_tracker/composite.py) | Remove initialization delay and update immediately according to current state of entities.
 20181022 | [1.5.1](https://github.com/pnbruckner/homeassistant-config/blob/111ce69063dfeda57f4c62a5207cce7d605c5928/custom_components/device_tracker/composite.py) | Log, but otherwise ignore, invalid states of watched entities during init. Improve "skipping" debug message.
 20181102 | [1.5.2](https://github.com/pnbruckner/homeassistant-config/blob/f29b3db134b15bf6ea30034b4dd5bc7bee281def/custom_components/device_tracker/composite.py) | Slugify name in schema instead of during setup to catch any errors earlier.
-201811xx | [1.6.0]() | In addition to 'battery' attribute, also accept 'battery_level' attribute, and use for 'battery' attribute. Accept either 'battery_charging' or 'charging' attribute and use for new 'battery_charging' attribute. 
+20181109 | [1.6.0]() | In addition to 'battery' attribute, also accept 'battery_level' attribute, and use for 'battery' attribute. Accept either 'battery_charging' or 'charging' attribute and use for new 'battery_charging' attribute. 
