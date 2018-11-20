@@ -32,11 +32,12 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.1.0'
+__version__ = '2.2.0'
 
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = ['zone']
+REQUIREMENTS = ['life360==2.*']
 
 DEFAULT_FILENAME = 'life360.conf'
 SPEED_FACTOR_MPH = 2.25
@@ -119,7 +120,7 @@ def m_name(first, last=None):
     return first or last
 
 def setup_scanner(hass, config, see, discovery_info=None):
-    from custom_components.life360 import life360
+    from life360 import life360
 
     def auth_info_callback():
         _LOGGER.debug('Authenticating')
