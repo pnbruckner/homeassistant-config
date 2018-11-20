@@ -3,11 +3,8 @@ This platform allows you to detect presence using [Life360](http://life360.com/)
 ## Installation
 See [Installing and Updating](custom_updater.md) to use Custom Updater.
 
-> __NOTE__: Don't forget to also install `life360`.
-
 Alternatively, place a copy of:
 
-[life360.py](../custom_components/life360.py) at `<config>/custom_components/life360.py` and  
 [device_tracker/life360.py](../custom_components/device_tracker/life360.py) at `<config>/custom_components/device_tracker/life360.py`
 
 where `<config>` is your Home Assistant configuration directory.
@@ -133,5 +130,4 @@ Date | Version | Notes
 20181025 | [1.6.1](https://github.com/pnbruckner/homeassistant-config/blob/4320553f30b40e08b5bed27552b6242ab2908879/custom_components/device_tracker/life360.py) | __BREAKING CHANGE__: Event names were too long. Shorten them by removing `device_tracker.` prefixes.
 20181102 | [2.0.0](https://github.com/pnbruckner/homeassistant-config/blob/da9bdcf9923f8e93820f23a49289af35c6371a71/custom_components/device_tracker/life360.py) | Add optional feature to create HA zones based on Life360 Places.
 20181109 | [2.1.0](https://github.com/pnbruckner/homeassistant-config/blob/1f97852af12615a8db73c1171551423a7e4be02c/custom_components/device_tracker/life360.py) | __BREAKING CHANGE__: Change charging attribute to the more common battery_charging attribute. Instead of a float, make battery attribute an int like it should have been originally.
-
-[Life360 Communications Module Release Notes](life360_lib.md#release-notes)
+20181120 | [2.2.0]() | Communications module moved to PyPI.
