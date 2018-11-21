@@ -9,6 +9,8 @@ Alternatively, place a copy of:
 
 where `<config>` is your Home Assistant configuration directory.
 
+>__NOTE__: Previous releases required two different life360.py files to be installed. That is no longer required. There is just the one indicated above now.
+
 Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
 device_tracker:
