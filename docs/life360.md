@@ -9,6 +9,10 @@ Alternatively, place a copy of:
 
 where `<config>` is your Home Assistant configuration directory.
 
+If you haven't done so already, you will also need to install life360 from PyPI.
+
+`pip install life360`
+
 >__NOTE__: Previous releases required two different life360.py files to be installed. That is no longer required. There is just the one indicated above now.
 
 Then add the desired configuration. Here is an example of a typical configuration:
