@@ -3,13 +3,15 @@ Save and restore lights, switches and/or groups of these.
 
 The state of the entities, including important attributes (such as brightness and color attributes) will be saved to the State Machine. When restored the information will be deleted from the State Machine.
 ## Installation
-See [Installing and Updating](custom_updater.md) to use Custom Updater.
+See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"light_store"`.
 
 Alternatively, place a copy of:
 
 [python_scripts/light_store.py](../python_scripts/light_store.py) at `<config>/python_scripts/light_store.py`
 
 where `<config>` is your Home Assistant configuration directory.
+
+>__NOTE__: Do not download the file by using the link above directly. Rather, click on it, then on the page that comes up use the `Raw` button.
 
 Then add the following to your configuration:
 ```yaml
