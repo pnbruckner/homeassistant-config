@@ -12,13 +12,15 @@ The following sources of weather data are supported:
 * Weather Underground
 * [YR (symbol)](https://www.home-assistant.io/components/sensor.yr/)
 ## Installation
-See [Installing and Updating](custom_updater.md) to use Custom Updater.
+See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"sensor.illuminance"`.
 
 Alternatively, place a copy of:
 
 [sensor/illuminance.py](../custom_components/sensor/illuminance.py) at `<config>/custom_components/sensor/illuminance.py`
 
 where `<config>` is your Home Assistant configuration directory.
+
+>__NOTE__: Do not download the file by using the link above directly. Rather, click on it, then on the page that comes up use the `Raw` button.
 
 Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
