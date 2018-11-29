@@ -3,13 +3,15 @@ This platform creates a composite device tracker from one or more other device t
 
 Currently device_tracker's with a source_type of bluetooth, bluetooth_le, gps or router are supported, as well as binary_sensor's.
 ## Installation
-See [Installing and Updating](custom_updater.md) to use Custom Updater.
+See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"device_tracker.composite"`.
 
 Alternatively, place a copy of:
 
 [device_tracker/composite.py](../custom_components/device_tracker/composite.py) at `<config>/custom_components/device_tracker/composite.py`
 
 where `<config>` is your Home Assistant configuration directory.
+
+>__NOTE__: Do not download the file by using the link above directly. Rather, click on it, then on the page that comes up use the `Raw` button.
 
 Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
