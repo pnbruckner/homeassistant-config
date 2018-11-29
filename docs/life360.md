@@ -1,13 +1,15 @@
 # Life360
 This platform allows you to detect presence using [Life360](http://life360.com/). It can also automatically create Home Assistant zones based on Life360 Places.
 ## Installation
-See [Installing and Updating](custom_updater.md) to use Custom Updater.
+See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"device_tracker.life360"`.
 
 Alternatively, place a copy of:
 
 [device_tracker/life360.py](../custom_components/device_tracker/life360.py) at `<config>/custom_components/device_tracker/life360.py`
 
 where `<config>` is your Home Assistant configuration directory.
+
+>__NOTE__: Do not download the file by using the link above directly. Rather, click on it, then on the page that comes up use the `Raw` button.
 
 >__NOTE__: Previous releases required two different life360.py files to be installed. That is no longer required. There is just the one indicated above now.
 
