@@ -32,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.3.0'
+__version__ = '2.3.1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
     _LOGGER.debug('Life360 communication successful!')
 
     show_as_state = config[CONF_SHOW_AS_STATE]
-    home_place = config[CONF_HOME_PLACE]
+    home_place = config[CONF_HOME_PLACE].lower()
     max_gps_accuracy = config.get(CONF_MAX_GPS_ACCURACY)
     max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
     prefix = config.get(CONF_PREFIX)
@@ -180,7 +180,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
                 for circle in api.get_circles():
                     for place in api.get_circle_places(circle['id']):
                         name = place['name']
-                        if name.lower() == HOME_ZONE:
+                        if name.lower() in [HOME_ZONE, home_place]:
                             continue
                         places.add(Place(name,
                                          float(place['latitude']),
@@ -357,7 +357,7 @@ class Life360Scanner:
                 loc_name = place_name
                 # Make sure Home Place is always seen exactly as home,
                 # which is the special device_tracker state for home.
-                if loc_name and loc_name.lower() == self._home_place.lower():
+                if loc_name and loc_name.lower() == self._home_place:
                     loc_name = STATE_HOME
             else:
                 loc_name = None
