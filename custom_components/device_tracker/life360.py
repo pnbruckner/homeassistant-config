@@ -32,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.2.0'
+__version__ = '2.3.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ DEPENDENCIES = ['zone']
 REQUIREMENTS = ['life360==2.*']
 
 DEFAULT_FILENAME = 'life360.conf'
+DEFAULT_HOME_PLACE = 'Home'
 SPEED_FACTOR_MPH = 2.25
 MIN_ZONE_INTERVAL = timedelta(minutes=1)
 
@@ -48,6 +49,7 @@ _AUTHORIZATION_TOKEN = 'cFJFcXVnYWJSZXRyZTRFc3RldGhlcnVmcmVQdW1hbUV4dWNyRU'\
 
 CONF_ADD_ZONES = 'add_zones'
 CONF_DRIVING_SPEED = 'driving_speed'
+CONF_HOME_PLACE = 'home_place'
 CONF_MAX_GPS_ACCURACY = 'max_gps_accuracy'
 CONF_MAX_UPDATE_WAIT = 'max_update_wait'
 CONF_MEMBERS = 'members'
@@ -74,6 +76,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_FILENAME, default=DEFAULT_FILENAME): cv.string,
     vol.Optional(CONF_SHOW_AS_STATE, default=[]): vol.All(
         cv.ensure_list_csv, [vol.In(SHOW_AS_STATE_OPTS)]),
+    vol.Optional(CONF_HOME_PLACE, default=DEFAULT_HOME_PLACE): cv.string,
     vol.Optional(CONF_MAX_GPS_ACCURACY): vol.Coerce(float),
     vol.Optional(CONF_MAX_UPDATE_WAIT): vol.All(
         cv.time_period, cv.positive_timedelta),
@@ -143,6 +146,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
     _LOGGER.debug('Life360 communication successful!')
 
     show_as_state = config[CONF_SHOW_AS_STATE]
+    home_place = config[CONF_HOME_PLACE]
     max_gps_accuracy = config.get(CONF_MAX_GPS_ACCURACY)
     max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
     prefix = config.get(CONF_PREFIX)
@@ -229,16 +233,19 @@ def setup_scanner(hass, config, see, discovery_info=None):
             _LOGGER.debug('Will check Places every: {}'.format(zone_interval))
             track_time_interval(hass, zones_from_places, zone_interval)
 
-    Life360Scanner(hass, see, interval, show_as_state, max_gps_accuracy,
-                   max_update_wait, prefix, members, driving_speed, api)
+    Life360Scanner(hass, see, interval, show_as_state, home_place,
+                   max_gps_accuracy, max_update_wait, prefix, members,
+                   driving_speed, api)
     return True
 
 class Life360Scanner:
-    def __init__(self, hass, see, interval, show_as_state, max_gps_accuracy,
-                 max_update_wait, prefix, members, driving_speed, api):
+    def __init__(self, hass, see, interval, show_as_state, home_place,
+                 max_gps_accuracy, max_update_wait, prefix, members,
+                 driving_speed, api):
         self._hass = hass
         self._see = see
         self._show_as_state = show_as_state
+        self._home_place = home_place
         self._max_gps_accuracy = max_gps_accuracy
         self._max_update_wait = max_update_wait
         self._prefix = '' if not prefix else prefix + '_'
@@ -348,9 +355,9 @@ class Life360Scanner:
             # Does user want location name to be shown as state?
             if SHOW_PLACES in self._show_as_state:
                 loc_name = place_name
-                # Make sure Home is always seen as exactly as home,
+                # Make sure Home Place is always seen exactly as home,
                 # which is the special device_tracker state for home.
-                if loc_name and loc_name.lower() == STATE_HOME:
+                if loc_name and loc_name.lower() == self._home_place.lower():
                     loc_name = STATE_HOME
             else:
                 loc_name = None

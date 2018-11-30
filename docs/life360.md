@@ -31,6 +31,7 @@ device_tracker:
 - **password**: Your Life360 password.
 - **prefix** (*Optional*): Default is to name entities `device_tracker.<first_name>_<last_name>`, where `<first_name>` and `<last_name>` are specified by Life360. If a prefix is specified, then entity will be named `device_tracker.<prefix>_<first_name>_<last_name>`. If the member only has a first or last name in Life360, then the underscore that would normally separate the names is left out.
 - **show_as_state** (*Optional*): One or more of: `driving`, `moving` and `places`. Default is for Device Tracker Component to determine entity state as normal. When specified these can cause the entity's state to show other statuses according to the States chart below.
+- **home_place** (*Optional*): Default is 'Home'. Name of Life360 Place (if any) that coincides with home location as configured in HA.
 - **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered to be "driving" (and which will also set the `driving` attribute to True. See also `Driving` state in chart below.)
 - **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
 - **max_update_wait** (*Optional*): If you specify it, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. See example automations below. 
@@ -41,17 +42,17 @@ device_tracker:
 - **add_zones** (*Optional*): The default is true if `zone_interval` is specified, false otherwise. If true create HA zones based on Life360 Places. Note: Life360 Places named Home (case insensitive) will not be used.
 - **zone_interval** (*Optional*): The default is only to create HA zones at startup (assuming `add_zones` is true.) If specified, will also update HA zones per Life360 Places periodically.
 ## States
+Order of precedence is from higher to lower.
+
 show_as_state | State | Conditions
 -|-|-
-`places` | `home` | Place or check-in name (see below) is any form of the word 'home'.
-`places` | Place or check-in name | Member is in a Life360 defined "Place" or member has "checked in" via the Life360 app (and name is not any form of the word 'home'.)
+`places` | `home` | Place or check-in name (see below) matches `home_place` setting.
+`places` | Place or check-in name | Member is in a Life360 defined "Place" or member has "checked in" via the Life360 app (and name does not match 'home_place' setting.)
 N/A | `home` | Device GSP coordinates are located in the HA defined home zone.
 N/A | HA zone name | Device GPS coordinates are located in a HA defined zone (other than home.)
 `driving` | `Driving` | The Life360 server indicates the device "isDriving", or if `driving_speed` (see above) has been specified and the speed derived from the value provided by the Life360 server is at or above that value.
 `moving` | `Moving` | The Life360 server indicates the device is "inTransit".
 N/A | `not_home` | None of the above are true.
-
-Order of precedence is from higher to lower.
 ## Additional attributes
 Attribute | Description
 -|-
@@ -74,6 +75,7 @@ device_tracker:
     password: !secret life360_password
     prefix: life360
     show_as_state: driving, moving, places
+    home_place: Home
     driving_speed: 18
     max_gps_accuracy: 200
     max_update_wait:
@@ -134,4 +136,5 @@ Date | Version | Notes
 20181025 | [1.6.1](https://github.com/pnbruckner/homeassistant-config/blob/4320553f30b40e08b5bed27552b6242ab2908879/custom_components/device_tracker/life360.py) | __BREAKING CHANGE__: Event names were too long. Shorten them by removing `device_tracker.` prefixes.
 20181102 | [2.0.0](https://github.com/pnbruckner/homeassistant-config/blob/da9bdcf9923f8e93820f23a49289af35c6371a71/custom_components/device_tracker/life360.py) | Add optional feature to create HA zones based on Life360 Places.
 20181109 | [2.1.0](https://github.com/pnbruckner/homeassistant-config/blob/1f97852af12615a8db73c1171551423a7e4be02c/custom_components/device_tracker/life360.py) | __BREAKING CHANGE__: Change charging attribute to the more common battery_charging attribute. Instead of a float, make battery attribute an int like it should have been originally.
-20181120 | [2.2.0]() | Communications module moved to PyPI.
+20181120 | [2.2.0](https://github.com/pnbruckner/homeassistant-config/blob/3ad096f1c59751f6b7413678418cae19965a47fb/custom_components/device_tracker/life360.py) | Communications module moved to PyPI.
+201811xx | [2.3.0]() | Add optional `home_place` configuration variable.
