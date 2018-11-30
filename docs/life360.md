@@ -39,7 +39,7 @@ device_tracker:
 - **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
 - **interval_seconds** (*Optional*): The default is 12. This defines how often the Life360 server will be queried. The resulting device_tracker entities will actually only be updated when the Life360 server provides new location information for each member.
 - **filename** (*Optional*): The default is life360.conf. The platform will get an authorization token from the Life360 server using your username and password, and it will save the token in a file in the HA config directory (with limited permissions) so that it can reuse it after restarts (and not have to get a new token every time.) If the token eventually expires, a new one will be acquired as needed.
-- **add_zones** (*Optional*): The default is true if `zone_interval` is specified, false otherwise. If true create HA zones based on Life360 Places. Note: Life360 Places named Home (case insensitive) will not be used.
+- **add_zones** (*Optional*): The default is true if `zone_interval` is specified, false otherwise. If true create HA zones based on Life360 Places. Note: Life360 Places whose name matches `home_place` or is 'home' (case insensitive) will not be used.
 - **zone_interval** (*Optional*): The default is only to create HA zones at startup (assuming `add_zones` is true.) If specified, will also update HA zones per Life360 Places periodically.
 ## States
 Order of precedence is from higher to lower.
@@ -47,7 +47,7 @@ Order of precedence is from higher to lower.
 show_as_state | State | Conditions
 -|-|-
 `places` | `home` | Place or check-in name (see below) matches `home_place` setting.
-`places` | Place or check-in name | Member is in a Life360 defined "Place" or member has "checked in" via the Life360 app (and name does not match 'home_place' setting.)
+`places` | Place or check-in name | Member is in a Life360 defined "Place" or member has "checked in" via the Life360 app (and name does not match `home_place` setting.)
 N/A | `home` | Device GSP coordinates are located in the HA defined home zone.
 N/A | HA zone name | Device GPS coordinates are located in a HA defined zone (other than home.)
 `driving` | `Driving` | The Life360 server indicates the device "isDriving", or if `driving_speed` (see above) has been specified and the speed derived from the value provided by the Life360 server is at or above that value.
@@ -138,3 +138,4 @@ Date | Version | Notes
 20181109 | [2.1.0](https://github.com/pnbruckner/homeassistant-config/blob/1f97852af12615a8db73c1171551423a7e4be02c/custom_components/device_tracker/life360.py) | __BREAKING CHANGE__: Change charging attribute to the more common battery_charging attribute. Instead of a float, make battery attribute an int like it should have been originally.
 20181120 | [2.2.0](https://github.com/pnbruckner/homeassistant-config/blob/3ad096f1c59751f6b7413678418cae19965a47fb/custom_components/device_tracker/life360.py) | Communications module moved to PyPI.
 20181130 | [2.3.0](https://github.com/pnbruckner/homeassistant-config/blob/784cbda88eaa3f7010029597afd449d14300a1ea/custom_components/device_tracker/life360.py) | Add optional `home_place` configuration variable.
+20181130 | [2.3.1]() | Do not add zone for Life360 Places whose name matches `home_place`.
