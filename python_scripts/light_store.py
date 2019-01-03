@@ -14,6 +14,7 @@ ATTR_BRIGHTNESS = "brightness"
 ATTR_WHITE_VALUE = "white_value"
 ATTR_COLOR_TEMP = "color_temp"
 ATTR_HS_COLOR = "hs_color"
+ATTR_EFFECT = "effect"
 # Save only one of these attributes, in order of precedence.
 COLOR_ATTRS = [ATTR_WHITE_VALUE, ATTR_COLOR_TEMP, ATTR_HS_COLOR]
 
@@ -82,6 +83,9 @@ else:
                     if ATTR_BRIGHTNESS in cur_state.attributes:
                         attributes[ATTR_BRIGHTNESS] = cur_state.attributes[
                             ATTR_BRIGHTNESS]
+                        if ATTR_EFFECT in cur_state.attributes:
+                            attributes[ATTR_EFFECT] = cur_state.attributes[
+                                ATTR_EFFECT]
                     for attr in COLOR_ATTRS:
                         if attr in cur_state.attributes:
                             attributes[attr] = cur_state.attributes[attr]
