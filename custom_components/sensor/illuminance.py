@@ -17,7 +17,7 @@ import voluptuous as vol
 from homeassistant.components.sensor import (
     DOMAIN as SENSOR_DOMAIN, PLATFORM_SCHEMA, SCAN_INTERVAL)
 from homeassistant.components.sensor.darksky import (
-    CONF_ATTRIBUTION as DSS_ATTRIBUTION)
+    ATTRIBUTION as DSS_ATTRIBUTION)
 from homeassistant.components.sensor.yr import (
     CONF_ATTRIBUTION as YRS_ATTRIBUTION)
 from homeassistant.components.weather.darksky import (
