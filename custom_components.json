@@ -16,8 +16,8 @@
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md#release-notes"
   },
   "sensor.illuminance": {
-    "updated_at": "2018-10-28",
-    "version": "2.0.0",
+    "updated_at": "2019-01-11",
+    "version": "2.0.1",
     "local_location": "/custom_components/sensor/illuminance.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sensor/illuminance.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",

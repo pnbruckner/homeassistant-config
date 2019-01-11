@@ -16,8 +16,12 @@ import voluptuous as vol
 
 from homeassistant.components.sensor import (
     DOMAIN as SENSOR_DOMAIN, PLATFORM_SCHEMA, SCAN_INTERVAL)
-from homeassistant.components.sensor.darksky import (
-    CONF_ATTRIBUTION as DSS_ATTRIBUTION)
+try:
+    from homeassistant.components.sensor.darksky import (
+        ATTRIBUTION as DSS_ATTRIBUTION)
+except ImportError:
+    from homeassistant.components.sensor.darksky import (
+        CONF_ATTRIBUTION as DSS_ATTRIBUTION)
 from homeassistant.components.sensor.yr import (
     CONF_ATTRIBUTION as YRS_ATTRIBUTION)
 from homeassistant.components.weather.darksky import (
@@ -34,7 +38,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.sun import get_astral_event_date
 import homeassistant.util.dt as dt_util
 
-__version__ = '2.0.0'
+__version__ = '2.0.1'
 
 DEFAULT_NAME = 'Illuminance'
 MIN_SCAN_INTERVAL = dt.timedelta(minutes=5)

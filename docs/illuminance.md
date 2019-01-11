@@ -83,3 +83,4 @@ Date | Version | Notes
 -|:-:|-
 20180907 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/d767bcce0fdff0c9298dc7a010d27af88817eac2/custom_components/sensor/illuminance.py) | Initial support for Custom Updater.
 20181028 | [2.0.0](https://github.com/pnbruckner/homeassistant-config/blob/e4fbbfe5ccc48cc08045226197c5c27767ec081e/custom_components/sensor/illuminance.py) | Add support for using Dark Sky or YR entity as source of weather conditions. For WU, no longer get sunrise/sunset data from the server, just use HA’s sun data.
+20190111 | [2.0.1]() | Fix bug caused by change in Dark Sky Sensor in HA 0.85 release.
