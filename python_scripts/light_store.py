@@ -1,4 +1,4 @@
-VERSION = '1.0.0'
+VERSION = '1.1.0b1'
 
 DOMAIN = 'light_store'
 
@@ -11,10 +11,12 @@ ATTR_ENTITY_ID  = 'entity_id'
 
 # Select light attributes to save/restore.
 ATTR_BRIGHTNESS = "brightness"
+ATTR_EFFECT = "effect"
 ATTR_WHITE_VALUE = "white_value"
 ATTR_COLOR_TEMP = "color_temp"
 ATTR_HS_COLOR = "hs_color"
-ATTR_EFFECT = "effect"
+# Save any of these attributes.
+GEN_ATTRS = [ATTR_BRIGHTNESS, ATTR_EFFECT]
 # Save only one of these attributes, in order of precedence.
 COLOR_ATTRS = [ATTR_WHITE_VALUE, ATTR_COLOR_TEMP, ATTR_HS_COLOR]
 
@@ -80,12 +82,9 @@ else:
             else:
                 attributes = {}
                 if entity_id.startswith('light.') and cur_state.state == 'on':
-                    if ATTR_BRIGHTNESS in cur_state.attributes:
-                        attributes[ATTR_BRIGHTNESS] = cur_state.attributes[
-                            ATTR_BRIGHTNESS]
-                        if ATTR_EFFECT in cur_state.attributes:
-                            attributes[ATTR_EFFECT] = cur_state.attributes[
-                                ATTR_EFFECT]
+                    for attr in GEN_ATTRS:
+                        if attr in cur_state.attributes:
+                            attributes[attr] = cur_state.attributes[attr]
                     for attr in COLOR_ATTRS:
                         if attr in cur_state.attributes:
                             attributes[attr] = cur_state.attributes[attr]
