@@ -30,7 +30,7 @@ So, e.g., if store_name is `light_store`, and `switch.abc` and `light.def` are s
 `light_store.switch_abc`, state: `off`  
 `light_store.light_def`, state: `on`, attributes: `brightness: 128`
 ## Light attributes
-When saved, if a light entity has any of the following attributes they will be saved: brightness, and one of the following (in order of precedence): white_value, color_temp, hs_color.
+When saved, if a light entity has any of the following attributes they will be saved: brightness, effect, and one of the following (in order of precedence): white_value, color_temp, hs_color.
 
 Note that when turning on a light, if profile, color_name, rgb_color or xy_color are used, they will get converted to hs_color and that is what will be used. And when the state of the light is updated, although only hs_color is used internally, in addition to hs_color the light component will also add equivalent rgb_color and xy_color attributes to the light.
 
@@ -67,3 +67,4 @@ If you have any light groups (i.e., an entity of the light domain that is actual
 Date | Version | Notes
 -|:-:|-
 20181002 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/62e517921e9f48625dbc7c7e3b9d6b4e665749f4/python_scripts/light_store.py) | Initial support for Custom Updater.
+20190114 | [1.1.0]() | Save and restore light effect attribute.
