@@ -32,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.3.1'
+__version__ = '2.4.0b1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,6 +54,7 @@ CONF_MAX_GPS_ACCURACY = 'max_gps_accuracy'
 CONF_MAX_UPDATE_WAIT = 'max_update_wait'
 CONF_MEMBERS = 'members'
 CONF_SHOW_AS_STATE = 'show_as_state'
+CONF_TIMES_AS_LOCAL = 'times_as_local'
 CONF_ZONE_INTERVAL = 'zone_interval'
 
 SHOW_DRIVING = 'driving'
@@ -87,6 +88,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_ADD_ZONES): cv.boolean,
     vol.Optional(CONF_ZONE_INTERVAL):
         vol.All(cv.time_period, vol.Range(min=MIN_ZONE_INTERVAL)),
+    vol.Optional(CONF_TIMES_AS_LOCAL, default=False): cv.boolean,
 })
 
 _API_EXCS = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
@@ -94,16 +96,6 @@ _API_EXCS = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
 
 def exc_msg(exc):
     return '{}: {}'.format(exc.__class__.__name__, str(exc))
-
-def utc_from_ts(val):
-    try:
-        return dt_util.utc_from_timestamp(float(val))
-    except (TypeError, ValueError):
-        return None
-
-def utc_attr_from_ts(val):
-    res = utc_from_ts(val)
-    return res if res else STATE_UNKNOWN
 
 def bool_attr_from_int(val):
     try:
@@ -123,8 +115,6 @@ def m_name(first, last=None):
     return first or last
 
 def setup_scanner(hass, config, see, discovery_info=None):
-    from life360 import life360
-
     def auth_info_callback():
         _LOGGER.debug('Authenticating')
         return (_AUTHORIZATION_TOKEN,
@@ -132,15 +122,14 @@ def setup_scanner(hass, config, see, discovery_info=None):
                 config[CONF_PASSWORD])
 
     interval = config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-    ok = False
     try:
+        from life360 import life360
         api = life360(auth_info_callback, interval.total_seconds()-1,
                       hass.config.path(config[CONF_FILENAME]))
-        if api.get_circles():
-            ok = True
+        if not api.get_circles():
+            raise RuntimeError('get_circles failed')
     except Exception as exc:
         _LOGGER.error(exc_msg(exc))
-    if not ok:
         _LOGGER.error('Life360 communication failed!')
         return False
     _LOGGER.debug('Life360 communication successful!')
@@ -152,6 +141,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
     prefix = config.get(CONF_PREFIX)
     members = config.get(CONF_MEMBERS)
     driving_speed = config.get(CONF_DRIVING_SPEED)
+    times_as_local = config[CONF_TIMES_AS_LOCAL]
     _LOGGER.debug('Configured members = {}'.format(members))
 
     if members:
@@ -235,13 +225,13 @@ def setup_scanner(hass, config, see, discovery_info=None):
 
     Life360Scanner(hass, see, interval, show_as_state, home_place,
                    max_gps_accuracy, max_update_wait, prefix, members,
-                   driving_speed, api)
+                   driving_speed, times_as_local, api)
     return True
 
 class Life360Scanner:
     def __init__(self, hass, see, interval, show_as_state, home_place,
                  max_gps_accuracy, max_update_wait, prefix, members,
-                 driving_speed, api):
+                 driving_speed, times_as_local, api):
         self._hass = hass
         self._see = see
         self._show_as_state = show_as_state
@@ -251,6 +241,7 @@ class Life360Scanner:
         self._prefix = '' if not prefix else prefix + '_'
         self._members = members
         self._driving_speed = driving_speed
+        self._times_as_local = times_as_local
         self._api = api
 
         self._errs = {}
@@ -277,6 +268,19 @@ class Life360Scanner:
     def _exc(self, key, exc):
         self._err(key, exc_msg(exc))
 
+    def _dt_from_ts(self, val):
+        try:
+            val = dt_util.utc_from_timestamp(float(val))
+            if self._times_as_local:
+                val = dt_util.as_local(val)
+            return val
+        except (TypeError, ValueError):
+            return None
+
+    def _dt_attr_from_ts(self, val):
+        res = self._dt_from_ts(val)
+        return res if res else STATE_UNKNOWN
+
     def _update_member(self, m, name):
         name = name.replace(',', '_').replace('-', '_')
 
@@ -285,7 +289,7 @@ class Life360Scanner:
 
         loc = m.get('location')
         try:
-            last_seen = utc_from_ts(loc.get('timestamp'))
+            last_seen = self._dt_from_ts(loc.get('timestamp'))
         except AttributeError:
             last_seen = None
 
@@ -392,7 +396,7 @@ class Life360Scanner:
 
             attrs = {
                 ATTR_ADDRESS: address,
-                ATTR_AT_LOC_SINCE: utc_attr_from_ts(loc.get('since')),
+                ATTR_AT_LOC_SINCE: self._dt_attr_from_ts(loc.get('since')),
                 ATTR_BATTERY_CHARGING: bool_attr_from_int(loc.get('charge')),
                 ATTR_DRIVING: driving,
                 ATTR_LAST_SEEN: last_seen,
