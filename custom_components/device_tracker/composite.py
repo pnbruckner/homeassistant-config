@@ -24,12 +24,14 @@ from homeassistant.const import (
     STATE_HOME, STATE_NOT_HOME, STATE_ON)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
-from homeassistant import util
+import homeassistant.util.dt as dt_util
 
 
-__version__ = '1.6.0'
+__version__ = '1.7.0b1'
 
 _LOGGER = logging.getLogger(__name__)
+
+CONF_TIMES_AS_LOCAL = 'times_as_local'
 
 ATTR_CHARGING = 'charging'
 ATTR_LAST_SEEN = 'last_seen'
@@ -48,7 +50,8 @@ SOURCE_TYPE_NON_GPS = (
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_NAME): cv.slugify,
-    vol.Required(CONF_ENTITY_ID): cv.entity_ids
+    vol.Required(CONF_ENTITY_ID): cv.entity_ids,
+    vol.Optional(CONF_TIMES_AS_LOCAL, default=False): cv.boolean,
 })
 
 
@@ -69,6 +72,7 @@ class CompositeScanner:
                 STATE: None}
         self._dev_id = config[CONF_NAME]
         self._entity_id = ENTITY_ID_FORMAT.format(self._dev_id)
+        self._times_as_local = config[CONF_TIMES_AS_LOCAL]
         self._lock = threading.Lock()
         self._prev_seen = None
 
@@ -120,16 +124,22 @@ class CompositeScanner:
             # Get time device was last seen, which is the entity's last_seen
             # attribute, or if that doesn't exist, then last_updated from the
             # new state object. Make sure last_seen is timezone aware in UTC.
-            # Note that util.dt.as_utc assumes naive datetime is in local
+            # Note that dt_util.as_utc assumes naive datetime is in local
             # timezone.
             last_seen = new_state.attributes.get(ATTR_LAST_SEEN)
             if isinstance(last_seen, datetime):
-                last_seen = util.dt.as_utc(last_seen)
+                last_seen = dt_util.as_utc(last_seen)
             else:
                 try:
-                    last_seen = util.dt.utc_from_timestamp(float(last_seen))
+                    last_seen = dt_util.utc_from_timestamp(float(last_seen))
                 except (TypeError, ValueError):
                     last_seen = new_state.last_updated
+
+            # Now that we have last_seen as a timezone aware datetime in UTC,
+            # if the user would rather have datetimes in the local timezone,
+            # convert it.
+            if self._times_as_local:
+                last_seen = dt_util.as_local(last_seen)
 
             # Is this newer info than last update?
             if self._prev_seen and last_seen <= self._prev_seen:
