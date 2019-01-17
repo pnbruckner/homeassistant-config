@@ -32,12 +32,12 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.4.0b1'
+__version__ = '2.4.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = ['zone']
-REQUIREMENTS = ['life360==2.*']
+REQUIREMENTS = ['life360==2.*','timezonefinderL==2.*']
 
 DEFAULT_FILENAME = 'life360.conf'
 DEFAULT_HOME_PLACE = 'Home'
@@ -54,13 +54,18 @@ CONF_MAX_GPS_ACCURACY = 'max_gps_accuracy'
 CONF_MAX_UPDATE_WAIT = 'max_update_wait'
 CONF_MEMBERS = 'members'
 CONF_SHOW_AS_STATE = 'show_as_state'
-CONF_TIMES_AS_LOCAL = 'times_as_local'
+CONF_TIMES_AS = 'times_as'
 CONF_ZONE_INTERVAL = 'zone_interval'
 
 SHOW_DRIVING = 'driving'
 SHOW_MOVING = 'moving'
 SHOW_PLACES = 'places'
 SHOW_AS_STATE_OPTS = [SHOW_DRIVING, SHOW_MOVING, SHOW_PLACES]
+TZ_UTC = 'utc'
+TZ_LOCAL = 'local'
+TZ_DEVICE = 'device'
+# First item in list is default.
+TIMES_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE]
 
 ATTR_ADDRESS = 'address'
 ATTR_AT_LOC_SINCE = 'at_loc_since'
@@ -88,7 +93,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_ADD_ZONES): cv.boolean,
     vol.Optional(CONF_ZONE_INTERVAL):
         vol.All(cv.time_period, vol.Range(min=MIN_ZONE_INTERVAL)),
-    vol.Optional(CONF_TIMES_AS_LOCAL, default=False): cv.boolean,
+    vol.Optional(CONF_TIMES_AS, default=TIMES_AS_OPTS[0]):
+        vol.In(TIMES_AS_OPTS),
 })
 
 _API_EXCS = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
@@ -96,6 +102,12 @@ _API_EXCS = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
 
 def exc_msg(exc):
     return '{}: {}'.format(exc.__class__.__name__, str(exc))
+
+def utc_from_ts(val):
+    try:
+        return dt_util.utc_from_timestamp(float(val))
+    except (TypeError, ValueError):
+        return None
 
 def bool_attr_from_int(val):
     try:
@@ -141,7 +153,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
     prefix = config.get(CONF_PREFIX)
     members = config.get(CONF_MEMBERS)
     driving_speed = config.get(CONF_DRIVING_SPEED)
-    times_as_local = config[CONF_TIMES_AS_LOCAL]
+    times_as = config[CONF_TIMES_AS]
     _LOGGER.debug('Configured members = {}'.format(members))
 
     if members:
@@ -225,13 +237,13 @@ def setup_scanner(hass, config, see, discovery_info=None):
 
     Life360Scanner(hass, see, interval, show_as_state, home_place,
                    max_gps_accuracy, max_update_wait, prefix, members,
-                   driving_speed, times_as_local, api)
+                   driving_speed, times_as, api)
     return True
 
 class Life360Scanner:
     def __init__(self, hass, see, interval, show_as_state, home_place,
                  max_gps_accuracy, max_update_wait, prefix, members,
-                 driving_speed, times_as_local, api):
+                 driving_speed, times_as, api):
         self._hass = hass
         self._see = see
         self._show_as_state = show_as_state
@@ -241,12 +253,13 @@ class Life360Scanner:
         self._prefix = '' if not prefix else prefix + '_'
         self._members = members
         self._driving_speed = driving_speed
-        self._times_as_local = times_as_local
+        self._times_as = times_as
         self._api = api
 
         self._errs = {}
         self._max_errs = 2
         self._dev_data = {}
+        self._tf = None
         self._started = dt_util.utcnow()
 
         self._update_life360()
@@ -268,18 +281,30 @@ class Life360Scanner:
     def _exc(self, key, exc):
         self._err(key, exc_msg(exc))
 
-    def _dt_from_ts(self, val):
-        try:
-            val = dt_util.utc_from_timestamp(float(val))
-            if self._times_as_local:
-                val = dt_util.as_local(val)
-            return val
-        except (TypeError, ValueError):
-            return None
+    def _dt_attr_from_utc(self, utc, lat, lon):
+        if self._times_as == TZ_LOCAL:
+            return dt_util.as_local(utc)
+        if self._times_as == TZ_DEVICE:
+            if not self._tf:
+                from timezonefinderL import TimezoneFinder
+                self._tf = TimezoneFinder()
+            # timezone_at will return a string or None.
+            tzname = self._tf.timezone_at(lng=lon, lat=lat)
+            # get_time_zone will return a tzinfo or None.
+            tz = dt_util.get_time_zone(tzname)
+            # Note that astimezone will return the datetime in the OS's local
+            # timezone if tz is None. This should be the same as HA's
+            # timezone configuration (i.e., what dt_util.as_local would
+            # return. If they're different, then the user has a bigger system
+            # setup problem, so don't worry about that here.)
+            return utc.astimezone(tz)
+        return utc
 
-    def _dt_attr_from_ts(self, val):
-        res = self._dt_from_ts(val)
-        return res if res else STATE_UNKNOWN
+    def _dt_attr_from_ts(self, ts, lat, lon):
+        utc = utc_from_ts(ts)
+        if utc:
+            return self._dt_attr_from_utc(utc, lat, lon)
+        return STATE_UNKNOWN
 
     def _update_member(self, m, name):
         name = name.replace(',', '_').replace('-', '_')
@@ -289,7 +314,7 @@ class Life360Scanner:
 
         loc = m.get('location')
         try:
-            last_seen = self._dt_from_ts(loc.get('timestamp'))
+            last_seen = utc_from_ts(loc.get('timestamp'))
         except AttributeError:
             last_seen = None
 
@@ -396,10 +421,12 @@ class Life360Scanner:
 
             attrs = {
                 ATTR_ADDRESS: address,
-                ATTR_AT_LOC_SINCE: self._dt_attr_from_ts(loc.get('since')),
+                ATTR_AT_LOC_SINCE:
+                    self._dt_attr_from_ts(loc.get('since'), lat, lon),
                 ATTR_BATTERY_CHARGING: bool_attr_from_int(loc.get('charge')),
                 ATTR_DRIVING: driving,
-                ATTR_LAST_SEEN: last_seen,
+                ATTR_LAST_SEEN:
+                    self._dt_attr_from_utc(last_seen, lat, lon),
                 ATTR_MOVING: moving,
                 ATTR_RAW_SPEED: raw_speed,
                 ATTR_SPEED: speed,
