@@ -27,15 +27,24 @@ from homeassistant.helpers.event import track_state_change
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '1.7.0b1'
+__version__ = '1.7.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
-CONF_TIMES_AS_LOCAL = 'times_as_local'
+REQUIREMENTS = ['timezonefinderL==2.*']
+
+CONF_TIMES_AS = 'times_as'
+
+TZ_UTC = 'utc'
+TZ_LOCAL = 'local'
+TZ_DEVICE = 'device'
+# First item in list is default.
+TIMES_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE]
 
 ATTR_CHARGING = 'charging'
 ATTR_LAST_SEEN = 'last_seen'
 ATTR_LAST_ENTITY_ID = 'last_entity_id'
+ATTR_TIME_ZONE = 'time_zone'
 
 WARNED = 'warned'
 SOURCE_TYPE = ATTR_SOURCE_TYPE
@@ -51,7 +60,8 @@ SOURCE_TYPE_NON_GPS = (
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_NAME): cv.slugify,
     vol.Required(CONF_ENTITY_ID): cv.entity_ids,
-    vol.Optional(CONF_TIMES_AS_LOCAL, default=False): cv.boolean,
+    vol.Optional(CONF_TIMES_AS, default=TIMES_AS_OPTS[0]):
+        vol.In(TIMES_AS_OPTS),
 })
 
 
@@ -72,7 +82,10 @@ class CompositeScanner:
                 STATE: None}
         self._dev_id = config[CONF_NAME]
         self._entity_id = ENTITY_ID_FORMAT.format(self._dev_id)
-        self._times_as_local = config[CONF_TIMES_AS_LOCAL]
+        self._times_as = config[CONF_TIMES_AS]
+        if self._times_as == TZ_DEVICE:
+            from timezonefinderL import TimezoneFinder
+            self._tf = TimezoneFinder()
         self._lock = threading.Lock()
         self._prev_seen = None
 
@@ -116,6 +129,13 @@ class CompositeScanner:
             for entity in entities
             if entity[SOURCE_TYPE] in SOURCE_TYPE_NON_GPS)
 
+    def _dt_attr_from_utc(self, utc, tz):
+        if self._times_as == TZ_UTC:
+            return utc
+        if self._times_as == TZ_LOCAL or not tz:
+            return dt_util.as_local(utc)
+        return utc.astimezone(tz)
+
     def _update_info(self, entity_id, old_state, new_state, init=False):
         if new_state is None:
             return
@@ -134,12 +154,6 @@ class CompositeScanner:
                     last_seen = dt_util.utc_from_timestamp(float(last_seen))
                 except (TypeError, ValueError):
                     last_seen = new_state.last_updated
-
-            # Now that we have last_seen as a timezone aware datetime in UTC,
-            # if the user would rather have datetimes in the local timezone,
-            # convert it.
-            if self._times_as_local:
-                last_seen = dt_util.as_local(last_seen)
 
             # Is this newer info than last update?
             if self._prev_seen and last_seen <= self._prev_seen:
@@ -244,12 +258,27 @@ class CompositeScanner:
                     init)
                 return
 
-            attrs = {
+            tz = None
+            if self._times_as == TZ_DEVICE:
+                tzname = None
+                if gps:
+                    # timezone_at will return a string or None.
+                    tzname = self._tf.timezone_at(lng=gps[1], lat=gps[0])
+                    # get_time_zone will return a tzinfo or None.
+                    tz = dt_util.get_time_zone(tzname)
+                attrs = {ATTR_TIME_ZONE: tzname or STATE_UNKNOWN}
+            else:
+                attrs = {}
+
+            attrs.update({
                 ATTR_ENTITY_ID: tuple(
                     entity_id for entity_id, entity in self._entities.items()
                     if entity[ATTR_SOURCE_TYPE] is not None),
                 ATTR_LAST_ENTITY_ID: entity_id,
-                ATTR_LAST_SEEN: last_seen.replace(microsecond=0)}
+                ATTR_LAST_SEEN:
+                    self._dt_attr_from_utc(last_seen.replace(microsecond=0),
+                                           tz)
+            })
             if charging is not None:
                 attrs[ATTR_BATTERY_CHARGING] = charging
             self._see(dev_id=self._dev_id, location_name=location_name,
