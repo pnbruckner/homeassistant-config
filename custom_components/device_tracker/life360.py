@@ -32,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.4.0b2'
+__version__ = '2.4.0b3'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -74,6 +74,7 @@ ATTR_LAST_SEEN = 'last_seen'
 ATTR_MOVING = SHOW_MOVING
 ATTR_RAW_SPEED = 'raw_speed'
 ATTR_SPEED = 'speed'
+ATTR_TIME_ZONE = 'time_zone'
 ATTR_WIFI_ON = 'wifi_on'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -259,7 +260,9 @@ class Life360Scanner:
         self._errs = {}
         self._max_errs = 2
         self._dev_data = {}
-        self._tf = None
+        if times_as == TZ_DEVICE:
+            from timezonefinderL import TimezoneFinder
+            self._tf = TimezoneFinder()
         self._started = dt_util.utcnow()
 
         self._update_life360()
@@ -281,29 +284,17 @@ class Life360Scanner:
     def _exc(self, key, exc):
         self._err(key, exc_msg(exc))
 
-    def _dt_attr_from_utc(self, utc, lat, lon):
-        if self._times_as == TZ_LOCAL:
+    def _dt_attr_from_utc(self, utc, tz):
+        if self._times_as == TZ_UTC:
+            return utc
+        if self._times_as == TZ_LOCAL or not tz:
             return dt_util.as_local(utc)
-        if self._times_as == TZ_DEVICE:
-            if not self._tf:
-                from timezonefinderL import TimezoneFinder
-                self._tf = TimezoneFinder()
-            # timezone_at will return a string or None.
-            tzname = self._tf.timezone_at(lng=lon, lat=lat)
-            # get_time_zone will return a tzinfo or None.
-            tz = dt_util.get_time_zone(tzname)
-            # Note that astimezone will return the datetime in the OS's local
-            # timezone if tz is None. This should be the same as HA's
-            # timezone configuration (i.e., what dt_util.as_local would
-            # return. If they're different, then the user has a bigger system
-            # setup problem, so don't worry about that here.)
-            return utc.astimezone(tz)
-        return utc
+        return utc.astimezone(tz)
 
-    def _dt_attr_from_ts(self, ts, lat, lon):
+    def _dt_attr_from_ts(self, ts, tz):
         utc = utc_from_ts(ts)
         if utc:
-            return self._dt_attr_from_utc(utc, lat, lon)
+            return self._dt_attr_from_utc(utc, tz)
         return STATE_UNKNOWN
 
     def _update_member(self, m, name):
@@ -419,19 +410,29 @@ class Life360Scanner:
                 driving = speed >= self._driving_speed
             moving = bool_attr_from_int(loc.get('inTransit'))
 
-            attrs = {
+            if self._times_as == TZ_DEVICE:
+                # timezone_at will return a string or None.
+                tzname = self._tf.timezone_at(lng=lon, lat=lat)
+                # get_time_zone will return a tzinfo or None.
+                tz = dt_util.get_time_zone(tzname)
+                attrs = {ATTR_TIME_ZONE: tzname or STATE_UNKNOWN}
+            else:
+                tz = None
+                attrs = {}
+
+            attrs.update({
                 ATTR_ADDRESS: address,
                 ATTR_AT_LOC_SINCE:
-                    self._dt_attr_from_ts(loc.get('since'), lat, lon),
+                    self._dt_attr_from_ts(loc.get('since'), tz),
                 ATTR_BATTERY_CHARGING: bool_attr_from_int(loc.get('charge')),
                 ATTR_DRIVING: driving,
                 ATTR_LAST_SEEN:
-                    self._dt_attr_from_utc(last_seen, lat, lon),
+                    self._dt_attr_from_utc(last_seen, tz),
                 ATTR_MOVING: moving,
                 ATTR_RAW_SPEED: raw_speed,
                 ATTR_SPEED: speed,
                 ATTR_WIFI_ON: bool_attr_from_int(loc.get('wifiState')),
-            }
+            })
 
             # If we don't have a location name yet and user wants driving or moving
             # to be shown as state, and current location is not in a HA zone,
