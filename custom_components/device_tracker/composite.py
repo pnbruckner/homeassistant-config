@@ -21,13 +21,13 @@ from homeassistant.const import (
     ATTR_BATTERY_CHARGING, ATTR_BATTERY_LEVEL,
     ATTR_ENTITY_ID, ATTR_GPS_ACCURACY, ATTR_LATITUDE, ATTR_LONGITUDE,
     ATTR_STATE, CONF_ENTITY_ID, CONF_NAME, EVENT_HOMEASSISTANT_START,
-    STATE_HOME, STATE_NOT_HOME, STATE_ON)
+    STATE_HOME, STATE_NOT_HOME, STATE_ON, STATE_UNKNOWN)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '1.7.0b2'
+__version__ = '1.7.0b3'
 
 _LOGGER = logging.getLogger(__name__)
 
