@@ -27,7 +27,7 @@ from homeassistant.helpers.event import track_state_change
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '1.7.0b4'
+__version__ = '1.7.0b5'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,9 +37,10 @@ CONF_TIME_AS = 'time_as'
 
 TZ_UTC = 'utc'
 TZ_LOCAL = 'local'
-TZ_DEVICE = 'device'
+TZ_DEVICE_UTC = 'device_or_utc'
+TZ_DEVICE_LOCAL = 'device_or_local'
 # First item in list is default.
-TIME_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE]
+TIME_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]
 
 ATTR_CHARGING = 'charging'
 ATTR_LAST_SEEN = 'last_seen'
@@ -83,7 +84,7 @@ class CompositeScanner:
         self._dev_id = config[CONF_NAME]
         self._entity_id = ENTITY_ID_FORMAT.format(self._dev_id)
         self._time_as = config[CONF_TIME_AS]
-        if self._time_as == TZ_DEVICE:
+        if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
             from timezonefinderL import TimezoneFinder
             self._tf = TimezoneFinder()
         self._lock = threading.Lock()
@@ -130,11 +131,11 @@ class CompositeScanner:
             if entity[SOURCE_TYPE] in SOURCE_TYPE_NON_GPS)
 
     def _dt_attr_from_utc(self, utc, tz):
-        if self._time_as == TZ_UTC:
-            return utc
-        if self._time_as == TZ_LOCAL or not tz:
+        if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL] and tz:
+            return utc.astimezone(tz)
+        if self._time_as in [TZ_LOCAL, TZ_DEVICE_LOCAL]:
             return dt_util.as_local(utc)
-        return utc.astimezone(tz)
+        return utc
 
     def _update_info(self, entity_id, old_state, new_state, init=False):
         if new_state is None:
@@ -259,7 +260,7 @@ class CompositeScanner:
                 return
 
             tz = None
-            if self._time_as == TZ_DEVICE:
+            if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
                 tzname = None
                 if gps:
                     # timezone_at will return a string or None.
