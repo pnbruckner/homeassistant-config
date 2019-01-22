@@ -27,19 +27,19 @@ from homeassistant.helpers.event import track_state_change
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '1.7.0b3'
+__version__ = '1.7.0b4'
 
 _LOGGER = logging.getLogger(__name__)
 
 REQUIREMENTS = ['timezonefinderL==2.*']
 
-CONF_TIMES_AS = 'times_as'
+CONF_TIME_AS = 'time_as'
 
 TZ_UTC = 'utc'
 TZ_LOCAL = 'local'
 TZ_DEVICE = 'device'
 # First item in list is default.
-TIMES_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE]
+TIME_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE]
 
 ATTR_CHARGING = 'charging'
 ATTR_LAST_SEEN = 'last_seen'
@@ -60,8 +60,8 @@ SOURCE_TYPE_NON_GPS = (
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_NAME): cv.slugify,
     vol.Required(CONF_ENTITY_ID): cv.entity_ids,
-    vol.Optional(CONF_TIMES_AS, default=TIMES_AS_OPTS[0]):
-        vol.In(TIMES_AS_OPTS),
+    vol.Optional(CONF_TIME_AS, default=TIME_AS_OPTS[0]):
+        vol.In(TIME_AS_OPTS),
 })
 
 
@@ -82,8 +82,8 @@ class CompositeScanner:
                 STATE: None}
         self._dev_id = config[CONF_NAME]
         self._entity_id = ENTITY_ID_FORMAT.format(self._dev_id)
-        self._times_as = config[CONF_TIMES_AS]
-        if self._times_as == TZ_DEVICE:
+        self._time_as = config[CONF_TIME_AS]
+        if self._time_as == TZ_DEVICE:
             from timezonefinderL import TimezoneFinder
             self._tf = TimezoneFinder()
         self._lock = threading.Lock()
@@ -130,9 +130,9 @@ class CompositeScanner:
             if entity[SOURCE_TYPE] in SOURCE_TYPE_NON_GPS)
 
     def _dt_attr_from_utc(self, utc, tz):
-        if self._times_as == TZ_UTC:
+        if self._time_as == TZ_UTC:
             return utc
-        if self._times_as == TZ_LOCAL or not tz:
+        if self._time_as == TZ_LOCAL or not tz:
             return dt_util.as_local(utc)
         return utc.astimezone(tz)
 
@@ -259,7 +259,7 @@ class CompositeScanner:
                 return
 
             tz = None
-            if self._times_as == TZ_DEVICE:
+            if self._time_as == TZ_DEVICE:
                 tzname = None
                 if gps:
                     # timezone_at will return a string or None.
