@@ -11,7 +11,7 @@ where `<config>` is your Home Assistant configuration directory.
 
 >__NOTE__: Do not download the file by using the link above directly. Rather, click on it, then on the page that comes up use the `Raw` button.
 
->__NOTE__: Previous releases required two different life360.py files to be installed. That is no longer required. There is just the one indicated above now.
+>__NOTE__: Releases prior to 2.2.0 required two different life360.py files to be installed. That is no longer required. There is just the one indicated above now.
 
 Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
@@ -19,13 +19,19 @@ device_tracker:
   - platform: life360
     username: !secret life360_username
     password: !secret life360_password
-    prefix: life360
     show_as_state: driving, moving, places
     driving_speed: 18
     max_gps_accuracy: 200
+    time_as: device
     max_update_wait:
       minutes: 45
 ```
+### numpy on Raspberry Pi
+To determine time zone from GPS coordinates (see `time_as` configuration variable below) the package [timezonefinderL](https://pypi.org/project/timezonefinderL/) is used. That package requires the package [numpy](https://pypi.org/project/numpy/). These will both be installed automatically by HA. Note, however, that numpy on Pi _usually_ requires libatlas to be installed. (See [this web page](https://www.raspberrypi.org/forums/viewtopic.php?t=207058) for more details.) It can be installed using this command:
+```
+sudo apt install libatlas3-base
+```
+>Note: This is the same step that would be required if using a standard HA component that uses numpy (such as the [Trend Binary Sensor](https://www.home-assistant.io/components/binary_sensor.trend/)), and is only required if you use `device_or_utc` or `device_or_local` for `time_as`.
 ## Configuration variables
 - **username**: Your Life360 username.
 - **password**: Your Life360 password.
@@ -34,6 +40,7 @@ device_tracker:
 - **home_place** (*Optional*): Default is 'Home'. Name of Life360 Place (if any) that coincides with home location as configured in HA.
 - **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered to be "driving" (and which will also set the `driving` attribute to True. See also `Driving` state in chart below.)
 - **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
+- **time_as** (*Optional*): One of `utc`, `local`, `device_or_utc` or `device_or_local`. Default is `utc` which shows time attributes in UTC. `local` shows time attributes per HA's `time_zone` configuration. `device_or_utc` and `device_or_local` attempt to determine the time zone in which the device is located based on its GPS coordinates. The name of the time zone (or `unknown`) will be shown in a new attribute named `time_zone`. If the time zone can be determined, then time attributes will be shown in that time zone. If the time zone cannot be determined, then time attributes will be shown in UTC if `device_or_utc` is selected, or in HA's local time zone if `device_or_local` is selected.
 - **max_update_wait** (*Optional*): If you specify it, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. See example automations below. 
 >Note: If you set the entity to _not_ be tracked via known_devices.yaml then the entity_id will not exist in the state machine. In this case it might be better to exclude the member via the members parameter (see below.)
 - **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
@@ -65,6 +72,7 @@ last_seen | Date and time when Life360 last updated your location (in UTC.)
 moving | Device is moving (True/False.)
 raw_speed | "Raw" speed value provided by Life360 server. (Units unknown.)
 speed | Estimated speed of device (in MPH or KPH depending on HA's unit system configuration.)
+time_zone | The name of the time zone in which the device is located, or `unknown` if it cannot be determined. Only exists if `device_or_utc` or `device_or_local` is chosen for `time_as`.
 wifi_on | Device WiFi is turned on (True/False.)
 ## Examples
 ### Example full configuration
@@ -78,6 +86,7 @@ device_tracker:
     home_place: Home
     driving_speed: 18
     max_gps_accuracy: 200
+    time_as: device
     max_update_wait:
       minutes: 45
     members:
@@ -92,33 +101,65 @@ device_tracker:
 ```
 ### Example overdue update automations
 ```yaml
-- alias: Life360 Overdue Update
-  trigger:
-    platform: event
-    event_type: life360_update_overdue
-  action:
-    service: notify.email_me
-    data_template:
-      title: Life360 update overdue
-      message: >
-        Update for {{
-          state_attr(trigger.event.data.entity_id, 'friendly_name') or
-          trigger.event.data.entity_id
-        }} is overdue.
+automation:
+  - alias: Life360 Overdue Update
+    trigger:
+      platform: event
+      event_type: life360_update_overdue
+    action:
+      service: notify.email_me
+      data_template:
+        title: Life360 update overdue
+        message: >
+          Update for {{
+            state_attr(trigger.event.data.entity_id, 'friendly_name') or
+            trigger.event.data.entity_id
+          }} is overdue.
 
-- alias: Life360 Update Restored
-  trigger:
-    platform: event
-    event_type: life360_update_restored
-  action:
-    service: notify.email_me
-    data_template:
-      title: Life360 update restored
-      message: >
-        Update for {{
-          state_attr(trigger.event.data.entity_id, 'friendly_name') or
-          trigger.event.data.entity_id
-        }} restored after {{ trigger.event.data.wait }}.
+  - alias: Life360 Update Restored
+    trigger:
+      platform: event
+      event_type: life360_update_restored
+    action:
+      service: notify.email_me
+      data_template:
+        title: Life360 update restored
+        message: >
+          Update for {{
+            state_attr(trigger.event.data.entity_id, 'friendly_name') or
+            trigger.event.data.entity_id
+          }} restored after {{ trigger.event.data.wait }}.
+```
+### Time zone examples
+This example assumes `time_as` is set to `device_or_utc` or `device_or_local`. It determines the difference between the time zone in which the device is located and the `time_zone` in HA's configuration. A positive value means the device's time zone is ahead of (or later than, or east of) the local time zone.
+```yaml
+sensor:
+  - platform: template
+    sensors:
+      my_tz_offset:
+        friendly_name: My time zone offset
+        unit_of_measurement: hr
+        value_template: >
+          {% set state = states.device_tracker.life360_me %}
+          {% if state.attributes is defined and
+                state.attributes.time_zone is defined and
+                state.attributes.time_zone != 'unknown' %}
+            {% set n = now() %}
+            {{ (n.astimezone(state.attributes.last_seen.tzinfo).utcoffset() -
+                n.utcoffset()).total_seconds()/3600 }}
+          {% else %}
+            unknown
+          {% endif %}
+```
+This example converts a time attribute to the local time zone. It works no matter which time zone the attribute is in.
+```yaml
+sensor:
+  - platform: template
+    sensors:
+      my_last_seen_local:
+        friendly_name: My last_seen time in local time zone
+        value_template: >
+          {{ state_attr('device_tracker.life360_me', last_seen').astimezone(now().tzinfo) }}
 ```
 ## Disclaimer
 Life360 does not apparently officially support its REST API for use with other than its own apps. This integration is based on reverse engineering that has been done by the open source community, and an API token that was somehow discovered by the same community. At any time Life360 could disable that token or otherwise change its REST API such that this custom component would no longer work.
@@ -139,3 +180,4 @@ Date | Version | Notes
 20181120 | [2.2.0](https://github.com/pnbruckner/homeassistant-config/blob/3ad096f1c59751f6b7413678418cae19965a47fb/custom_components/device_tracker/life360.py) | Communications module moved to PyPI.
 20181130 | [2.3.0](https://github.com/pnbruckner/homeassistant-config/blob/784cbda88eaa3f7010029597afd449d14300a1ea/custom_components/device_tracker/life360.py) | Add optional `home_place` configuration variable.
 20181130 | [2.3.1](https://github.com/pnbruckner/homeassistant-config/blob/a568b8e84c3ea20386af8ddd618d878095ee35cb/custom_components/device_tracker/life360.py) | Do not add zone for Life360 Places whose name matches `home_place`.
+201901xx | [2.4.0]() | Add `time_as` option.
