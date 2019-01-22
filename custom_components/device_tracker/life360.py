@@ -32,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.4.0b4'
+__version__ = '2.4.0b5'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,9 +63,10 @@ SHOW_PLACES = 'places'
 SHOW_AS_STATE_OPTS = [SHOW_DRIVING, SHOW_MOVING, SHOW_PLACES]
 TZ_UTC = 'utc'
 TZ_LOCAL = 'local'
-TZ_DEVICE = 'device'
+TZ_DEVICE_UTC = 'device_or_utc'
+TZ_DEVICE_LOCAL = 'device_or_local'
 # First item in list is default.
-TIME_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE]
+TIME_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]
 
 ATTR_ADDRESS = 'address'
 ATTR_AT_LOC_SINCE = 'at_loc_since'
@@ -260,7 +261,7 @@ class Life360Scanner:
         self._errs = {}
         self._max_errs = 2
         self._dev_data = {}
-        if time_as == TZ_DEVICE:
+        if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
             from timezonefinderL import TimezoneFinder
             self._tf = TimezoneFinder()
         self._started = dt_util.utcnow()
@@ -285,11 +286,11 @@ class Life360Scanner:
         self._err(key, exc_msg(exc))
 
     def _dt_attr_from_utc(self, utc, tz):
-        if self._time_as == TZ_UTC:
-            return utc
-        if self._time_as == TZ_LOCAL or not tz:
+        if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL] and tz:
+            return utc.astimezone(tz)
+        if self._time_as in [TZ_LOCAL, TZ_DEVICE_LOCAL]:
             return dt_util.as_local(utc)
-        return utc.astimezone(tz)
+        return utc
 
     def _dt_attr_from_ts(self, ts, tz):
         utc = utc_from_ts(ts)
@@ -410,7 +411,7 @@ class Life360Scanner:
                 driving = speed >= self._driving_speed
             moving = bool_attr_from_int(loc.get('inTransit'))
 
-            if self._time_as == TZ_DEVICE:
+            if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
                 # timezone_at will return a string or None.
                 tzname = self._tf.timezone_at(lng=lon, lat=lat)
                 # get_time_zone will return a tzinfo or None.
