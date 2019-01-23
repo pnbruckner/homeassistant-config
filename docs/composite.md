@@ -18,12 +18,20 @@ Then add the desired configuration. Here is an example of a typical configuratio
 device_tracker:
   - platform: composite
     name: me
+    time_as: device_or_local
     entity_id:
       - device_tracker.platform1_me
       - device_tracker.platform2_me
 ```
+### numpy on Raspberry Pi
+To determine time zone from GPS coordinates (see `time_as` configuration variable below) the package [timezonefinderL](https://pypi.org/project/timezonefinderL/) is used. That package requires the package [numpy](https://pypi.org/project/numpy/). These will both be installed automatically by HA. Note, however, that numpy on Pi _usually_ requires libatlas to be installed. (See [this web page](https://www.raspberrypi.org/forums/viewtopic.php?t=207058) for more details.) It can be installed using this command:
+```
+sudo apt install libatlas3-base
+```
+>Note: This is the same step that would be required if using a standard HA component that uses numpy (such as the [Trend Binary Sensor](https://www.home-assistant.io/components/binary_sensor.trend/)), and is only required if you use `device_or_utc` or `device_or_local` for `time_as`.
 ## Configuration variables
 - **name**: Object ID (i.e., part of entity ID after the dot) of composite device. For example, `NAME` would result in an entity ID of `device_tracker.NAME`.
+- **time_as** (*Optional*): One of `utc`, `local`, `device_or_utc` or `device_or_local`. Default is `utc` which shows time attributes in UTC. `local` shows time attributes per HA's `time_zone` configuration. `device_or_utc` and `device_or_local` attempt to determine the time zone in which the device is located based on its GPS coordinates. The name of the time zone (or `unknown`) will be shown in a new attribute named `time_zone`. If the time zone can be determined, then time attributes will be shown in that time zone. If the time zone cannot be determined, then time attributes will be shown in UTC if `device_or_utc` is selected, or in HA's local time zone if `device_or_local` is selected.
 - **entity_id**: Entity IDs of watched device tracker devices. Can be a single entity ID, a list of entity IDs, or a string containing multiple entity IDs separated by commas.
 ## Watched device notes
 Watched GPS-based devices must have, at a minimum, the following attributes: `latitude`, `longitude` and `gps_accuracy`. If they don't they will not be used.
@@ -51,6 +59,7 @@ last_seen | Date and time when current location information was last updated.
 latitude | Latitude of current location (if available.)
 longitude | Longitude of current location (if available.)
 source_type | Source of current location information: `binary_sensor`, `bluetooth`, `bluetooth_le`, `gps` or `router`.
+time_zone | The name of the time zone in which the device is located, or `unknown` if it cannot be determined. Only exists if `device_or_utc` or `device_or_local` is chosen for `time_as`.
 ## Release Notes
 Date | Version | Notes
 -|:-:|-
@@ -64,3 +73,4 @@ Date | Version | Notes
 20181022 | [1.5.1](https://github.com/pnbruckner/homeassistant-config/blob/111ce69063dfeda57f4c62a5207cce7d605c5928/custom_components/device_tracker/composite.py) | Log, but otherwise ignore, invalid states of watched entities during init. Improve "skipping" debug message.
 20181102 | [1.5.2](https://github.com/pnbruckner/homeassistant-config/blob/f29b3db134b15bf6ea30034b4dd5bc7bee281def/custom_components/device_tracker/composite.py) | Slugify name in schema instead of during setup to catch any errors earlier.
 20181109 | [1.6.0](https://github.com/pnbruckner/homeassistant-config/blob/a38ddea71232053e6f8824822e31cd5060801334/custom_components/device_tracker/composite.py) | In addition to 'battery' attribute, also accept 'battery_level' attribute, and use for 'battery' attribute. Accept either 'battery_charging' or 'charging' attribute and use for new 'battery_charging' attribute. 
+201901xx | [1.7.0]() | Add `time_as` option.
