@@ -22,7 +22,7 @@ device_tracker:
     show_as_state: driving, moving, places
     driving_speed: 18
     max_gps_accuracy: 200
-    time_as: device
+    time_as: device_or_local
     max_update_wait:
       minutes: 45
 ```
@@ -86,7 +86,7 @@ device_tracker:
     home_place: Home
     driving_speed: 18
     max_gps_accuracy: 200
-    time_as: device
+    time_as: device_or_local
     max_update_wait:
       minutes: 45
     members:
