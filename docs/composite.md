@@ -105,4 +105,4 @@ Date | Version | Notes
 20181022 | [1.5.1](https://github.com/pnbruckner/homeassistant-config/blob/111ce69063dfeda57f4c62a5207cce7d605c5928/custom_components/device_tracker/composite.py) | Log, but otherwise ignore, invalid states of watched entities during init. Improve "skipping" debug message.
 20181102 | [1.5.2](https://github.com/pnbruckner/homeassistant-config/blob/f29b3db134b15bf6ea30034b4dd5bc7bee281def/custom_components/device_tracker/composite.py) | Slugify name in schema instead of during setup to catch any errors earlier.
 20181109 | [1.6.0](https://github.com/pnbruckner/homeassistant-config/blob/a38ddea71232053e6f8824822e31cd5060801334/custom_components/device_tracker/composite.py) | In addition to 'battery' attribute, also accept 'battery_level' attribute, and use for 'battery' attribute. Accept either 'battery_charging' or 'charging' attribute and use for new 'battery_charging' attribute. 
-201901xx | [1.7.0]() | Add `time_as` option.
+20190123 | [1.7.0](https://github.com/pnbruckner/homeassistant-config/blob/0f0254c1137255662e1fe53e0d08a8bbf4e2f1b2/custom_components/device_tracker/composite.py) | Add `time_as` option.
