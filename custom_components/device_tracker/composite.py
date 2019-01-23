@@ -21,19 +21,31 @@ from homeassistant.const import (
     ATTR_BATTERY_CHARGING, ATTR_BATTERY_LEVEL,
     ATTR_ENTITY_ID, ATTR_GPS_ACCURACY, ATTR_LATITUDE, ATTR_LONGITUDE,
     ATTR_STATE, CONF_ENTITY_ID, CONF_NAME, EVENT_HOMEASSISTANT_START,
-    STATE_HOME, STATE_NOT_HOME, STATE_ON)
+    STATE_HOME, STATE_NOT_HOME, STATE_ON, STATE_UNKNOWN)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
-from homeassistant import util
+import homeassistant.util.dt as dt_util
 
 
-__version__ = '1.6.0'
+__version__ = '1.7.0'
 
 _LOGGER = logging.getLogger(__name__)
+
+REQUIREMENTS = ['timezonefinderL==2.*']
+
+CONF_TIME_AS = 'time_as'
+
+TZ_UTC = 'utc'
+TZ_LOCAL = 'local'
+TZ_DEVICE_UTC = 'device_or_utc'
+TZ_DEVICE_LOCAL = 'device_or_local'
+# First item in list is default.
+TIME_AS_OPTS = [TZ_UTC, TZ_LOCAL, TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]
 
 ATTR_CHARGING = 'charging'
 ATTR_LAST_SEEN = 'last_seen'
 ATTR_LAST_ENTITY_ID = 'last_entity_id'
+ATTR_TIME_ZONE = 'time_zone'
 
 WARNED = 'warned'
 SOURCE_TYPE = ATTR_SOURCE_TYPE
@@ -48,7 +60,9 @@ SOURCE_TYPE_NON_GPS = (
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_NAME): cv.slugify,
-    vol.Required(CONF_ENTITY_ID): cv.entity_ids
+    vol.Required(CONF_ENTITY_ID): cv.entity_ids,
+    vol.Optional(CONF_TIME_AS, default=TIME_AS_OPTS[0]):
+        vol.In(TIME_AS_OPTS),
 })
 
 
@@ -69,6 +83,10 @@ class CompositeScanner:
                 STATE: None}
         self._dev_id = config[CONF_NAME]
         self._entity_id = ENTITY_ID_FORMAT.format(self._dev_id)
+        self._time_as = config[CONF_TIME_AS]
+        if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
+            from timezonefinderL import TimezoneFinder
+            self._tf = TimezoneFinder()
         self._lock = threading.Lock()
         self._prev_seen = None
 
@@ -112,6 +130,13 @@ class CompositeScanner:
             for entity in entities
             if entity[SOURCE_TYPE] in SOURCE_TYPE_NON_GPS)
 
+    def _dt_attr_from_utc(self, utc, tz):
+        if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL] and tz:
+            return utc.astimezone(tz)
+        if self._time_as in [TZ_LOCAL, TZ_DEVICE_LOCAL]:
+            return dt_util.as_local(utc)
+        return utc
+
     def _update_info(self, entity_id, old_state, new_state, init=False):
         if new_state is None:
             return
@@ -120,14 +145,14 @@ class CompositeScanner:
             # Get time device was last seen, which is the entity's last_seen
             # attribute, or if that doesn't exist, then last_updated from the
             # new state object. Make sure last_seen is timezone aware in UTC.
-            # Note that util.dt.as_utc assumes naive datetime is in local
+            # Note that dt_util.as_utc assumes naive datetime is in local
             # timezone.
             last_seen = new_state.attributes.get(ATTR_LAST_SEEN)
             if isinstance(last_seen, datetime):
-                last_seen = util.dt.as_utc(last_seen)
+                last_seen = dt_util.as_utc(last_seen)
             else:
                 try:
-                    last_seen = util.dt.utc_from_timestamp(float(last_seen))
+                    last_seen = dt_util.utc_from_timestamp(float(last_seen))
                 except (TypeError, ValueError):
                     last_seen = new_state.last_updated
 
@@ -234,12 +259,27 @@ class CompositeScanner:
                     init)
                 return
 
-            attrs = {
+            tz = None
+            if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
+                tzname = None
+                if gps:
+                    # timezone_at will return a string or None.
+                    tzname = self._tf.timezone_at(lng=gps[1], lat=gps[0])
+                    # get_time_zone will return a tzinfo or None.
+                    tz = dt_util.get_time_zone(tzname)
+                attrs = {ATTR_TIME_ZONE: tzname or STATE_UNKNOWN}
+            else:
+                attrs = {}
+
+            attrs.update({
                 ATTR_ENTITY_ID: tuple(
                     entity_id for entity_id, entity in self._entities.items()
                     if entity[ATTR_SOURCE_TYPE] is not None),
                 ATTR_LAST_ENTITY_ID: entity_id,
-                ATTR_LAST_SEEN: last_seen.replace(microsecond=0)}
+                ATTR_LAST_SEEN:
+                    self._dt_attr_from_utc(last_seen.replace(microsecond=0),
+                                           tz)
+            })
             if charging is not None:
                 attrs[ATTR_BATTERY_CHARGING] = charging
             self._see(dev_id=self._dev_id, location_name=location_name,
