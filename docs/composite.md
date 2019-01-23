@@ -60,6 +60,38 @@ latitude | Latitude of current location (if available.)
 longitude | Longitude of current location (if available.)
 source_type | Source of current location information: `binary_sensor`, `bluetooth`, `bluetooth_le`, `gps` or `router`.
 time_zone | The name of the time zone in which the device is located, or `unknown` if it cannot be determined. Only exists if `device_or_utc` or `device_or_local` is chosen for `time_as`.
+## Examples
+### Time zone examples
+This example assumes `time_as` is set to `device_or_utc` or `device_or_local`. It determines the difference between the time zone in which the device is located and the `time_zone` in HA's configuration. A positive value means the device's time zone is ahead of (or later than, or east of) the local time zone.
+```yaml
+sensor:
+  - platform: template
+    sensors:
+      my_tz_offset:
+        friendly_name: My time zone offset
+        unit_of_measurement: hr
+        value_template: >
+          {% set state = states.device_tracker.me %}
+          {% if state.attributes is defined and
+                state.attributes.time_zone is defined and
+                state.attributes.time_zone != 'unknown' %}
+            {% set n = now() %}
+            {{ (n.astimezone(state.attributes.last_seen.tzinfo).utcoffset() -
+                n.utcoffset()).total_seconds()/3600 }}
+          {% else %}
+            unknown
+          {% endif %}
+```
+This example converts a time attribute to the local time zone. It works no matter which time zone the attribute is in.
+```yaml
+sensor:
+  - platform: template
+    sensors:
+      my_last_seen_local:
+        friendly_name: My last_seen time in local time zone
+        value_template: >
+          {{ state_attr('device_tracker.me', last_seen').astimezone(now().tzinfo) }}
+```
 ## Release Notes
 Date | Version | Notes
 -|:-:|-
