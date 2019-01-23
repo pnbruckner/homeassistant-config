@@ -180,4 +180,4 @@ Date | Version | Notes
 20181120 | [2.2.0](https://github.com/pnbruckner/homeassistant-config/blob/3ad096f1c59751f6b7413678418cae19965a47fb/custom_components/device_tracker/life360.py) | Communications module moved to PyPI.
 20181130 | [2.3.0](https://github.com/pnbruckner/homeassistant-config/blob/784cbda88eaa3f7010029597afd449d14300a1ea/custom_components/device_tracker/life360.py) | Add optional `home_place` configuration variable.
 20181130 | [2.3.1](https://github.com/pnbruckner/homeassistant-config/blob/a568b8e84c3ea20386af8ddd618d878095ee35cb/custom_components/device_tracker/life360.py) | Do not add zone for Life360 Places whose name matches `home_place`.
-201901xx | [2.4.0]() | Add `time_as` option.
+20190123 | [2.4.0](https://github.com/pnbruckner/homeassistant-config/blob/0f0254c1137255662e1fe53e0d08a8bbf4e2f1b2/custom_components/device_tracker/life360.py) | Add `time_as` option.
