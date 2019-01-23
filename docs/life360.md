@@ -19,6 +19,7 @@ device_tracker:
   - platform: life360
     username: !secret life360_username
     password: !secret life360_password
+    prefix: life360
     show_as_state: driving, moving, places
     driving_speed: 18
     max_gps_accuracy: 200
