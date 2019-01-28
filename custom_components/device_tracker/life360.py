@@ -32,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.4.0'
+__version__ = '2.5.0b1'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -130,7 +130,7 @@ def m_name(first, last=None):
 
 def setup_scanner(hass, config, see, discovery_info=None):
     def auth_info_callback():
-        _LOGGER.debug('Authenticating')
+        _LOGGER.info('Authenticating')
         return (_AUTHORIZATION_TOKEN,
                 config[CONF_USERNAME],
                 config[CONF_PASSWORD])
@@ -259,7 +259,9 @@ class Life360Scanner:
         self._api = api
 
         self._errs = {}
-        self._max_errs = 2
+        self._warning_threshold = 0
+        self._error_threshold = 2
+        self._max_errs = self._error_threshold + 2
         self._dev_data = {}
         if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
             from timezonefinderL import TimezoneFinder
@@ -278,9 +280,13 @@ class Life360Scanner:
         _errs = self._errs.get(key, 0)
         if _errs < self._max_errs:
             self._errs[key] = _errs = _errs + 1
-            if _errs == self._max_errs:
-                err_msg = 'Suppressing further errors until OK: ' + err_msg
-            _LOGGER.error('{}: {}'.format(key, err_msg))
+            msg = '{}: {}'.format(key, err_msg)
+            if _errs > self._error_threshold:
+                if _errs == self._max_errs:
+                    msg = 'Suppressing further errors until OK: ' + msg
+                _LOGGER.error(msg)
+            elif _errs > self._warning_threshold:
+                _LOGGER.warning(msg)
 
     def _exc(self, key, exc):
         self._err(key, exc_msg(exc))
@@ -456,7 +462,6 @@ class Life360Scanner:
     def _update_life360(self, now=None):
         checked_ids = []
 
-        #_LOGGER.debug('Checking members')
         err_key = 'get_circles'
         try:
             circles = self._api.get_circles()
