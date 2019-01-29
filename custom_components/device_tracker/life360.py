@@ -32,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.4.0'
+__version__ = '2.5.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,12 +49,14 @@ _AUTHORIZATION_TOKEN = 'cFJFcXVnYWJSZXRyZTRFc3RldGhlcnVmcmVQdW1hbUV4dWNyRU'\
 
 CONF_ADD_ZONES = 'add_zones'
 CONF_DRIVING_SPEED = 'driving_speed'
+CONF_ERROR_THRESHOLD = 'error_threshold'
 CONF_HOME_PLACE = 'home_place'
 CONF_MAX_GPS_ACCURACY = 'max_gps_accuracy'
 CONF_MAX_UPDATE_WAIT = 'max_update_wait'
 CONF_MEMBERS = 'members'
 CONF_SHOW_AS_STATE = 'show_as_state'
 CONF_TIME_AS = 'time_as'
+CONF_WARNING_THRESHOLD = 'warning_threshold'
 CONF_ZONE_INTERVAL = 'zone_interval'
 
 SHOW_DRIVING = 'driving'
@@ -97,6 +99,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         vol.All(cv.time_period, vol.Range(min=MIN_ZONE_INTERVAL)),
     vol.Optional(CONF_TIME_AS, default=TIME_AS_OPTS[0]):
         vol.In(TIME_AS_OPTS),
+    vol.Optional(CONF_WARNING_THRESHOLD): cv.positive_int,
+    vol.Optional(CONF_ERROR_THRESHOLD, default = 0): cv.positive_int,
 })
 
 _API_EXCS = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
@@ -130,7 +134,7 @@ def m_name(first, last=None):
 
 def setup_scanner(hass, config, see, discovery_info=None):
     def auth_info_callback():
-        _LOGGER.debug('Authenticating')
+        _LOGGER.info('Authenticating')
         return (_AUTHORIZATION_TOKEN,
                 config[CONF_USERNAME],
                 config[CONF_PASSWORD])
@@ -148,14 +152,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
         return False
     _LOGGER.debug('Life360 communication successful!')
 
-    show_as_state = config[CONF_SHOW_AS_STATE]
-    home_place = config[CONF_HOME_PLACE].lower()
-    max_gps_accuracy = config.get(CONF_MAX_GPS_ACCURACY)
-    max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
-    prefix = config.get(CONF_PREFIX)
     members = config.get(CONF_MEMBERS)
-    driving_speed = config.get(CONF_DRIVING_SPEED)
-    time_as = config[CONF_TIME_AS]
     _LOGGER.debug('Configured members = {}'.format(members))
 
     if members:
@@ -174,6 +171,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
             _LOGGER.error('No listed member names were valid')
             return False
 
+    home_place = config[CONF_HOME_PLACE].lower()
     Place = namedtuple('Place', ['name', 'latitude', 'longitude', 'radius'])
 
     def get_places():
@@ -237,29 +235,34 @@ def setup_scanner(hass, config, see, discovery_info=None):
             _LOGGER.debug('Will check Places every: {}'.format(zone_interval))
             track_time_interval(hass, zones_from_places, zone_interval)
 
-    Life360Scanner(hass, see, interval, show_as_state, home_place,
-                   max_gps_accuracy, max_update_wait, prefix, members,
-                   driving_speed, time_as, api)
+    Life360Scanner(hass, config, see, interval, home_place, members, api)
     return True
 
 class Life360Scanner:
-    def __init__(self, hass, see, interval, show_as_state, home_place,
-                 max_gps_accuracy, max_update_wait, prefix, members,
-                 driving_speed, time_as, api):
+    def __init__(self, hass, config, see, interval, home_place, members, api):
         self._hass = hass
         self._see = see
-        self._show_as_state = show_as_state
+        self._show_as_state = config[CONF_SHOW_AS_STATE]
         self._home_place = home_place
-        self._max_gps_accuracy = max_gps_accuracy
-        self._max_update_wait = max_update_wait
+        self._max_gps_accuracy = config.get(CONF_MAX_GPS_ACCURACY)
+        self._max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
+        prefix = config.get(CONF_PREFIX)
         self._prefix = '' if not prefix else prefix + '_'
         self._members = members
-        self._driving_speed = driving_speed
-        self._time_as = time_as
+        self._driving_speed = config.get(CONF_DRIVING_SPEED)
+        self._time_as = config[CONF_TIME_AS]
         self._api = api
 
         self._errs = {}
-        self._max_errs = 2
+        self._error_threshold = config[CONF_ERROR_THRESHOLD]
+        self._warning_threshold = config.get(
+            CONF_WARNING_THRESHOLD, self._error_threshold)
+        if self._warning_threshold > self._error_threshold:
+            _LOGGER.warning('Ignoring {}: ({}) > {} ({})'.format(
+                CONF_WARNING_THRESHOLD, self._warning_threshold,
+                CONF_ERROR_THRESHOLD, self._error_threshold))
+
+        self._max_errs = self._error_threshold + 2
         self._dev_data = {}
         if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
             from timezonefinderL import TimezoneFinder
@@ -278,9 +281,13 @@ class Life360Scanner:
         _errs = self._errs.get(key, 0)
         if _errs < self._max_errs:
             self._errs[key] = _errs = _errs + 1
-            if _errs == self._max_errs:
-                err_msg = 'Suppressing further errors until OK: ' + err_msg
-            _LOGGER.error('{}: {}'.format(key, err_msg))
+            msg = '{}: {}'.format(key, err_msg)
+            if _errs > self._error_threshold:
+                if _errs == self._max_errs:
+                    msg = 'Suppressing further errors until OK: ' + msg
+                _LOGGER.error(msg)
+            elif _errs > self._warning_threshold:
+                _LOGGER.warning(msg)
 
     def _exc(self, key, exc):
         self._err(key, exc_msg(exc))
@@ -456,7 +463,6 @@ class Life360Scanner:
     def _update_life360(self, now=None):
         checked_ids = []
 
-        #_LOGGER.debug('Checking members')
         err_key = 'get_circles'
         try:
             circles = self._api.get_circles()
