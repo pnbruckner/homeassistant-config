@@ -32,7 +32,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.5.0b2'
+__version__ = '2.5.0'
 
 _LOGGER = logging.getLogger(__name__)
 
