@@ -1,10 +1,11 @@
-VERSION = '1.1.0'
+VERSION = '1.2.0b1'
 
 DOMAIN = 'light_store'
 
 ATTR_OPERATION  = 'operation'
 ATTR_OP_SAVE    = 'save'
 ATTR_OP_RESTORE = 'restore'
+ATTR_OVERWRITE  = 'overwrite'
 
 ATTR_STORE_NAME = 'store_name'
 ATTR_ENTITY_ID  = 'entity_id'
@@ -31,6 +32,9 @@ if operation not in [ATTR_OP_SAVE, ATTR_OP_RESTORE]:
 else:
     # Get optional store name (default to DOMAIN.)
     store_name = data.get(ATTR_STORE_NAME, DOMAIN)
+    
+    # Get optional overwrite parameter (only applies to saving.)
+    overwrite = data.get(ATTR_OVERWRITE, True)
 
     # Get optional list (or comma separated string) of switches & lights to
     # save/restore.
@@ -63,6 +67,7 @@ else:
             if store_entity_id(store_name, e) in saved:
                 saved_entity_ids.append(e)
         entity_ids = saved_entity_ids
+
     # If a list of entities was specified, further limit to just those.
     # Otherwise, save all existing switches and lights, or restore
     # all existing switches and lights that were previously saved.
@@ -70,27 +75,29 @@ else:
         entity_ids = tuple(set(entity_ids).intersection(set(entity_id)))
 
     if operation == ATTR_OP_SAVE:
-        # Clear out any previously saved states.
-        for entity_id in saved:
-            hass.states.remove(entity_id)
+        # Only save if not already saved, or if overwite is True.
+        if not saved or overwrite:
+            # Clear out any previously saved states.
+            for entity_id in saved:
+                hass.states.remove(entity_id)
 
-        # Save selected switches and lights to store.
-        for entity_id in entity_ids:
-            cur_state = hass.states.get(entity_id)
-            if cur_state is None:
-                logger.error('Could not get state of {}.'.format(entity_id))
-            else:
-                attributes = {}
-                if entity_id.startswith('light.') and cur_state.state == 'on':
-                    for attr in GEN_ATTRS:
-                        if attr in cur_state.attributes:
-                            attributes[attr] = cur_state.attributes[attr]
-                    for attr in COLOR_ATTRS:
-                        if attr in cur_state.attributes:
-                            attributes[attr] = cur_state.attributes[attr]
-                            break
-                hass.states.set(store_entity_id(store_name, entity_id),
-                                cur_state.state, attributes)
+            # Save selected switches and lights to store.
+            for entity_id in entity_ids:
+                cur_state = hass.states.get(entity_id)
+                if cur_state is None:
+                    logger.error('Could not get state of {}.'.format(entity_id))
+                else:
+                    attributes = {}
+                    if entity_id.startswith('light.') and cur_state.state == 'on':
+                        for attr in GEN_ATTRS:
+                            if attr in cur_state.attributes:
+                                attributes[attr] = cur_state.attributes[attr]
+                        for attr in COLOR_ATTRS:
+                            if attr in cur_state.attributes:
+                                attributes[attr] = cur_state.attributes[attr]
+                                break
+                    hass.states.set(store_entity_id(store_name, entity_id),
+                                    cur_state.state, attributes)
     else:
         # Restore selected switches and lights from store.
         for entity_id in entity_ids:
