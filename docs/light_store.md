@@ -22,6 +22,7 @@ See [Python Scripts](https://www.home-assistant.io/components/python_script/) fo
 - **store_name** (*Optional*): The “domain” name to use for the entities created in the State Machine to hold the saved states and attributes. The default is `light_store`.
 - **entity_id** (*Optional*): The entity_id(s) of the entities to save/restore. (Currently only entities of the switch, light or group domains are supported. Groups will be expanded recursively into the individual entities they contain.) Can be a single entity_id, a list of entity_id’s, or a string containing a comma separated list of entity_id’s. When saving, the default is to save all existing switch and light entities. When restoring, the default is to restore all previously saved entities.
 - **operation** (*Optional*): If specified must be `save` or `restore`. The default is `save`.
+- **overwrite** (*Optional*): Only applies to saving. If True will overwrite any previously saved states. If False, will only save current states if they have not already been saved, otherwise will skip saving. The default is True.
 ## Operation
 When saving, the script will create an entity in the State Machine named `<store_name>.<domain>_<object_id>` for each saved entity (where `<entity_id>` = `<domain>.<object_id>`.) The state will be the state of the entity, and if the entity is a light then appropriate attributes will also be saved (see below.)
 
@@ -68,3 +69,4 @@ Date | Version | Notes
 -|:-:|-
 20181002 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/62e517921e9f48625dbc7c7e3b9d6b4e665749f4/python_scripts/light_store.py) | Initial support for Custom Updater.
 20190114 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/c405e9ed1f37a67918d5b43152307aa47e75c094/python_scripts/light_store.py) | Save and restore light effect attribute.
+20190204 | [1.2.0]() | Add optional `overwrite` parameter.
