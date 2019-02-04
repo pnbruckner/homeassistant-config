@@ -1,4 +1,4 @@
-VERSION = '1.2.0b1'
+VERSION = '1.2.0'
 
 DOMAIN = 'light_store'
 
