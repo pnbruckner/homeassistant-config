@@ -69,4 +69,4 @@ Date | Version | Notes
 -|:-:|-
 20181002 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/62e517921e9f48625dbc7c7e3b9d6b4e665749f4/python_scripts/light_store.py) | Initial support for Custom Updater.
 20190114 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/c405e9ed1f37a67918d5b43152307aa47e75c094/python_scripts/light_store.py) | Save and restore light effect attribute.
-20190204 | [1.2.0]() | Add optional `overwrite` parameter.
+20190204 | [1.2.0](https://github.com/pnbruckner/homeassistant-config/blob/aa04afe8e32777414abb5a9265c00a90efa5d67c/python_scripts/light_store.py) | Add optional `overwrite` parameter.
