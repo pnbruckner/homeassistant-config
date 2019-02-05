@@ -18,7 +18,8 @@ from homeassistant.components.device_tracker import (
     CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL,
     ENTITY_ID_FORMAT as DT_ENTITY_ID_FORMAT, PLATFORM_SCHEMA)
 from homeassistant.components.zone import (
-    DEFAULT_PASSIVE, ENTITY_ID_FORMAT as ZN_ENTITY_ID_FORMAT, HOME_ZONE, Zone)
+    DEFAULT_PASSIVE, ENTITY_ID_FORMAT as ZN_ENTITY_ID_FORMAT, ENTITY_ID_HOME,
+    Zone)
 from homeassistant.components.zone.zone import active_zone
 from homeassistant.const import (
     ATTR_BATTERY_CHARGING, CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX,
@@ -32,12 +33,12 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.5.0'
+__version__ = '2.6.0b1'
 
 _LOGGER = logging.getLogger(__name__)
 
 DEPENDENCIES = ['zone']
-REQUIREMENTS = ['life360==2.*','timezonefinderL==2.*']
+REQUIREMENTS = ['life360==2.1.0', 'timezonefinderL==2.0.1']
 
 DEFAULT_FILENAME = 'life360.conf'
 DEFAULT_HOME_PLACE = 'Home'
@@ -59,6 +60,7 @@ CONF_TIME_AS = 'time_as'
 CONF_WARNING_THRESHOLD = 'warning_threshold'
 CONF_ZONE_INTERVAL = 'zone_interval'
 
+INCLUDING_HOME = 'include_home_place'
 SHOW_DRIVING = 'driving'
 SHOW_MOVING = 'moving'
 SHOW_PLACES = 'places'
@@ -94,7 +96,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_MEMBERS): vol.All(
         cv.ensure_list, [cv.string]),
     vol.Optional(CONF_DRIVING_SPEED): vol.Coerce(float),
-    vol.Optional(CONF_ADD_ZONES): cv.boolean,
+    vol.Optional(CONF_ADD_ZONES):
+        vol.Any(INCLUDING_HOME, cv.boolean),
     vol.Optional(CONF_ZONE_INTERVAL):
         vol.All(cv.time_period, vol.Range(min=MIN_ZONE_INTERVAL)),
     vol.Optional(CONF_TIME_AS, default=TIME_AS_OPTS[0]):
@@ -134,7 +137,7 @@ def m_name(first, last=None):
 
 def setup_scanner(hass, config, see, discovery_info=None):
     def auth_info_callback():
-        _LOGGER.info('Authenticating')
+        _LOGGER.info('Authorizing')
         return (_AUTHORIZATION_TOKEN,
                 config[CONF_USERNAME],
                 config[CONF_PASSWORD])
@@ -171,7 +174,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
             _LOGGER.error('No listed member names were valid')
             return False
 
-    home_place = config[CONF_HOME_PLACE].lower()
+    home_place_name = config[CONF_HOME_PLACE].lower()
     Place = namedtuple('Place', ['name', 'latitude', 'longitude', 'radius'])
 
     def get_places():
@@ -181,10 +184,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
             try:
                 for circle in api.get_circles():
                     for place in api.get_circle_places(circle['id']):
-                        name = place['name']
-                        if name.lower() in [HOME_ZONE, home_place]:
-                            continue
-                        places.add(Place(name,
+                        places.add(Place(place['name'],
                                          float(place['latitude']),
                                          float(place['longitude']),
                                          float(place['radius'])))
@@ -196,16 +196,18 @@ def setup_scanner(hass, config, see, discovery_info=None):
             else:
                 return places
 
-    def zone_from_place(place):
+    def zone_from_place(place, entity_id=None):
         zone = Zone(hass, *place, None, DEFAULT_PASSIVE)
-        zone.entity_id = generate_entity_id(ZN_ENTITY_ID_FORMAT, place.name,
-                                            None, hass)
+        zone.entity_id = (
+            entity_id or
+            generate_entity_id(ZN_ENTITY_ID_FORMAT, place.name, None, hass))
         zone.schedule_update_ha_state()
         return zone
 
     def log_places(msg, places):
-        _LOGGER.debug('{} zones for Places: {}'.format(
-            msg,
+        s = 's' if len(places) > 1 else ''
+        _LOGGER.debug('{} zone{} for Place{}: {}'.format(
+            msg, s, s,
             '; '.join(['{}: {}, {}, {}'.format(*place) for place
                        in sorted(places, key=lambda x: x.name.lower())])))
 
@@ -213,6 +215,14 @@ def setup_scanner(hass, config, see, discovery_info=None):
         places = get_places()
         if places is None:
             return
+        home_place = None
+        for place in places.copy():
+            if place.name.lower() == home_place_name:
+                home_place = place
+                places.discard(place)
+        if home_place and add_zones == INCLUDING_HOME:
+            log_places('Updating', [home_place])
+            zone_from_place(home_place, ENTITY_ID_HOME)
         remove_places = set(zones.keys()) - places
         if remove_places:
             log_places('Removing', remove_places)
@@ -235,15 +245,16 @@ def setup_scanner(hass, config, see, discovery_info=None):
             _LOGGER.debug('Will check Places every: {}'.format(zone_interval))
             track_time_interval(hass, zones_from_places, zone_interval)
 
-    Life360Scanner(hass, config, see, interval, home_place, members, api)
+    Life360Scanner(hass, config, see, interval, home_place_name, members, api)
     return True
 
 class Life360Scanner:
-    def __init__(self, hass, config, see, interval, home_place, members, api):
+    def __init__(self, hass, config, see, interval, home_place_name, members,
+                 api):
         self._hass = hass
         self._see = see
         self._show_as_state = config[CONF_SHOW_AS_STATE]
-        self._home_place = home_place
+        self._home_place_name = home_place_name
         self._max_gps_accuracy = config.get(CONF_MAX_GPS_ACCURACY)
         self._max_update_wait = config.get(CONF_MAX_UPDATE_WAIT)
         prefix = config.get(CONF_PREFIX)
@@ -385,7 +396,7 @@ class Life360Scanner:
                 loc_name = place_name
                 # Make sure Home Place is always seen exactly as home,
                 # which is the special device_tracker state for home.
-                if loc_name and loc_name.lower() == self._home_place:
+                if loc_name and loc_name.lower() == self._home_place_name:
                     loc_name = STATE_HOME
             else:
                 loc_name = None
