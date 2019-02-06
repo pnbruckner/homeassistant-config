@@ -15,16 +15,17 @@ from requests import HTTPError, ConnectionError, Timeout
 import voluptuous as vol
 
 from homeassistant.components.device_tracker import (
-    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL,
+    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN,
     ENTITY_ID_FORMAT as DT_ENTITY_ID_FORMAT, PLATFORM_SCHEMA)
 from homeassistant.components.zone import (
     DEFAULT_PASSIVE, ENTITY_ID_FORMAT as ZN_ENTITY_ID_FORMAT, ENTITY_ID_HOME,
     Zone)
 from homeassistant.components.zone.zone import active_zone
 from homeassistant.const import (
-    ATTR_BATTERY_CHARGING, CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX,
-    CONF_USERNAME, LENGTH_FEET, LENGTH_KILOMETERS, LENGTH_METERS, LENGTH_MILES,
-    STATE_HOME, STATE_UNKNOWN)
+    ATTR_BATTERY_CHARGING, ATTR_FRIENDLY_NAME, ATTR_LATITUDE, ATTR_LONGITUDE,
+    ATTR_NAME, CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX, CONF_USERNAME,
+    LENGTH_FEET, LENGTH_KILOMETERS, LENGTH_METERS, LENGTH_MILES, STATE_HOME,
+    STATE_UNKNOWN)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import generate_entity_id
 from homeassistant.helpers.event import track_time_interval
@@ -33,7 +34,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.6.0b1'
+__version__ = '2.6.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +45,8 @@ DEFAULT_FILENAME = 'life360.conf'
 DEFAULT_HOME_PLACE = 'Home'
 SPEED_FACTOR_MPH = 2.25
 MIN_ZONE_INTERVAL = timedelta(minutes=1)
+
+DATA_LIFE360 = 'life360'
 
 _AUTHORIZATION_TOKEN = 'cFJFcXVnYWJSZXRyZTRFc3RldGhlcnVmcmVQdW1hbUV4dWNyRU'\
                        'h1YzptM2ZydXBSZXRSZXN3ZXJFQ2hBUHJFOTZxYWtFZHI0Vg=='
@@ -77,10 +80,13 @@ ATTR_AT_LOC_SINCE = 'at_loc_since'
 ATTR_DRIVING = SHOW_DRIVING
 ATTR_LAST_SEEN = 'last_seen'
 ATTR_MOVING = SHOW_MOVING
+ATTR_RADIUS = 'radius'
 ATTR_RAW_SPEED = 'raw_speed'
 ATTR_SPEED = 'speed'
 ATTR_TIME_ZONE = 'time_zone'
 ATTR_WIFI_ON = 'wifi_on'
+
+SERVICE_ZONES_FROM_PLACES = 'life360_zones_from_places'
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_USERNAME): cv.string,
@@ -175,9 +181,14 @@ def setup_scanner(hass, config, see, discovery_info=None):
             return False
 
     home_place_name = config[CONF_HOME_PLACE].lower()
-    Place = namedtuple('Place', ['name', 'latitude', 'longitude', 'radius'])
+    zone_interval = config.get(CONF_ZONE_INTERVAL)
+    add_zones = config.get(CONF_ADD_ZONES, zone_interval != None)
+    zones = {}
 
-    def get_places():
+    Place = namedtuple(
+        'Place', [ATTR_NAME, ATTR_LATITUDE, ATTR_LONGITUDE, ATTR_RADIUS])
+
+    def get_places(api):
         errs = 0
         while True:
             places = set()
@@ -211,23 +222,41 @@ def setup_scanner(hass, config, see, discovery_info=None):
             '; '.join(['{}: {}, {}, {}'.format(*place) for place
                        in sorted(places, key=lambda x: x.name.lower())])))
 
-    def zones_from_places(now=None):
-        places = get_places()
+    def zones_from_places(api, home_place_name, add_zones, zones):
+        _LOGGER.debug('Checking Places')
+        places = get_places(api)
         if places is None:
             return
+
+        # See if there is a Life360 Place whose name matches CONF_HOME_PLACE.
+        # If there is, remove it from set and handle it specially.
         home_place = None
         for place in places.copy():
             if place.name.lower() == home_place_name:
                 home_place = place
                 places.discard(place)
+
+        # If a "Home Place" was found, and user wants to update zone.home with
+        # it, and if it is indeed different, then update zone.home.
         if home_place and add_zones == INCLUDING_HOME:
-            log_places('Updating', [home_place])
-            zone_from_place(home_place, ENTITY_ID_HOME)
+            hz_attrs = hass.states.get(ENTITY_ID_HOME).attributes
+            if home_place != Place(hz_attrs[ATTR_FRIENDLY_NAME],
+                                   hz_attrs[ATTR_LATITUDE],
+                                   hz_attrs[ATTR_LONGITUDE],
+                                   hz_attrs[ATTR_RADIUS]):
+                log_places('Updating', [home_place])
+                zone_from_place(home_place, ENTITY_ID_HOME)
+
+        # Do any of the Life360 Places that we created HA zones from no longer
+        # exist? If so, remove the corresponding zones.
         remove_places = set(zones.keys()) - places
         if remove_places:
             log_places('Removing', remove_places)
             for remove_place in remove_places:
                 hass.add_job(zones.pop(remove_place).async_remove())
+
+        # Are there any newly defined Life360 Places since the last time we
+        # checked? If so, create HA zones for them.
         add_places = places - set(zones.keys())
         if add_places:
             log_places('Adding', add_places)
@@ -235,15 +264,25 @@ def setup_scanner(hass, config, see, discovery_info=None):
                 zone = zone_from_place(add_place)
                 zones[add_place] = zone
 
-    add_zones = config.get(CONF_ADD_ZONES)
-    zone_interval = config.get(CONF_ZONE_INTERVAL)
-    if add_zones or zone_interval and add_zones != False:
-        _LOGGER.debug('Checking Places')
-        zones = {}
-        zones_from_places()
+    def zones_from_places_interval(now=None):
+        zones_from_places(api, home_place_name, add_zones, zones)
+
+    def zones_from_places_service(service):
+        for params in hass.data[DATA_LIFE360]:
+            zones_from_places(*params)
+
+    if add_zones:
+        zones_from_places_interval()
         if zone_interval:
             _LOGGER.debug('Will check Places every: {}'.format(zone_interval))
-            track_time_interval(hass, zones_from_places, zone_interval)
+            track_time_interval(hass, zones_from_places_interval,
+                                zone_interval)
+        if DATA_LIFE360 not in hass.data:
+            hass.data[DATA_LIFE360] = []
+        hass.data[DATA_LIFE360].append((api, home_place_name, add_zones, zones))
+        if not hass.services.has_service(DOMAIN, SERVICE_ZONES_FROM_PLACES):
+            hass.services.register(
+                DOMAIN, SERVICE_ZONES_FROM_PLACES, zones_from_places_service)
 
     Life360Scanner(hass, config, see, interval, home_place_name, members, api)
     return True
