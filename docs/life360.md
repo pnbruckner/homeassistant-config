@@ -11,7 +11,7 @@ where `<config>` is your Home Assistant configuration directory.
 
 >__NOTE__: Do not download the file by using the link above directly. Rather, click on it, then on the page that comes up use the `Raw` button.
 
->__NOTE__: Releases prior to 2.2.0 required two different life360.py files to be installed. That is no longer required. There is just the one indicated above now.
+>__NOTE__: Releases prior to 2.2.0 required two different life360.py files to be installed. That is no longer required. There is just the one indicated above now. The other was moved to [PyPI](https://pypi.org/project/life360/) and will be installed automatically.
 
 Then add the desired configuration. Here is an example of a typical configuration:
 ```yaml
@@ -19,13 +19,9 @@ device_tracker:
   - platform: life360
     username: !secret life360_username
     password: !secret life360_password
+    max_gps_accuracy: 200
     prefix: life360
     show_as_state: driving, moving, places
-    driving_speed: 18
-    max_gps_accuracy: 200
-    time_as: device_or_local
-    max_update_wait:
-      minutes: 45
 ```
 ### numpy on Raspberry Pi
 To determine time zone from GPS coordinates (see `time_as` configuration variable below) the package [timezonefinderL](https://pypi.org/project/timezonefinderL/) is used. That package requires the package [numpy](https://pypi.org/project/numpy/). These will both be installed automatically by HA. Note, however, that numpy on Pi _usually_ requires libatlas to be installed. (See [this web page](https://www.raspberrypi.org/forums/viewtopic.php?t=207058) for more details.) It can be installed using this command:
@@ -36,21 +32,21 @@ sudo apt install libatlas3-base
 ## Configuration variables
 - **username**: Your Life360 username.
 - **password**: Your Life360 password.
+
+- **add_zones** (*Optional*): Can be `true`, `false` or `include_home`. The default is `false` if `zone_interval` is _not_ specified, `true` if `zone_interval` _is_ specified. If `true` or `include_home`, create HA zones based on Life360 Places. Life360 Places whose names match `home_place` (case insensitive) will only be used when set to `include_home`.
+- **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered to be "driving" (and which will also set the `driving` [attribute](#additional-attributes) to `true`. See also `Driving` state in [chart](#states) below.)
+- **error_threshold** (*Optional*): The default is zero. See [Communication Errors](#communication-errors) for a detailed description.
+- **filename** (*Optional*): The default is life360.conf. The platform will get an authorization token from the Life360 server using your username and password, and it will save the token in a file in the HA config directory (with limited permissions) so that it can reuse it after restarts (and not have to get a new token every time.) If the token eventually expires, a new one will be acquired as needed.
+- **home_place** (*Optional*): Default is `Home`. Name of Life360 Place (if any) that coincides with home location as configured in HA.
+- **interval_seconds** (*Optional*): The default is 12. This defines how often the Life360 server will be queried. The resulting device_tracker entities will actually only be updated when the Life360 server provides new location information for each member.
+- **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
+- **max_update_wait** (*Optional*): If specified, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. See [example automations](#example-overdue-update-automations) below. 
+- **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
 - **prefix** (*Optional*): Default is to name entities `device_tracker.<first_name>_<last_name>`, where `<first_name>` and `<last_name>` are specified by Life360. If a prefix is specified, then entity will be named `device_tracker.<prefix>_<first_name>_<last_name>`. If the member only has a first or last name in Life360, then the underscore that would normally separate the names is left out.
 - **show_as_state** (*Optional*): One or more of: `driving`, `moving` and `places`. Default is for Device Tracker Component to determine entity state as normal. When specified these can cause the entity's state to show other statuses according to the [States](#states) chart below.
-- **home_place** (*Optional*): Default is 'Home'. Name of Life360 Place (if any) that coincides with home location as configured in HA.
-- **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered to be "driving" (and which will also set the `driving` attribute to True. See also `Driving` state in chart below.)
-- **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
-- **time_as** (*Optional*): One of `utc`, `local`, `device_or_utc` or `device_or_local`. Default is `utc` which shows time attributes in UTC. `local` shows time attributes per HA's `time_zone` configuration. `device_or_utc` and `device_or_local` attempt to determine the time zone in which the device is located based on its GPS coordinates. The name of the time zone (or `unknown`) will be shown in a new attribute named `time_zone`. If the time zone can be determined, then time attributes will be shown in that time zone. If the time zone cannot be determined, then time attributes will be shown in UTC if `device_or_utc` is selected, or in HA's local time zone if `device_or_local` is selected.
-- **max_update_wait** (*Optional*): If you specify it, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. See [example automations](#example-overdue-update-automations) below. 
->Note: If you set the entity to _not_ be tracked via known_devices.yaml then the entity_id will not exist in the state machine. In this case it might be better to exclude the member via the members parameter (see below.)
-- **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
-- **interval_seconds** (*Optional*): The default is 12. This defines how often the Life360 server will be queried. The resulting device_tracker entities will actually only be updated when the Life360 server provides new location information for each member.
-- **filename** (*Optional*): The default is life360.conf. The platform will get an authorization token from the Life360 server using your username and password, and it will save the token in a file in the HA config directory (with limited permissions) so that it can reuse it after restarts (and not have to get a new token every time.) If the token eventually expires, a new one will be acquired as needed.
-- **add_zones** (*Optional*): The default is true if `zone_interval` is specified, false otherwise. If true create HA zones based on Life360 Places. Note: Life360 Places whose name matches `home_place` or is 'home' (case insensitive) will not be used.
-- **zone_interval** (*Optional*): The default is only to create HA zones at startup (assuming `add_zones` is true.) If specified, will also update HA zones per Life360 Places periodically.
+- **time_as** (*Optional*): One of `utc`, `local`, `device_or_utc` or `device_or_local`. Default is `utc` which shows time attributes in UTC. `local` shows time attributes per HA's `time_zone` configuration. `device_or_utc` and `device_or_local` attempt to determine the time zone in which the device is located based on its GPS coordinates. The name of the time zone (or `unknown`) will be shown in a new [attribute](#additional-attributes) named `time_zone`. If the time zone can be determined, then time attributes will be shown in that time zone. If the time zone cannot be determined, then time attributes will be shown in UTC if `device_or_utc` is selected, or in HA's local time zone if `device_or_local` is selected.
 - **warning_threshold** (*Optional*): The default is communication errors will only be logged as ERRORs (not WARNINGs.) See [Communication Errors](#communication-errors) for a detailed description.
-- **error_threshold** (*Optional*): The default is zero. See [Communication Errors](#communication-errors) for a detailed description.
+- **zone_interval** (*Optional*): The default is only to create HA zones at startup (assuming `add_zones` is `true` or `include_home`.) If specified, will also update HA zones per Life360 Places periodically.
 ## States
 Order of precedence is from higher to lower.
 
@@ -58,25 +54,27 @@ show_as_state | State | Conditions
 -|-|-
 `places` | `home` | Place or check-in name (see below) matches `home_place` setting.
 `places` | Place or check-in name | Member is in a Life360 defined "Place" or member has "checked in" via the Life360 app (and name does not match `home_place` setting.)
-N/A | `home` | Device GSP coordinates are located in the HA defined home zone.
-N/A | HA zone name | Device GPS coordinates are located in a HA defined zone (other than home.)
+N/A | `home` | Device GPS coordinates are located in `zone.home`.
+N/A | HA zone name | Device GPS coordinates are located in a HA defined zone (other than `zone.home`.)
 `driving` | `Driving` | The Life360 server indicates the device "isDriving", or if `driving_speed` (see above) has been specified and the speed derived from the value provided by the Life360 server is at or above that value.
 `moving` | `Moving` | The Life360 server indicates the device is "inTransit".
 N/A | `not_home` | None of the above are true.
 ## Additional attributes
 Attribute | Description
 -|-
-address | Address of current location, or None.
+address | Address of current location, or `none`.
 at_loc_since | Date and time when first at current location (in UTC.)
-battery_charging | Device is charging (True/False.)
-driving | Device movement indicates driving (True/False.)
+battery_charging | Device is charging (`true`/`false`.)
+driving | Device movement indicates driving (`true`/`false`.)
 entity_picture | Member's "avatar" if one is provided by Life360.
 last_seen | Date and time when Life360 last updated your location (in UTC.)
-moving | Device is moving (True/False.)
+moving | Device is moving (`true`/`false`.)
 raw_speed | "Raw" speed value provided by Life360 server. (Units unknown.)
 speed | Estimated speed of device (in MPH or KPH depending on HA's unit system configuration.)
 time_zone | The name of the time zone in which the device is located, or `unknown` if it cannot be determined. Only exists if `device_or_utc` or `device_or_local` is chosen for `time_as`.
-wifi_on | Device WiFi is turned on (True/False.)
+wifi_on | Device WiFi is turned on (`true`/`false`.)
+
+>__NOTE__: `entity_picture` will only be set to Member's avatar the _very first time_ the device is seen. This is just how the device_tracker component-level code works. If an avatar is changed later the HA device_tracker entity's picture will not be updated automatically. If you want HA to use the new avatar you will need to manually edit known_devices.yaml.
 ## Communication Errors
 It is not uncommon for communication errors to occur between Home Assistant and the Life360 server. This can happen for many reasons, including Internet connection issues, Life360 server load, etc. However, in most cases, they are temporary and do not significantly affect the ability to keep device_tracker entities up to date.
 
@@ -88,23 +86,25 @@ device_tracker:
   - platform: life360
     username: !secret life360_username
     password: !secret life360_password
-    prefix: life360
-    show_as_state: driving, moving, places
-    home_place: Home
+    add_zones: include_home
+    # MPH, assuming imperial units.
+    # If using metric (KPH), equivalent would be 29
     driving_speed: 18
+    filename: life360.conf
+    home_place: Home
+    interval_seconds: 10
     max_gps_accuracy: 200
-    time_as: device_or_local
     max_update_wait:
       minutes: 45
     members:
       - mike, smith
       - Joe
       - Jones
-    interval_seconds: 10
-    add_zones: true
+    prefix: life360
+    show_as_state: driving, moving
+    time_as: device_or_local
     zone_interval:
       minutes: 15
-    filename: life360.conf
     # Set comm error thresholds so first is not logged,
     # second is logged as a WARNING, and third and fourth
     # are logged as ERRORs.
@@ -194,3 +194,4 @@ Date | Version | Notes
 20181130 | [2.3.1](https://github.com/pnbruckner/homeassistant-config/blob/a568b8e84c3ea20386af8ddd618d878095ee35cb/custom_components/device_tracker/life360.py) | Do not add zone for Life360 Places whose name matches `home_place`.
 20190123 | [2.4.0](https://github.com/pnbruckner/homeassistant-config/blob/0f0254c1137255662e1fe53e0d08a8bbf4e2f1b2/custom_components/device_tracker/life360.py) | Add `time_as` option.
 20190129 | [2.5.0](https://github.com/pnbruckner/homeassistant-config/blob/93ed07bb61f40dfdc36e970968726ba16a8510a3/custom_components/device_tracker/life360.py) | Add `waring_threshold` and `error_threshold`.
+201902xx | [2.6.0]() | Add `include_home` option for `add_zones` and `device_tracker.life360_zones_from_places` service.
