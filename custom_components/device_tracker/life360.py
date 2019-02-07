@@ -34,7 +34,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.6.0b2'
+__version__ = '2.6.0b3'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ CONF_TIME_AS = 'time_as'
 CONF_WARNING_THRESHOLD = 'warning_threshold'
 CONF_ZONE_INTERVAL = 'zone_interval'
 
-INCLUDING_HOME = 'include_home_place'
+INCLUDE_HOME = 'include_home'
 SHOW_DRIVING = 'driving'
 SHOW_MOVING = 'moving'
 SHOW_PLACES = 'places'
@@ -103,7 +103,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         cv.ensure_list, [cv.string]),
     vol.Optional(CONF_DRIVING_SPEED): vol.Coerce(float),
     vol.Optional(CONF_ADD_ZONES):
-        vol.Any(INCLUDING_HOME, cv.boolean),
+        vol.Any(INCLUDE_HOME, cv.boolean),
     vol.Optional(CONF_ZONE_INTERVAL):
         vol.All(cv.time_period, vol.Range(min=MIN_ZONE_INTERVAL)),
     vol.Optional(CONF_TIME_AS, default=TIME_AS_OPTS[0]):
@@ -238,7 +238,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
 
         # If a "Home Place" was found, and user wants to update zone.home with
         # it, and if it is indeed different, then update zone.home.
-        if home_place and add_zones == INCLUDING_HOME:
+        if home_place and add_zones == INCLUDE_HOME:
             hz_attrs = hass.states.get(ENTITY_ID_HOME).attributes
             if home_place != Place(hz_attrs[ATTR_FRIENDLY_NAME],
                                    hz_attrs[ATTR_LATITUDE],
