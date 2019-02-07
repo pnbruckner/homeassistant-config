@@ -31,8 +31,8 @@ sudo apt install libatlas3-base
 >Note: This is the same step that would be required if using a standard HA component that uses numpy (such as the [Trend Binary Sensor](https://www.home-assistant.io/components/binary_sensor.trend/)), and is only required if you use `device_or_utc` or `device_or_local` for `time_as`.
 ## Configuration variables
 - **username**: Your Life360 username.
-- **password**: Your Life360 password.
 
+- **password**: Your Life360 password.
 - **add_zones** (*Optional*): Can be `true`, `false` or `include_home`. The default is `false` if `zone_interval` is _not_ specified, `true` if `zone_interval` _is_ specified. If `true` or `include_home`, create HA zones based on Life360 Places. Life360 Places whose names match `home_place` (case insensitive) will only be used when set to `include_home`.
 - **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered to be "driving" (and which will also set the `driving` [attribute](#additional-attributes) to `true`. See also `Driving` state in [chart](#states) below.)
 - **error_threshold** (*Optional*): The default is zero. See [Communication Errors](#communication-errors) for a detailed description.
