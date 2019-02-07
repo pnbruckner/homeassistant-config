@@ -78,6 +78,10 @@ wifi_on | Device WiFi is turned on (`true`/`false`.)
 It is not uncommon for communication errors to occur between Home Assistant and the Life360 server. This can happen for many reasons, including Internet connection issues, Life360 server load, etc. However, in most cases, they are temporary and do not significantly affect the ability to keep device_tracker entities up to date.
 
 Therefore an optional filtering mechanism has been implemented to prevent inconsequential communication errors from filling the log, while still logging unusual error activity. Two thresholds are defined: `warning_threshold` and `error_threshold`. When a particular type of communication error happens on consecutive update cycles, it will not be logged until the number of occurences exceeds these thresholds. When the number exceeds `warning_threshold` (but does not exceed `error_threshold`, and only if `warning_threshold` is defined) it will be logged as a WARNING. Once the number exceeds `error_threshold` it will be logged as an ERROR. Only two consecutive communication errors of a particular type will be logged as an ERROR, after which it will no longer be logged until it stops occuring.
+## Services
+Service | Description
+-|-
+`device_tracker.life360_zones_from_places` | Update HA zones from Life360 Places per `add_zones` configuration. Only available if `add_zones` is not `false`.
 ## Examples
 ### Example full configuration
 ```yaml
