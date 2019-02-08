@@ -30,11 +30,12 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import generate_entity_id
 from homeassistant.helpers.event import track_time_interval
 from homeassistant.util import slugify
+from homeassistant.util.async_ import run_coroutine_threadsafe
 from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.6.0b5'
+__version__ = '2.6.0b6'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -262,7 +263,9 @@ def setup_scanner(hass, config, see, discovery_info=None):
             if remove_places:
                 log_places('Removing', remove_places)
                 for remove_place in remove_places:
-                    hass.add_job(zones.pop(remove_place).async_remove())
+                    run_coroutine_threadsafe(
+                        zones.pop(remove_place).async_remove(),
+                        hass.loop).result()
 
             # Are there any newly defined Life360 Places since the last time we
             # checked? If so, create HA zones for them.
@@ -270,8 +273,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
             if add_places:
                 log_places('Adding', add_places)
                 for add_place in add_places:
-                    zone = zone_from_place(add_place)
-                    zones[add_place] = zone
+                    zones[add_place] = zone_from_place(add_place)
 
     def zones_from_places_interval(now=None):
         zones_from_places(api, home_place_name, add_zones, zones)
