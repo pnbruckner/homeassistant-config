@@ -34,7 +34,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.6.0b3'
+__version__ = '2.6.0b4'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -63,7 +63,10 @@ CONF_TIME_AS = 'time_as'
 CONF_WARNING_THRESHOLD = 'warning_threshold'
 CONF_ZONE_INTERVAL = 'zone_interval'
 
-INCLUDE_HOME = 'include_home'
+AZ_EXCEPT_HOME = 'except_home' # Same as True
+AZ_ONLY_HOME = 'only_home'
+AZ_ALL = 'all'
+AZ_OPTS = [AZ_EXCEPT_HOME, AZ_ONLY_HOME, AZ_ALL]
 SHOW_DRIVING = 'driving'
 SHOW_MOVING = 'moving'
 SHOW_PLACES = 'places'
@@ -103,7 +106,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
         cv.ensure_list, [cv.string]),
     vol.Optional(CONF_DRIVING_SPEED): vol.Coerce(float),
     vol.Optional(CONF_ADD_ZONES):
-        vol.Any(INCLUDE_HOME, cv.boolean),
+        vol.Any(vol.In(AZ_OPTS), cv.boolean),
     vol.Optional(CONF_ZONE_INTERVAL):
         vol.All(cv.time_period, vol.Range(min=MIN_ZONE_INTERVAL)),
     vol.Optional(CONF_TIME_AS, default=TIME_AS_OPTS[0]):
@@ -182,7 +185,12 @@ def setup_scanner(hass, config, see, discovery_info=None):
 
     home_place_name = config[CONF_HOME_PLACE].lower()
     zone_interval = config.get(CONF_ZONE_INTERVAL)
+    # add_zones can be False or one of the values in AZ_OPTS.
+    # Default depends on zone_interval.
+    # For legacy reasons, allow True, but treat it the same as AZ_EXCEPT_HOME.
     add_zones = config.get(CONF_ADD_ZONES, zone_interval != None)
+    if add_zones is True:
+        add_zones = AZ_EXCEPT_HOME
     zones = {}
 
     Place = namedtuple(
@@ -238,7 +246,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
 
         # If a "Home Place" was found, and user wants to update zone.home with
         # it, and if it is indeed different, then update zone.home.
-        if home_place and add_zones == INCLUDE_HOME:
+        if home_place and add_zones in (AZ_ONLY_HOME, AZ_ALL):
             hz_attrs = hass.states.get(ENTITY_ID_HOME).attributes
             if home_place != Place(hz_attrs[ATTR_FRIENDLY_NAME],
                                    hz_attrs[ATTR_LATITUDE],
@@ -247,22 +255,23 @@ def setup_scanner(hass, config, see, discovery_info=None):
                 log_places('Updating', [home_place])
                 zone_from_place(home_place, ENTITY_ID_HOME)
 
-        # Do any of the Life360 Places that we created HA zones from no longer
-        # exist? If so, remove the corresponding zones.
-        remove_places = set(zones.keys()) - places
-        if remove_places:
-            log_places('Removing', remove_places)
-            for remove_place in remove_places:
-                hass.add_job(zones.pop(remove_place).async_remove())
+        if add_zones in (AZ_EXCEPT_HOME, AZ_ALL):
+            # Do any of the Life360 Places that we created HA zones from no longer
+            # exist? If so, remove the corresponding zones.
+            remove_places = set(zones.keys()) - places
+            if remove_places:
+                log_places('Removing', remove_places)
+                for remove_place in remove_places:
+                    hass.add_job(zones.pop(remove_place).async_remove())
 
-        # Are there any newly defined Life360 Places since the last time we
-        # checked? If so, create HA zones for them.
-        add_places = places - set(zones.keys())
-        if add_places:
-            log_places('Adding', add_places)
-            for add_place in add_places:
-                zone = zone_from_place(add_place)
-                zones[add_place] = zone
+            # Are there any newly defined Life360 Places since the last time we
+            # checked? If so, create HA zones for them.
+            add_places = places - set(zones.keys())
+            if add_places:
+                log_places('Adding', add_places)
+                for add_place in add_places:
+                    zone = zone_from_place(add_place)
+                    zones[add_place] = zone
 
     def zones_from_places_interval(now=None):
         zones_from_places(api, home_place_name, add_zones, zones)
