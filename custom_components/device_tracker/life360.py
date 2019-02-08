@@ -34,7 +34,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.6.0b4'
+__version__ = '2.6.0b5'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -277,6 +277,9 @@ def setup_scanner(hass, config, see, discovery_info=None):
         zones_from_places(api, home_place_name, add_zones, zones)
 
     def zones_from_places_service(service):
+        # Note: Although another thread may append the list while we're
+        #       iterating through it, that's ok. We'll just process the new
+        #       entry, which will be valid.
         for params in hass.data[DATA_LIFE360]:
             zones_from_places(*params)
 
@@ -286,9 +289,10 @@ def setup_scanner(hass, config, see, discovery_info=None):
             _LOGGER.debug('Will check Places every: {}'.format(zone_interval))
             track_time_interval(hass, zones_from_places_interval,
                                 zone_interval)
-        if DATA_LIFE360 not in hass.data:
-            hass.data[DATA_LIFE360] = []
-        hass.data[DATA_LIFE360].append((api, home_place_name, add_zones, zones))
+        # Note: dict.setdefault and list.append are both thread-safe, so no
+        #       lock required.
+        hass.data.setdefault(DATA_LIFE360, []).append(
+            (api, home_place_name, add_zones, zones))
         if not hass.services.has_service(DOMAIN, SERVICE_ZONES_FROM_PLACES):
             hass.services.register(
                 DOMAIN, SERVICE_ZONES_FROM_PLACES, zones_from_places_service)
