@@ -32,7 +32,7 @@ sudo apt install libatlas3-base
 ## Configuration variables
 - **username**: Your Life360 username.
 - **password**: Your Life360 password.
-- **add_zones** (*Optional*): Can be `true`, `false` or `include_home`. The default is `false` if `zone_interval` is _not_ specified, `true` if `zone_interval` _is_ specified. If `true` or `include_home`, create HA zones based on Life360 Places. Life360 Places whose names match `home_place` (case insensitive) will only be used when set to `include_home`.
+- **add_zones** (*Optional*): One of: `false`, `only_home`, `except_home` or `all`. The default is `false` if `zone_interval` is _not_ specified, or `except_home` if `zone_interval` _is_ specified. If not `false`, create HA zones based on Life360 Places. Life360 Places whose names match `home_place` (case insensitive) will only be used when set to `only_home` or `all`. Other Places will only be used when set to `except_home` or `all`. For legacy reasons, `true` is also accepted and is equivalent to `except_home`.
 - **driving_speed** (*MPH or KPH, depending on HA's unit system configuration, Optional*): The minimum speed at which the device is considered to be "driving" (and which will also set the `driving` [attribute](#additional-attributes) to `true`. See also `Driving` state in [chart](#states) below.)
 - **error_threshold** (*Optional*): The default is zero. See [Communication Errors](#communication-errors) for a detailed description.
 - **filename** (*Optional*): The default is life360.conf. The platform will get an authorization token from the Life360 server using your username and password, and it will save the token in a file in the HA config directory (with limited permissions) so that it can reuse it after restarts (and not have to get a new token every time.) If the token eventually expires, a new one will be acquired as needed.
@@ -45,7 +45,7 @@ sudo apt install libatlas3-base
 - **show_as_state** (*Optional*): One or more of: `driving`, `moving` and `places`. Default is for Device Tracker Component to determine entity state as normal. When specified these can cause the entity's state to show other statuses according to the [States](#states) chart below.
 - **time_as** (*Optional*): One of `utc`, `local`, `device_or_utc` or `device_or_local`. Default is `utc` which shows time attributes in UTC. `local` shows time attributes per HA's `time_zone` configuration. `device_or_utc` and `device_or_local` attempt to determine the time zone in which the device is located based on its GPS coordinates. The name of the time zone (or `unknown`) will be shown in a new [attribute](#additional-attributes) named `time_zone`. If the time zone can be determined, then time attributes will be shown in that time zone. If the time zone cannot be determined, then time attributes will be shown in UTC if `device_or_utc` is selected, or in HA's local time zone if `device_or_local` is selected.
 - **warning_threshold** (*Optional*): The default is communication errors will only be logged as ERRORs (not WARNINGs.) See [Communication Errors](#communication-errors) for a detailed description.
-- **zone_interval** (*Optional*): The default is only to create HA zones at startup (assuming `add_zones` is `true` or `include_home`.) If specified, will also update HA zones per Life360 Places periodically.
+- **zone_interval** (*Optional*): The default is only to create HA zones at startup. If specified, will also update HA zones per Life360 Places periodically. Only applies if `add_zones` is not explicitly set to `false`.
 ## States
 Order of precedence is from higher to lower.
 
@@ -83,9 +83,9 @@ Normally HA device trackers are "Home" when they enter `zone.home`. (See [Zone d
 
 The first is to manually make sure these two areas are defined the same -- i.e., same location and radius.
 
-The second is to include `places` in the HA life360 `show_as_state` configuration variable. Whenever Life360 determines you are in its Home Place the corresponding HA device tracker's state will be set to `home` (see `home_place` config variable.) This, however, requires `zone.home` to be entirely contained within Life360's Home Place. If it isn't, and if you enter `zone.home` but not Life360's Home Place, then it is still possible for the two systems to disagree.
+The second is to include `places` in the HA life360 `show_as_state` configuration variable. Whenever Life360 determines you are in its Home Place the corresponding HA device tracker's state will be set to `home` (see `home_place` config variable.) But for this to solve the problem `zone.home` must be entirely contained within Life360's Home Place. If it isn't, and if you enter `zone.home` but not Life360's Home Place, then it is still possible for the two systems to disagree (i.e., HA indicating you're Home, but Life360 showing you're not.)
 
-The third, and probably the easiest and most foolproof way, is to configure this platform to automatically update `zone.home` to be the exact same size, and at the exact same location, as Life360's Home Place. To enable this, set `add_zones` to `include_home`.
+The third, and probably the easiest and most foolproof way, is to configure this platform to automatically update `zone.home` to be the exact same size, and at the exact same location, as Life360's Home Place. To enable this, set `add_zones` to `only_home` or `all`.
 ## Communication Errors
 It is not uncommon for communication errors to occur between Home Assistant and the Life360 server. This can happen for many reasons, including Internet connection issues, Life360 server load, etc. However, in most cases, they are temporary and do not significantly affect the ability to keep device_tracker entities up to date.
 
@@ -97,7 +97,7 @@ device_tracker:
   - platform: life360
     username: !secret life360_username
     password: !secret life360_password
-    add_zones: include_home
+    add_zones: all
     # MPH, assuming imperial units.
     # If using metric (KPH), equivalent would be 29
     driving_speed: 18
@@ -205,4 +205,4 @@ Date | Version | Notes
 20181130 | [2.3.1](https://github.com/pnbruckner/homeassistant-config/blob/a568b8e84c3ea20386af8ddd618d878095ee35cb/custom_components/device_tracker/life360.py) | Do not add zone for Life360 Places whose name matches `home_place`.
 20190123 | [2.4.0](https://github.com/pnbruckner/homeassistant-config/blob/0f0254c1137255662e1fe53e0d08a8bbf4e2f1b2/custom_components/device_tracker/life360.py) | Add `time_as` option.
 20190129 | [2.5.0](https://github.com/pnbruckner/homeassistant-config/blob/93ed07bb61f40dfdc36e970968726ba16a8510a3/custom_components/device_tracker/life360.py) | Add `waring_threshold` and `error_threshold`.
-201902xx | [2.6.0]() | Add `include_home` option for `add_zones` and `device_tracker.life360_zones_from_places` service. Update life360 package from PyPI to 2.1.0.
+201902xx | [2.6.0]() | Add `except_home`, `only_home` and `all` options for `add_zones`, and add `device_tracker.life360_zones_from_places` service. Update life360 package from PyPI to 2.1.0.
