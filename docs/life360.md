@@ -205,4 +205,4 @@ Date | Version | Notes
 20181130 | [2.3.1](https://github.com/pnbruckner/homeassistant-config/blob/a568b8e84c3ea20386af8ddd618d878095ee35cb/custom_components/device_tracker/life360.py) | Do not add zone for Life360 Places whose name matches `home_place`.
 20190123 | [2.4.0](https://github.com/pnbruckner/homeassistant-config/blob/0f0254c1137255662e1fe53e0d08a8bbf4e2f1b2/custom_components/device_tracker/life360.py) | Add `time_as` option.
 20190129 | [2.5.0](https://github.com/pnbruckner/homeassistant-config/blob/93ed07bb61f40dfdc36e970968726ba16a8510a3/custom_components/device_tracker/life360.py) | Add `waring_threshold` and `error_threshold`.
-201902xx | [2.6.0]() | Add `only_home`, `except_home` and `all` options for `add_zones`, and add `device_tracker.life360_zones_from_places` service. Update life360 package from PyPI to 2.1.0.
+20190208 | [2.6.0]() | Add `only_home`, `except_home` and `all` options for `add_zones`, and add `device_tracker.life360_zones_from_places` service. Update life360 package from PyPI to 2.1.0.
