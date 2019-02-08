@@ -78,6 +78,14 @@ wifi_on | Device WiFi is turned on (`true`/`false`.)
 Service | Description
 -|-
 `device_tracker.life360_zones_from_places` | Update HA zones from Life360 Places per `add_zones` configuration. Only available if `add_zones` is not `false`.
+## Home - Home Assistant vs Life360
+Normally HA device trackers are "Home" when they enter `zone.home`. (See [Zone documentation](https://www.home-assistant.io/components/zone/#home-zone) for details about how this zone is defined.) And Life360 normally considers your device "Home" when it enters the Place that coincides with your home (i.e., the Life360 "Home Place.") Since the definitions of these areas can be different, this can lead to a disagreement between HA and Life360 as to whether or not you're "Home." There are three basic ways to avoid this situation.
+
+The first is to manually make sure these two areas are defined the same -- i.e., same location and radius.
+
+The second is to include `places` in the HA life360 `show_as_state` configuration variable. Whenever Life360 determines you are in its Home Place the corresponding HA device tracker's state will be set to `home` (see `home_place` config variable.) This, however, requires `zone.home` to be entirely contained within Life360's Home Place. If it isn't, and if you enter `zone.home` but not Life360's Home Place, then it is still possible for the two systems to disagree.
+
+The third, and probably the easiest and most foolproof way, is to configure this platform to automatically update `zone.home` to be the exact same size, and at the exact same location, as Life360's Home Place. To enable this, set `add_zones` to `include_home`.
 ## Communication Errors
 It is not uncommon for communication errors to occur between Home Assistant and the Life360 server. This can happen for many reasons, including Internet connection issues, Life360 server load, etc. However, in most cases, they are temporary and do not significantly affect the ability to keep device_tracker entities up to date.
 
