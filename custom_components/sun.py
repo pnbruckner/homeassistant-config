@@ -22,7 +22,7 @@ from homeassistant.helpers.sun import (
     get_astral_location, get_astral_event_next, get_astral_event_date)
 from homeassistant.util import dt as dt_util
 
-__version__ = '1.1.0b1'
+__version__ = '1.1.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -181,24 +181,18 @@ class Sun(Entity):
             self.hass, 'sunrise', utc_point_in_time)
         self.next_setting = get_astral_event_next(
             self.hass, 'sunset', utc_point_in_time)
-        # Need to get solar_noon if either STATE_ATTR_NEXT_NOON or
-        # STATE_ATTR_MAX_ELEVATION is requested.
-        if any(attr in self._attrs for attr in
-               [STATE_ATTR_NEXT_NOON, STATE_ATTR_MAX_ELEVATION]):
-            solar_noon = get_astral_event_next(
-                self.hass, 'solar_noon', utc_point_in_time)
-            if STATE_ATTR_NEXT_NOON in self._attrs:
-                self._attrs[STATE_ATTR_NEXT_NOON] = solar_noon
-            if STATE_ATTR_MAX_ELEVATION in self._attrs:
-                self._attrs[STATE_ATTR_MAX_ELEVATION] = (
-                    self.location.solar_elevation(solar_noon))
         # Only need to update remaining properties if they will be reported
         # in attributes.
+        if STATE_ATTR_MAX_ELEVATION in self._attrs:
+            self._attrs[STATE_ATTR_MAX_ELEVATION] = (
+                self.location.solar_elevation(get_astral_event_date(
+                    self.hass, 'solar_noon', utc_point_in_time)))
         for attr, event, func in [
                 (STATE_ATTR_NEXT_DAWN, 'dawn', get_astral_event_next),
                 (STATE_ATTR_NEXT_DUSK, 'dusk', get_astral_event_next),
                 (STATE_ATTR_NEXT_MIDNIGHT, 'solar_midnight',
                  get_astral_event_next),
+                (STATE_ATTR_NEXT_NOON, 'solar_noon', get_astral_event_next),
                 (STATE_ATTR_SUNRISE, 'sunrise', get_astral_event_date),
                 (STATE_ATTR_SUNSET, 'sunset', get_astral_event_date)]:
             if attr in self._attrs:
