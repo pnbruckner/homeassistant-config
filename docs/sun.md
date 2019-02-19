@@ -25,12 +25,13 @@ sun:
     minutes: 10
 ```
 ## Configuration variables
-- **monitored_conditions** (*Optional*): A list of `sun.sun` attributes to include. Options from the standard component: `azimuth`, `elevation`, `next_dawn`, `next_dusk`, `next_midnight` and `next_noon`. New options: `daylight`, `next_daylight`, `prev_daylight`, `sunrise` and `sunset`. The default is to include the options from the standard component.
+- **monitored_conditions** (*Optional*): A list of `sun.sun` attributes to include. Options from the standard component: `azimuth`, `elevation`, `next_dawn`, `next_dusk`, `next_midnight` and `next_noon`. New options: `daylight`, `max_elevation`, `next_daylight`, `prev_daylight`, `sunrise` and `sunset`. The default is to include the options from the standard component. _Note:_ `next_rising` and `next_setting` are always included.
 - **scan_interval** (*Optional*): If `azimuth` or `elevation` are included, then this controls how often they are updated. The default is the same behavior as the standard component (i.e., once a minute on the half minute.)
 ## New attributes
 Attribute | Description
 ---|---
 `daylight` | The amount of time from today's sunrise to today's sunset (in seconds).
+`max_elevation` | Maximum value of elevation for today.
 `next_daylight` | Same as daylight, except for tomorrow.
 `prev_daylight` | Same as daylight, except for yesterday.
 `sunrise` | Today's sunrise (in UTC).
@@ -44,6 +45,7 @@ sun:
   monitored_conditions:
     - azimuth
     - elevation
+    - max_elevation
     - next_dawn
     - next_dusk
     - next_midnight
@@ -107,3 +109,4 @@ Note that the last two examples use `now()` in the template. However, this by it
 Date | Version | Notes
 -|:-:|-
 20180907 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/d767bcce0fdff0c9298dc7a010d27af88817eac2/custom_components/sun.py) | Initial support for Custom Updater.
+20190219 | [1.1.0]() | Add `max_elevation`.
