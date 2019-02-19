@@ -109,4 +109,4 @@ Note that the last two examples use `now()` in the template. However, this by it
 Date | Version | Notes
 -|:-:|-
 20180907 | [1.0.0](https://github.com/pnbruckner/homeassistant-config/blob/d767bcce0fdff0c9298dc7a010d27af88817eac2/custom_components/sun.py) | Initial support for Custom Updater.
-20190219 | [1.1.0]() | Add `max_elevation`.
+20190219 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/493ebce327f85abf489e97f8d4e4e2da5654847b/custom_components/sun.py) | Add `max_elevation`.
