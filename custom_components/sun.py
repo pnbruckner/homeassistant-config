@@ -22,7 +22,7 @@ from homeassistant.helpers.sun import (
     get_astral_location, get_astral_event_next, get_astral_event_date)
 from homeassistant.util import dt as dt_util
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,12 +48,14 @@ STATE_ATTR_SUNSET = 'sunset'
 STATE_ATTR_DAYLIGHT = 'daylight'
 STATE_ATTR_PREV_DAYLIGHT = 'prev_daylight'
 STATE_ATTR_NEXT_DAYLIGHT = 'next_daylight'
+STATE_ATTR_MAX_ELEVATION = 'max_elevation'
 DEFAULT_STATE_ATTRS = [
     STATE_ATTR_AZIMUTH, STATE_ATTR_ELEVATION, STATE_ATTR_NEXT_DAWN,
     STATE_ATTR_NEXT_DUSK, STATE_ATTR_NEXT_MIDNIGHT, STATE_ATTR_NEXT_NOON]
 OPTIONAL_STATE_ATTRS = [
     STATE_ATTR_SUNRISE, STATE_ATTR_SUNSET, STATE_ATTR_DAYLIGHT,
-    STATE_ATTR_PREV_DAYLIGHT, STATE_ATTR_NEXT_DAYLIGHT]
+    STATE_ATTR_PREV_DAYLIGHT, STATE_ATTR_NEXT_DAYLIGHT,
+    STATE_ATTR_MAX_ELEVATION]
 STATE_ATTRS = DEFAULT_STATE_ATTRS + OPTIONAL_STATE_ATTRS
 
 CONFIG_SCHEMA = vol.Schema({
@@ -137,7 +139,8 @@ class Sun(Entity):
                            (STATE_ATTR_SUNSET, lambda x: x.isoformat()),
                            (STATE_ATTR_DAYLIGHT, lambda x: x),
                            (STATE_ATTR_PREV_DAYLIGHT, lambda x: x),
-                           (STATE_ATTR_NEXT_DAYLIGHT, lambda x: x)]:
+                           (STATE_ATTR_NEXT_DAYLIGHT, lambda x: x),
+                           (STATE_ATTR_MAX_ELEVATION, lambda x: round(x, 2))]:
             if attr in self._attrs:
                 attrs[attr] = func(self._attrs[attr])
         return attrs
@@ -156,13 +159,14 @@ class Sun(Entity):
                      STATE_ATTR_NEXT_NOON]:
             if attr in self._attrs:
                 next_events.append(self._attrs[attr])
-        # For sunrise, sunset and daylights, update at next "real" midnight
-        # (as opposed to next_midnight, which is solar midnight.) But subtract
-        # one second because point_in_time_listener() will add one.
+        # For sunrise, sunset, daylights and max_elevation, update at next
+        # "real" midnight (as opposed to next_midnight, which is solar
+        # midnight.) But subtract one second because point_in_time_listener()
+        # will add one.
         if any(attr in self._attrs for attr in
                [STATE_ATTR_SUNRISE, STATE_ATTR_SUNSET,
                 STATE_ATTR_DAYLIGHT, STATE_ATTR_PREV_DAYLIGHT,
-                STATE_ATTR_NEXT_DAYLIGHT]):
+                STATE_ATTR_NEXT_DAYLIGHT, STATE_ATTR_MAX_ELEVATION]):
             midnight = dt_util.start_of_local_day(
                 dt_util.now() + timedelta(days=1))
             next_events.append(dt_util.as_utc(midnight) - timedelta(seconds=1))
@@ -179,6 +183,10 @@ class Sun(Entity):
             self.hass, 'sunset', utc_point_in_time)
         # Only need to update remaining properties if they will be reported
         # in attributes.
+        if STATE_ATTR_MAX_ELEVATION in self._attrs:
+            self._attrs[STATE_ATTR_MAX_ELEVATION] = (
+                self.location.solar_elevation(get_astral_event_date(
+                    self.hass, 'solar_noon', utc_point_in_time)))
         for attr, event, func in [
                 (STATE_ATTR_NEXT_DAWN, 'dawn', get_astral_event_next),
                 (STATE_ATTR_NEXT_DUSK, 'dusk', get_astral_event_next),
