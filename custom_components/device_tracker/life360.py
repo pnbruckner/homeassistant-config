@@ -35,7 +35,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.7.0b1'
+__version__ = '2.7.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -165,11 +165,11 @@ def setup_scanner(hass, config, see, discovery_info=None):
     # Ignore other errors at this time. Hopefully they're temporary.
     except Exception as exc:
         _LOGGER.warning('Ignoring: {}'.format(exc_msg(exc)))
-        pass
     _LOGGER.debug('Setup successful!')
 
     members = config.get(CONF_MEMBERS)
-    _LOGGER.debug('Configured members = {}'.format(members))
+    _LOGGER.debug('Configured members = {}'.format(
+        members if members else 'None specified; will include all'))
 
     if members:
         _members = []
