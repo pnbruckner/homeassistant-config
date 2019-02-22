@@ -16,6 +16,12 @@ custom_updater:
   python_script_urls:
     - https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/python_scripts.json
 ```
+#### Home Assistant Versions before 0.86
+Use the following config for `component_urls:` instead:
+```
+  component_urls:
+    - https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components_old.json
+```
 ### Installing
 To install one of these custom components or Python scripts for the first time, use the [`custom_updater.install`](https://github.com/custom-components/custom_updater/wiki/Services#install-element-cardcomponentpython_script) service with appropriate service data, such as:
 ```
