@@ -35,7 +35,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.7.0'
+__version__ = '2.8.0'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ DEFAULT_FILENAME = 'life360.conf'
 DEFAULT_HOME_PLACE = 'Home'
 SPEED_FACTOR_MPH = 2.25
 MIN_ZONE_INTERVAL = timedelta(minutes=1)
+EVENT_DELAY = timedelta(seconds=30)
 
 DATA_LIFE360 = 'life360'
 
@@ -386,9 +387,10 @@ class Life360Scanner:
             last_seen = None
 
         if self._max_update_wait:
+            now = dt_util.utcnow()
             update = last_seen or prev_seen or self._started
-            overdue = dt_util.utcnow() - update > self._max_update_wait
-            if overdue and not reported:
+            overdue = now - update > self._max_update_wait
+            if overdue and not reported and now - self._started > EVENT_DELAY:
                 self._hass.bus.fire(
                     'life360_update_overdue',
                     {'entity_id': DT_ENTITY_ID_FORMAT.format(dev_id)})
