@@ -211,4 +211,4 @@ Date | Version | Notes
 20190129 | [2.5.0](https://github.com/pnbruckner/homeassistant-config/blob/93ed07bb61f40dfdc36e970968726ba16a8510a3/custom_components/device_tracker/life360.py) | Add `waring_threshold` and `error_threshold`.
 20190208 | [2.6.0](https://github.com/pnbruckner/homeassistant-config/blob/16e275ee7b4ffe8616d3c789abf99420e9323309/custom_components/device_tracker/life360.py) | Add `only_home`, `except_home` and `all` options for `add_zones`, and add `device_tracker.life360_zones_from_places` service. Update life360 package from PyPI to 2.1.0.
 20190219 | [2.7.0](https://github.com/pnbruckner/homeassistant-config/blob/eaadca76efe9721d93dc8cee967b1ff819ddc374/custom_components/device_tracker/life360.py) | Treat errors (other than login errors) as warnings during setup and continue. Bump life360 package to 2.2.0.
-20190222 | [2.8.0]() | Delay firing events at startup so automations have a chance to get ready.
+20190222 | [2.8.0](https://github.com/pnbruckner/homeassistant-config/blob/8b6f2bdbefc2d54632611e212986eb683cf219bc/custom_components/device_tracker/life360.py) | Delay firing events at startup so automations have a chance to get ready.
