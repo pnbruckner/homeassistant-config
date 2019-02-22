@@ -9,6 +9,10 @@ Alternatively, place a copy of:
 
 [device_tracker/composite.py](../custom_components/device_tracker/composite.py) at `<config>/custom_components/device_tracker/composite.py`
 
+Or, if using a version of Home Assistant before 0.86, place a copy of:
+
+[device_tracker/composite.py](../custom_components/device_tracker/composite.py) at `<config>/custom_components/composite/device_tracker.py`
+
 where `<config>` is your Home Assistant configuration directory.
 
 >__NOTE__: Do not download the file by using the link above directly. Rather, click on it, then on the page that comes up use the `Raw` button.
