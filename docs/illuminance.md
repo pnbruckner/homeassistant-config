@@ -12,15 +12,11 @@ The following sources of weather data are supported:
 * Weather Underground
 * [YR (symbol)](https://www.home-assistant.io/components/sensor.yr/)
 ## Installation
-See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"sensor.illuminance"`.
+See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"illuminance.sensor"`.
 
 Alternatively, place a copy of:
 
-[sensor/illuminance.py](../custom_components/sensor/illuminance.py) at `<config>/custom_components/illuminance/sensor.py`
-
-Or, if using a version of Home Assistant before 0.86, place a copy of:
-
-[sensor/illuminance.py](../custom_components/sensor/illuminance.py) at `<config>/custom_components/sensor/illuminance.py`
+[illuminance/sensor.py](../custom_components/illuminance/sensor.py) at `<config>/custom_components/illuminance/sensor.py`
 
 where `<config>` is your Home Assistant configuration directory.
 
@@ -32,6 +28,10 @@ sensor:
   - platform: illuminance
     entity_id: sensor.yr_symbol
 ```
+### Home Assistant before 0.86
+If using Custom Updater the name of this `"element"` is `"sensor.illuminance"`. For manual installation, place a copy of:
+
+[illuminance/sensor.py](../custom_components/illuminance/sensor.py) at `<config>/custom_components/sensor/illuminance.py`
 ## Configuration variables
 - **api_key**: Weather Underground API key. Required when using WU.
 - **entity_id**: Entity ID of Dark Sky or YR entity. See examples below. Required when using Dark Sky or YR.
