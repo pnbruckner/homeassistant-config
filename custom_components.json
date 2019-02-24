@@ -1,25 +1,25 @@
 {
-  "device_tracker.composite": {
+  "composite.device_tracker": {
     "updated_at": "2019-01-23",
     "version": "1.7.0",
     "local_location": "/custom_components/composite/device_tracker.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/device_tracker/composite.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/composite/device_tracker.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md#release-notes"
   },
-  "device_tracker.life360": {
+  "life360.device_tracker": {
     "updated_at": "2019-02-22",
     "version": "2.8.0",
     "local_location": "/custom_components/life360/device_tracker.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/device_tracker/life360.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/life360/device_tracker.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md#release-notes"
   },
-  "sensor.illuminance": {
+  "illuminance.sensor": {
     "updated_at": "2019-01-11",
     "version": "2.0.1",
     "local_location": "/custom_components/illuminance/sensor.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sensor/illuminance.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/illuminance/sensor.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/illuminance.md#release-notes"
   },
@@ -27,7 +27,15 @@
     "updated_at": "2019-02-19",
     "version": "1.1.0",
     "local_location": "/custom_components/sun.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sun.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sun/__init__.py",
+    "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
+    "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/sun.md#release-notes"
+  },
+  "sun.automation": {
+    "updated_at": "2019-02-xx",
+    "version": "1.0.0",
+    "local_location": "/custom_components/sun/automation.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sun/automation.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/sun.md#release-notes"
   }

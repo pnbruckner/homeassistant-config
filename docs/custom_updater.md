@@ -16,7 +16,7 @@ custom_updater:
   python_script_urls:
     - https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/python_scripts.json
 ```
-#### Home Assistant Versions before 0.86
+#### Home Assistant before 0.86
 Use the following config for `component_urls:` instead:
 ```
   component_urls:

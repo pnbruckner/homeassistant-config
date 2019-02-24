@@ -3,15 +3,11 @@ This platform creates a composite device tracker from one or more other device t
 
 Currently device_tracker's with a source_type of bluetooth, bluetooth_le, gps or router are supported, as well as binary_sensor's.
 ## Installation
-See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"device_tracker.composite"`.
+See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"composite.device_tracker"`.
 
 Alternatively, place a copy of:
 
-[device_tracker/composite.py](../custom_components/device_tracker/composite.py) at `<config>/custom_components/composite/device_tracker.py`
-
-Or, if using a version of Home Assistant before 0.86, place a copy of:
-
-[device_tracker/composite.py](../custom_components/device_tracker/composite.py) at `<config>/custom_components/device_tracker/composite.py`
+[`composite/device_tracker.py`](../custom_components/composite/device_tracker.py) at `<config>/custom_components/composite/device_tracker.py`
 
 where `<config>` is your Home Assistant configuration directory.
 
@@ -27,6 +23,10 @@ device_tracker:
       - device_tracker.platform1_me
       - device_tracker.platform2_me
 ```
+### Home Assistant before 0.86
+If using Custom Updater the name of this `"element"` is `"device_tracker.composite"`. For manual installation, place a copy of:
+
+[`composite/device_tracker.py`](../custom_components/composite/device_tracker.py) at `<config>/custom_components/device_tracker/composite.py`
 ### numpy on Raspberry Pi
 To determine time zone from GPS coordinates (see `time_as` configuration variable below) the package [timezonefinderL](https://pypi.org/project/timezonefinderL/) is used. That package requires the package [numpy](https://pypi.org/project/numpy/). These will both be installed automatically by HA. Note, however, that numpy on Pi _usually_ requires libatlas to be installed. (See [this web page](https://www.raspberrypi.org/forums/viewtopic.php?t=207058) for more details.) It can be installed using this command:
 ```
