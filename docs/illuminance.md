@@ -16,7 +16,7 @@ See [Installing and Updating](custom_updater.md) to use Custom Updater. The name
 
 Alternatively, place a copy of:
 
-[illuminance/sensor.py](../custom_components/illuminance/sensor.py) at `<config>/custom_components/illuminance/sensor.py`
+[`illuminance/sensor.py`](../custom_components/illuminance/sensor.py) at `<config>/custom_components/illuminance/sensor.py`
 
 where `<config>` is your Home Assistant configuration directory.
 
@@ -31,7 +31,7 @@ sensor:
 ### Home Assistant before 0.86
 If using Custom Updater the name of this `"element"` is `"sensor.illuminance"`. For manual installation, place a copy of:
 
-[illuminance/sensor.py](../custom_components/illuminance/sensor.py) at `<config>/custom_components/sensor/illuminance.py`
+[`illuminance/sensor.py`](../custom_components/illuminance/sensor.py) at `<config>/custom_components/sensor/illuminance.py`
 ## Configuration variables
 - **api_key**: Weather Underground API key. Required when using WU.
 - **entity_id**: Entity ID of Dark Sky or YR entity. See examples below. Required when using Dark Sky or YR.
