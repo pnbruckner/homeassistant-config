@@ -5,7 +5,7 @@ See [Installing and Updating](custom_updater.md) to use Custom Updater. The name
 
 Alternatively, place a copy of:
 
-[life360/device_tracker.py](../custom_components/life360/device_tracker.py) at `<config>/custom_components/life360/device_tracker.py`
+[`life360/device_tracker.py`](../custom_components/life360/device_tracker.py) at `<config>/custom_components/life360/device_tracker.py`
 
 where `<config>` is your Home Assistant configuration directory.
 
@@ -26,7 +26,7 @@ device_tracker:
 ### Home Assistant before 0.86
 If using Custom Updater the name of this `"element"` is `"device_tracker.life360"`. For manual installation, place a copy of:
 
-[life360/device_tracker.py](../custom_components/life360/device_tracker.py) at `<config>/custom_components/device_tracker/life360.py`
+[`life360/device_tracker.py`](../custom_components/life360/device_tracker.py) at `<config>/custom_components/device_tracker/life360.py`
 ### numpy on Raspberry Pi
 To determine time zone from GPS coordinates (see `time_as` configuration variable below) the package [timezonefinderL](https://pypi.org/project/timezonefinderL/) is used. That package requires the package [numpy](https://pypi.org/project/numpy/). These will both be installed automatically by HA. Note, however, that numpy on Pi _usually_ requires libatlas to be installed. (See [this web page](https://www.raspberrypi.org/forums/viewtopic.php?t=207058) for more details.) It can be installed using this command:
 ```
