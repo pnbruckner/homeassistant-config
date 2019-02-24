@@ -32,7 +32,7 @@
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/sun.md#release-notes"
   },
   "sun.automation": {
-    "updated_at": "2019-02-xx",
+    "updated_at": "2019-02-24",
     "version": "1.0.0",
     "local_location": "/custom_components/sun/automation.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sun/automation.py",
