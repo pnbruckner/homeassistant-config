@@ -4,7 +4,9 @@ This is an enhanced version of the [standard Sun component](https://www.home-ass
 - Select which attributes sun.sun should have from the original set, as well as a few new ones.
 - Control how often azimuth and elevation are updated.
 ## Installation
-See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"sun"`. __You must also install__ element `"sun.automation"`.
+See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"sun"`.
+
+>__NOTE__: You need to use Custom Updater version 4.2.9 or later.
 
 Alternatively, place a copy of:
 
@@ -26,9 +28,11 @@ sun:
     minutes: 10
 ```
 ### Home Assistant before 0.86
-If using Custom Updater __do not install__ element `"sun.automation"`. For manual installation, place a copy of:
+For manual installation, place a copy of:
 
 [`sun/__init__.py`](../custom_components/sun/__init__.py) at `<config>/custom_components/sun.py`
+
+`sun/automation.py` is not used.
 ## Configuration variables
 - **monitored_conditions** (*Optional*): A list of `sun.sun` attributes to include. Options from the standard component: `azimuth`, `elevation`, `next_dawn`, `next_dusk`, `next_midnight` and `next_noon`. New options: `daylight`, `max_elevation`, `next_daylight`, `prev_daylight`, `sunrise` and `sunset`. The default is to include the options from the standard component. _Note:_ `next_rising` and `next_setting` are always included.
 - **scan_interval** (*Optional*): If `azimuth` or `elevation` are included, then this controls how often they are updated. The default is the same behavior as the standard component (i.e., once a minute on the half minute.)
