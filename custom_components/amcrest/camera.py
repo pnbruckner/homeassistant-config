@@ -6,8 +6,8 @@ from urllib3.exceptions import ReadTimeoutError
 
 import voluptuous as vol
 
-from custom_components.amcrest import (
-    DATA_AMCREST, DATA_AMCREST_LOCK, STREAM_SOURCE_LIST, TIMEOUT)
+from . import (
+    DATA_AMCREST, DATA_AMCREST_LOCK, LOCK_TIMEOUT, STREAM_SOURCE_LIST, TIMEOUT)
 from homeassistant.components.camera import (
     Camera, DOMAIN, SUPPORT_ON_OFF, CAMERA_SERVICE_SCHEMA)
 from homeassistant.components.ffmpeg import DATA_FFMPEG
@@ -182,7 +182,7 @@ class AmcrestCam(Camera):
         # Send the request to snap a picture and return raw jpg data
         if not self.is_on:
             return None
-        if self._lock.acquire(timeout=9):
+        if self._lock.acquire(timeout=LOCK_TIMEOUT):
             try:
                 return self._camera.snapshot(channel=self._resolution).data
 #            except (RequestException, ReadTimeoutError, ValueError) as exc:
