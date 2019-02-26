@@ -7,7 +7,7 @@ from urllib3.exceptions import ReadTimeoutError
 import voluptuous as vol
 
 from . import (
-    DATA_AMCREST, DATA_AMCREST_LOCK, LOCK_TIMEOUT, STREAM_SOURCE_LIST, TIMEOUT)
+    DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT)
 from homeassistant.components.camera import (
     Camera, DOMAIN, SUPPORT_ON_OFF, CAMERA_SERVICE_SCHEMA)
 from homeassistant.components.ffmpeg import DATA_FFMPEG
@@ -70,9 +70,8 @@ async def async_setup_platform(hass, config, async_add_entities,
 
     device_name = discovery_info[CONF_NAME]
     amcrest = hass.data[DATA_AMCREST][device_name]
-    lock = hass.data[DATA_AMCREST_LOCK][device_name]
 
-    async_add_entities([AmcrestCam(hass, amcrest, lock)], True)
+    async_add_entities([AmcrestCam(hass, amcrest)], True)
 
     def target_cameras(service):
         if DATA_AMCREST_CAMS in hass.data:
@@ -154,7 +153,7 @@ async def async_setup_platform(hass, config, async_add_entities,
 class AmcrestCam(Camera):
     """An implementation of an Amcrest IP camera."""
 
-    def __init__(self, hass, amcrest, lock):
+    def __init__(self, hass, amcrest):
         """Initialize an Amcrest camera."""
         super(AmcrestCam, self).__init__()
         self._name = amcrest.name
@@ -172,7 +171,6 @@ class AmcrestCam(Camera):
         self._color_bw = None
         self._is_audio_on = None
         self._is_mask_on = None
-        self._lock = lock
 
     async def async_added_to_hass(self):
         self.hass.data.setdefault(DATA_AMCREST_CAMS, []).append(self)
@@ -182,16 +180,13 @@ class AmcrestCam(Camera):
         # Send the request to snap a picture and return raw jpg data
         if not self.is_on:
             return None
-        if self._lock.acquire(timeout=LOCK_TIMEOUT):
-            try:
-                return self._camera.snapshot(channel=self._resolution).data
-#            except (RequestException, ReadTimeoutError, ValueError) as exc:
-            except Exception as exc:
-                _LOGGER.error('In camera_image: {}: {}'.format(
-                    exc.__class__.__name__, str(exc)))
-                return None
-            finally:
-                self._lock.release()
+        try:
+            return self._camera.snapshot(channel=self._resolution).data
+#        except (RequestException, ReadTimeoutError, ValueError) as exc:
+        except Exception as exc:
+            _LOGGER.error('In camera_image: {}: {}'.format(
+                exc.__class__.__name__, str(exc)))
+            return None
 
     async def handle_async_mjpeg_stream(self, request):
         """Return an MJPEG stream."""
