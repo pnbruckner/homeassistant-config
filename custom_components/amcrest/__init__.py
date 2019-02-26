@@ -99,18 +99,22 @@ CONFIG_SCHEMA = vol.Schema({
 
 def setup(hass, config):
     """Set up the Amcrest IP Camera component."""
-    from amcrest import Http 
+    from amcrest import Http
 
     class AmcrestCamera(Http):
+        """Override of amcrest.http.Http."""
+
         def __init__(self, host, port, user, password, verbose=True,
                      protocol='http', retries_connection=None,
                      timeout_protocol=None):
+            """Initialize the camera."""
             self._lock = threading.Lock()
             super().__init__(
                 host, port, user, password, verbose, protocol,
                 retries_connection, timeout_protocol)
 
         def command(self, cmd, retries=None, timeout_cmd=None):
+            """Send command to camera."""
             if self._lock.acquire(timeout=LOCK_TIMEOUT):
                 try:
                     return super().command(cmd, retries, timeout_cmd)
