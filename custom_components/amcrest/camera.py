@@ -1,9 +1,4 @@
-"""
-This component provides basic support for Amcrest IP cameras.
-
-For more details about this platform, please refer to the documentation at
-https://home-assistant.io/components/camera.amcrest/
-"""
+"""Support for Amcrest IP cameras."""
 import asyncio
 import logging
 from requests import RequestException
@@ -19,7 +14,6 @@ from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.core import callback
 from homeassistant.const import (
     ATTR_ENTITY_ID, CONF_NAME, STATE_ON, STATE_OFF)
-from homeassistant.loader import bind_hass
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import (
     async_get_clientsession, async_aiohttp_proxy_web,
@@ -66,86 +60,6 @@ _MOT_DET_WINDOW = {False: [{'window': 1, 'sensitive': 75, 'threshold': 12},
                            {'window': 2, 'sensitive': 50, 'threshold': 16}],
                    True:  [{'window': 1, 'sensitive': 75, 'threshold':  6},
                            {'window': 2, 'sensitive': 75, 'threshold':  6}]}
-
-
-@bind_hass
-def enable_recording(hass, entity_id=None):
-    """Enable Recording."""
-    data = {ATTR_ENTITY_ID: entity_id} if entity_id else None
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_ENABLE_RECORDING, data))
-
-@bind_hass
-def disable_recording(hass, entity_id=None):
-    """Disable Recording."""
-    data = {ATTR_ENTITY_ID: entity_id} if entity_id else None
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_DISABLE_RECORDING, data))
-
-@bind_hass
-def goto_preset(hass, preset, entity_id=None):
-    """Goto preset position."""
-    data = {ATTR_PRESET: preset}
-
-    if entity_id is not None:
-        data[ATTR_ENTITY_ID] = entity_id
-
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_GOTO_PRESET, data))
-
-@bind_hass
-def set_color_bw(hass, cbw, entity_id=None):
-    """Set DayNight color mode."""
-    data = {ATTR_COLOR_BW: cbw}
-
-    if entity_id is not None:
-        data[ATTR_ENTITY_ID] = entity_id
-
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_SET_COLOR_BW, data))
-
-@bind_hass
-def audio_on(hass, entity_id=None):
-    """Turn Audio On."""
-    data = {ATTR_ENTITY_ID: entity_id} if entity_id else None
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_AUDIO_ON, data))
-
-@bind_hass
-def audio_off(hass, entity_id=None):
-    """Turn Audio Off."""
-    data = {ATTR_ENTITY_ID: entity_id} if entity_id else None
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_AUDIO_OFF, data))
-
-@bind_hass
-def mask_on(hass, entity_id=None):
-    """Turn Mask On."""
-    data = {ATTR_ENTITY_ID: entity_id} if entity_id else None
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_MASK_ON, data))
-
-@bind_hass
-def mask_off(hass, entity_id=None):
-    """Turn Mask Off."""
-    data = {ATTR_ENTITY_ID: entity_id} if entity_id else None
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_MASK_OFF, data))
-
-@bind_hass
-def tour_on(hass, entity_id=None):
-    """Turn Tour On."""
-    data = {ATTR_ENTITY_ID: entity_id} if entity_id else None
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_TOUR_ON, data))
-
-@bind_hass
-def tour_off(hass, entity_id=None):
-    """Turn Tour Off."""
-    data = {ATTR_ENTITY_ID: entity_id} if entity_id else None
-    hass.async_add_job(hass.services.async_call(
-        DOMAIN, SERVICE_TOUR_OFF, data))
-
 
 
 async def async_setup_platform(hass, config, async_add_entities,
@@ -261,9 +175,7 @@ class AmcrestCam(Camera):
         self._lock = lock
 
     async def async_added_to_hass(self):
-        if DATA_AMCREST_CAMS not in self.hass.data:
-            self.hass.data[DATA_AMCREST_CAMS] = []
-        self.hass.data[DATA_AMCREST_CAMS].append(self)
+        self.hass.data.setdefault(DATA_AMCREST_CAMS, []).append(self)
 
     def camera_image(self):
         """Return a still image response from the camera."""
@@ -285,8 +197,7 @@ class AmcrestCam(Camera):
         """Return an MJPEG stream."""
         # The snapshot implementation is handled by the parent class
         if self._stream_source == STREAM_SOURCE_LIST['snapshot']:
-            await super().handle_async_mjpeg_stream(request)
-            return
+            return await super().handle_async_mjpeg_stream(request)
 
         if self._stream_source == STREAM_SOURCE_LIST['mjpeg']:
             # stream an MJPEG image stream directly from the camera
@@ -295,27 +206,23 @@ class AmcrestCam(Camera):
             stream_coro = websession.get(
                 streaming_url, auth=self._token, timeout=TIMEOUT)
 
-            await async_aiohttp_proxy_web(self.hass, request, stream_coro)
+            return await async_aiohttp_proxy_web(
+                self.hass, request, stream_coro)
 
-        else:
-            # streaming via fmpeg
-            from haffmpeg import CameraMjpeg
+        # streaming via ffmpeg
+        from haffmpeg import CameraMjpeg
 
-            streaming_url = self._camera.rtsp_url(typeno=self._resolution)
-            # Need to use lock here but lock is not asyncio!
-            #self._lock.acquire()
-            try:
-                stream = CameraMjpeg(self._ffmpeg.binary, loop=self.hass.loop)
-                await stream.open_camera(
-                    streaming_url, extra_cmd=self._ffmpeg_arguments)
+        streaming_url = self._camera.rtsp_url(typeno=self._resolution)
+        stream = CameraMjpeg(self._ffmpeg.binary, loop=self.hass.loop)
+        await stream.open_camera(
+            streaming_url, extra_cmd=self._ffmpeg_arguments)
 
-                await async_aiohttp_proxy_stream(
-                    self.hass, request, stream,
-                    'multipart/x-mixed-replace;boundary=ffserver')
-                await stream.close()
-            finally:
-                #self._lock.release()
-                pass
+        try:
+            return await async_aiohttp_proxy_stream(
+                self.hass, request, stream,
+                self._ffmpeg.ffmpeg_stream_content_type)
+        finally:
+            await stream.close()
 
     # Entity property overrides
 
