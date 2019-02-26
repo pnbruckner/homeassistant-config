@@ -38,7 +38,6 @@ class AmcrestBinarySensor(BinarySensorDevice):
     def __init__(self, name, camera, sensor_type):
         self._name = '{} {}'.format(name, BINARY_SENSORS.get(sensor_type))
         self._camera = camera
-        self._camera_name = name
         self._sensor_type = sensor_type
         self._state = None
 
@@ -55,8 +54,7 @@ class AmcrestBinarySensor(BinarySensorDevice):
         return 'motion'
 
     def update(self):
-        _LOGGER.debug('Pulling data from {} for {} binary sensor.'.format(
-            self._camera_name, self._name))
+        _LOGGER.debug('Pulling data from {} binary sensor.'.format(self._name))
 
         if self._sensor_type == 'motion_detected':
             try:
