@@ -1,7 +1,7 @@
 """Suppoort for Amcrest IP camera sensors."""
 from homeassistant.components.amcrest.sensor import *
 from homeassistant.components.amcrest.sensor import AmcrestSensor as BaseAmcrestSensor
-from . import DATA_AMCREST_LOCK
+from . import DATA_AMCREST_LOCK, LOCK_TIMEOUT
 
 
 async def async_setup_platform(
@@ -34,5 +34,8 @@ class AmcrestSensor(BaseAmcrestSensor):
 
     def update(self):
         """Get the latest data and updates the state."""
-        with self._lock:
-            super().update()
+        if self._lock.acquire(timeout=LOCK_TIMEOUT):
+            try:
+                super().update()
+            finally:
+                self._lock.release()
