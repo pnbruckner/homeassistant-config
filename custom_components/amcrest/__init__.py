@@ -32,7 +32,6 @@ TIMEOUT = 10
 LOCK_TIMEOUT = 9
 
 DATA_AMCREST = 'amcrest'
-DATA_AMCREST_LOCK = 'amcrest_lock'
 DOMAIN = 'amcrest'
 
 NOTIFICATION_ID = 'amcrest_notification'
@@ -100,19 +99,30 @@ CONFIG_SCHEMA = vol.Schema({
 
 def setup(hass, config):
     """Set up the Amcrest IP Camera component."""
-    from amcrest import AmcrestCamera
+    from amcrest import Http 
+
+    class AmcrestCamera(Http):
+        def __init__(self, host, port, user, password, verbose=True,
+                     protocol='http', retries_connection=None,
+                     timeout_protocol=None):
+            self._lock = threading.Lock()
+            super().__init__(
+                host, port, user, password, verbose, protocol,
+                retries_connection, timeout_protocol)
+
+        def command(self, cmd, retries=None, timeout_cmd=None):
+            if self._lock.acquire(timeout=LOCK_TIMEOUT):
+                try:
+                    return super().command(cmd, retries, timeout_cmd)
+                finally:
+                    self._lock.release()
 
     hass.data.setdefault(DATA_AMCREST, {})
-    hass.data.setdefault(DATA_AMCREST_LOCK, {})
     amcrest_cams = config[DOMAIN]
 
     for device in amcrest_cams:
         name = device.get(CONF_NAME)
-        # Create lock for this device, while also making sure name hasn't
-        # already been used.
-        lock = threading.Lock()
-        hass.data[DATA_AMCREST_LOCK].setdefault(name, lock)
-        if hass.data[DATA_AMCREST_LOCK][name] != lock:
+        if name in hass.data[DATA_AMCREST]:
             _LOGGER.error('name {} already used: skipping'.format(name))
             continue
 
@@ -122,7 +132,7 @@ def setup(hass, config):
                                    device.get(CONF_USERNAME),
                                    device.get(CONF_PASSWORD),
                                    retries_connection=1,
-                                   timeout_protocol=5).camera
+                                   timeout_protocol=5)
             # pylint: disable=pointless-statement
             camera.current_time
 
@@ -134,7 +144,6 @@ def setup(hass, config):
                 ''.format(ex),
                 title=NOTIFICATION_TITLE,
                 notification_id=NOTIFICATION_ID)
-            hass.data[DATA_AMCREST_LOCK].pop(name)
             continue
 
         ffmpeg_arguments = device.get(CONF_FFMPEG_ARGUMENTS)
