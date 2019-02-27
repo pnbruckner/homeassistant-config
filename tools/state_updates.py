@@ -18,8 +18,8 @@ new_state_format = r'([0-9-]+ [0-9:]+).*new_state=<state {}=([^;]+); (.*) @ ([0-
 states = []
 ts_hdr = 'log time'
 max_ts = len(ts_hdr)
-lu_hdr = 'last_updated'
-max_lu = len(lu_hdr)
+lc_hdr = 'last_changed'
+max_lc = len(lc_hdr)
 state_hdr = 'state'
 max_state = len(state_hdr)
 max_attr = {}
@@ -34,8 +34,8 @@ with open(filename) as f:
         if m:
             ts = m.group(1)
             max_ts = max(max_ts, len(ts))
-            last_updated = m.group(4)
-            max_lu = max(max_lu, len(last_updated))
+            last_changed = m.group(4)
+            max_lc = max(max_lc, len(last_changed))
             state = m.group(2)
             max_state = max(max_state, len(state))
             s = m.group(3)
@@ -48,18 +48,18 @@ with open(filename) as f:
                     _attr = '???'
                 _attrs[attr] = _attr
                 max_attr[attr] = max(max_attr[attr], len(_attr))
-            states.append((ts, last_updated, state, _attrs))
+            states.append((ts, last_changed, state, _attrs))
 
-print('{:{}} | {:{}} | {:{}}'.format(ts_hdr, max_ts, lu_hdr, max_lu, state_hdr, max_state), end='')
+print('{:{}} | {:{}} | {:{}}'.format(ts_hdr, max_ts, lc_hdr, max_lc, state_hdr, max_state), end='')
 for attr in attrs:
     print(' | {:{}}'.format(attr, max_attr[attr]), end='')
 print('')
-print('-'*max_ts, '-'*max_lu, '-'*max_state, sep='-|-', end='')
+print('-'*max_ts, '-'*max_lc, '-'*max_state, sep='-|-', end='')
 for attr in attrs:
     print('', '-'*max_attr[attr], sep='-|-', end='')
 print('')
-for ts, last_updated, state, _attrs in states:
-    print('{:{}} | {:{}} | {:{}}'.format(ts, max_ts, last_updated, max_lu, state, max_state), end='')
+for ts, last_changed, state, _attrs in states:
+    print('{:{}} | {:{}} | {:{}}'.format(ts, max_ts, last_changed, max_lc, state, max_state), end='')
     for k,v in _attrs.items():
         print(' | {:{}}'.format(v, max_attr[k]), end='')
     print('')
