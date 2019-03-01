@@ -3,7 +3,7 @@
     "updated_at": "2019-01-23",
     "version": "1.7.0",
     "local_location": "/custom_components/device_tracker/composite.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/composite/device_tracker.py",
+    "remote_location": "https://github.com/pnbruckner/homeassistant-config/raw/0f0254c1137255662e1fe53e0d08a8bbf4e2f1b2/custom_components/device_tracker/composite.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md#release-notes"
   },
@@ -11,7 +11,7 @@
     "updated_at": "2019-02-22",
     "version": "2.8.0",
     "local_location": "/custom_components/device_tracker/life360.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/life360/device_tracker.py",
+    "remote_location": "https://github.com/pnbruckner/homeassistant-config/raw/8b6f2bdbefc2d54632611e212986eb683cf219bc/custom_components/device_tracker/life360.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md#release-notes"
   },
@@ -19,7 +19,7 @@
     "updated_at": "2019-01-11",
     "version": "2.0.1",
     "local_location": "/custom_components/sensor/illuminance.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/illuminance/sensor.py",
+    "remote_location": "https://github.com/pnbruckner/homeassistant-config/raw/be6879c5ff4c4ae67e9b082229a53fc133642d2f/custom_components/sensor/illuminance.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/illuminance.md#release-notes"
   },
@@ -27,7 +27,7 @@
     "updated_at": "2019-02-19",
     "version": "1.1.0",
     "local_location": "/custom_components/sun.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/sun/__init__.py",
+    "remote_location": "https://github.com/pnbruckner/homeassistant-config/raw/493ebce327f85abf489e97f8d4e4e2da5654847b/custom_components/sun.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/sun.md#release-notes"
   }
