@@ -1,7 +1,7 @@
 # Life360
 This platform allows you to detect presence using [Life360](http://life360.com/). It can also automatically create Home Assistant zones based on Life360 Places.
 ## Installation
-See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"life360.device_tracker"`.
+See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"device_tracker.life360"`.
 
 Alternatively, place a copy of:
 
@@ -24,7 +24,7 @@ device_tracker:
     show_as_state: driving, moving, places
 ```
 ### Home Assistant before 0.86
-If using Custom Updater the name of this `"element"` is `"device_tracker.life360"`. For manual installation, place a copy of:
+For manual installation, place a copy of:
 
 [`life360/device_tracker.py`](../custom_components/life360/device_tracker.py) at `<config>/custom_components/device_tracker/life360.py`
 ### numpy on Raspberry Pi
