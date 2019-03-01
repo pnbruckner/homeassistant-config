@@ -1,7 +1,6 @@
 """Support for Amcrest IP cameras."""
 import logging
 from datetime import timedelta
-import threading
 
 import aiohttp
 import voluptuous as vol
@@ -29,7 +28,6 @@ DEFAULT_PORT = 80
 DEFAULT_RESOLUTION = 'high'
 DEFAULT_STREAM_SOURCE = 'snapshot'
 TIMEOUT = 10
-LOCK_TIMEOUT = 9
 
 DATA_AMCREST = 'amcrest'
 DOMAIN = 'amcrest'
@@ -99,27 +97,7 @@ CONFIG_SCHEMA = vol.Schema({
 
 def setup(hass, config):
     """Set up the Amcrest IP Camera component."""
-    from amcrest import Http
-
-    class AmcrestCamera(Http):
-        """Override of amcrest.http.Http."""
-
-        def __init__(self, host, port, user, password, verbose=True,
-                     protocol='http', retries_connection=None,
-                     timeout_protocol=None):
-            """Initialize the camera."""
-            self._lock = threading.Lock()
-            super().__init__(
-                host, port, user, password, verbose, protocol,
-                retries_connection, timeout_protocol)
-
-        def command(self, cmd, retries=None, timeout_cmd=None):
-            """Send command to camera."""
-            if self._lock.acquire(timeout=LOCK_TIMEOUT):
-                try:
-                    return super().command(cmd, retries, timeout_cmd)
-                finally:
-                    self._lock.release()
+    from amcrest import AmcrestCamera
 
     hass.data.setdefault(DATA_AMCREST, {})
     amcrest_cams = config[DOMAIN]
@@ -136,7 +114,7 @@ def setup(hass, config):
                                    device.get(CONF_USERNAME),
                                    device.get(CONF_PASSWORD),
                                    retries_connection=1,
-                                   timeout_protocol=5)
+                                   timeout_protocol=5).camera
             # pylint: disable=pointless-statement
             camera.current_time
 
