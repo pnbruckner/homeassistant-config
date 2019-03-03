@@ -188,7 +188,7 @@ class AmcrestCam(Camera):
         self._color_bw = None
         self._is_audio_on = None
         self._is_mask_on = None
-        self._lock = threading.Lock()
+        self._snapshot_lock = threading.Lock()
 
     async def async_added_to_hass(self):
         """Add camera to list."""
@@ -196,18 +196,16 @@ class AmcrestCam(Camera):
 
     def camera_image(self):
         """Return a still image response from the camera."""
-        # Send the request to snap a picture and return raw jpg data
         if not self.is_on:
             return None
-        if self._lock.acquire(timeout=9):
+        with self._snapshot_lock:
             try:
+                # Send the request to snap a picture and return raw jpg data
                 return self._camera.snapshot(channel=self._resolution).data
-            except (RequestException, ReadTimeoutError, ValueError) as exc:
-                _LOGGER.error('In camera_image: {}: {}'.format(
-                    exc.__class__.__name__, str(exc)))
+            except (RequestException, ReadTimeoutError, ValueError) as error:
+                _LOGGER.error(
+                    'Could not get camera image due to error %s', error)
                 return None
-            finally:
-                self._lock.release()
 
     async def handle_async_mjpeg_stream(self, request):
         """Return an MJPEG stream."""
