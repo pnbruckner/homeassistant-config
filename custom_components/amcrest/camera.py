@@ -1,10 +1,10 @@
 """Support for Amcrest IP cameras."""
 import asyncio
 import logging
-from requests import RequestException
 import threading
-from urllib3.exceptions import ReadTimeoutError
 
+from requests import RequestException
+from urllib3.exceptions import ReadTimeoutError
 import voluptuous as vol
 
 from homeassistant.components.camera import (
