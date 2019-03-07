@@ -22,8 +22,12 @@ try:
 except ImportError:
     from homeassistant.components.sensor.darksky import (
         CONF_ATTRIBUTION as DSS_ATTRIBUTION)
-from homeassistant.components.sensor.yr import (
-    CONF_ATTRIBUTION as YRS_ATTRIBUTION)
+try:
+    from homeassistant.components.sensor.yr import (
+        ATTRIBUTION as YRS_ATTRIBUTION)
+except ImportError:
+    from homeassistant.components.sensor.yr import (
+        CONF_ATTRIBUTION as YRS_ATTRIBUTION)
 from homeassistant.components.weather.darksky import (
     ATTRIBUTION as DSW_ATTRIBUTION, MAP_CONDITION as DSW_MAP_CONDITION)
 from homeassistant.const import (
@@ -38,7 +42,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.sun import get_astral_event_date
 import homeassistant.util.dt as dt_util
 
-__version__ = '2.0.1'
+__version__ = '2.0.2'
 
 DEFAULT_NAME = 'Illuminance'
 MIN_SCAN_INTERVAL = dt.timedelta(minutes=5)
