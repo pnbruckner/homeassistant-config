@@ -1,7 +1,6 @@
 """Support for Amcrest IP cameras."""
 import asyncio
 import logging
-import threading
 
 from requests import RequestException
 from urllib3.exceptions import ReadTimeoutError
@@ -188,20 +187,22 @@ class AmcrestCam(Camera):
         self._color_bw = None
         self._is_audio_on = None
         self._is_mask_on = None
-        self._snapshot_lock = threading.Lock()
+        self._snapshot_lock = asyncio.Lock()
 
     async def async_added_to_hass(self):
         """Add camera to list."""
         self.hass.data.setdefault(DATA_AMCREST_CAMS, []).append(self)
 
-    def camera_image(self):
+    async def async_camera_image(self):
         """Return a still image response from the camera."""
         if not self.is_on:
             return None
-        with self._snapshot_lock:
+        async with self._snapshot_lock:
             try:
                 # Send the request to snap a picture and return raw jpg data
-                return self._camera.snapshot(channel=self._resolution).data
+                response = await self.hass.async_add_executor_job(
+                    self._camera.snapshot, self._resolution)
+                return response.data
             except (RequestException, ReadTimeoutError, ValueError) as error:
                 _LOGGER.error(
                     'Could not get camera image due to error %s', error)
