@@ -1,12 +1,6 @@
-"""
-This component provides basic support for Amcrest IP cameras.
-
-For more details about this component, please refer to the documentation at
-https://home-assistant.io/components/amcrest/
-"""
+"""Support for Amcrest IP cameras."""
 import logging
 from datetime import timedelta
-import threading
 
 import aiohttp
 import voluptuous as vol
@@ -19,7 +13,7 @@ from homeassistant.const import (
 from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['amcrest==1.2.3']
+REQUIREMENTS = ['amcrest==1.2.5']
 DEPENDENCIES = ['ffmpeg']
 
 _LOGGER = logging.getLogger(__name__)
@@ -36,7 +30,6 @@ DEFAULT_STREAM_SOURCE = 'snapshot'
 TIMEOUT = 10
 
 DATA_AMCREST = 'amcrest'
-DATA_AMCREST_LOCK = 'amcrest_lock'
 DOMAIN = 'amcrest'
 
 NOTIFICATION_ID = 'amcrest_notification'
@@ -106,13 +99,15 @@ def setup(hass, config):
     """Set up the Amcrest IP Camera component."""
     from amcrest import AmcrestCamera
 
-    if DATA_AMCREST not in hass.data:
-        hass.data[DATA_AMCREST] = {}
-    if DATA_AMCREST_LOCK not in hass.data:
-        hass.data[DATA_AMCREST_LOCK] = {}
+    hass.data.setdefault(DATA_AMCREST, {})
     amcrest_cams = config[DOMAIN]
 
     for device in amcrest_cams:
+        name = device.get(CONF_NAME)
+        if name in hass.data[DATA_AMCREST]:
+            _LOGGER.error('name {} already used: skipping'.format(name))
+            continue
+
         try:
             camera = AmcrestCamera(device.get(CONF_HOST),
                                    device.get(CONF_PORT),
@@ -134,7 +129,6 @@ def setup(hass, config):
             continue
 
         ffmpeg_arguments = device.get(CONF_FFMPEG_ARGUMENTS)
-        name = device.get(CONF_NAME)
         resolution = RESOLUTION_LIST[device.get(CONF_RESOLUTION)]
         binary_sensors = device.get(CONF_BINARY_SENSORS)
         sensors = device.get(CONF_SENSORS)
@@ -155,7 +149,6 @@ def setup(hass, config):
         hass.data[DATA_AMCREST][name] = AmcrestDevice(
             camera, name, authentication, ffmpeg_arguments, stream_source,
             resolution)
-        hass.data[DATA_AMCREST_LOCK][name] = threading.Lock()
 
         discovery.load_platform(
             hass, 'camera', DOMAIN, {
