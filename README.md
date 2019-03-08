@@ -2,7 +2,7 @@
 ### [Installing & Updating Custom Components & Python Scripts](docs/custom_updater.md)
 ## Custom Components
 ### [Amcrest Camera](docs/amcrest.md)
-> __NOTE__: The Amcrest Camera components are not supported via Custom Updater.
+> __NOTE__: The Amcrest Camera components are only supported via Custom Updater with HA versions 0.86 or later.
 ### [Composite Device Tracker platform](docs/composite.md)
 ### [Life360 Device Tracker platform](docs/life360.md)
 ### [Illuminance Sensor](docs/illuminance.md)
