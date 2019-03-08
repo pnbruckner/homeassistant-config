@@ -16,8 +16,11 @@ from homeassistant.helpers.aiohttp_client import (
     async_get_clientsession, async_aiohttp_proxy_web,
     async_aiohttp_proxy_stream)
 from homeassistant.helpers.service import extract_entity_ids
-from . import (
-    DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT)
+try:
+    from . import (DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT)
+except ImportError:
+    from custom_components.amcrest import (
+        DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT)
 
 
 DEPENDENCIES = ['amcrest', 'ffmpeg']

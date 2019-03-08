@@ -2,11 +2,16 @@
 import asyncio
 from datetime import timedelta
 import logging
+
 from requests.exceptions import RequestException
 
 from homeassistant.components.binary_sensor import BinarySensorDevice
 from homeassistant.const import CONF_NAME, CONF_BINARY_SENSORS
-from . import DATA_AMCREST, BINARY_SENSORS
+try:
+    from . import DATA_AMCREST, BINARY_SENSORS
+except ImportError:
+    from custom_components.amcrest import DATA_AMCREST, BINARY_SENSORS
+
 
 DEPENDENCIES = ['amcrest']
 
