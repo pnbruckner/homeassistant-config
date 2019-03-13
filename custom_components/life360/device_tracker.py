@@ -32,10 +32,15 @@ try:
 except ImportError:
     from homeassistant.components.zone import active_zone
 from homeassistant.const import (
-    ATTR_BATTERY_CHARGING, ATTR_FRIENDLY_NAME, ATTR_LATITUDE, ATTR_LONGITUDE,
+    ATTR_FRIENDLY_NAME, ATTR_LATITUDE, ATTR_LONGITUDE,
     ATTR_NAME, CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX, CONF_USERNAME,
     LENGTH_FEET, LENGTH_KILOMETERS, LENGTH_METERS, LENGTH_MILES, STATE_HOME,
     STATE_UNKNOWN)
+try:
+    from homeassistant.const import ATTR_BATTERY_CHARGING
+except ImportError:
+    # Not defined before HA version 0.73
+    ATTR_BATTERY_CHARGING = 'battery_charging'
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import generate_entity_id
 from homeassistant.helpers.event import track_time_interval
