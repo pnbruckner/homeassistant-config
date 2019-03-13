@@ -27,9 +27,9 @@ from homeassistant.components.zone import (
     DEFAULT_PASSIVE, ENTITY_ID_FORMAT as ZN_ENTITY_ID_FORMAT, ENTITY_ID_HOME,
     Zone)
 try:
-    # For HA versions prior to 0.69
     from homeassistant.components.zone.zone import active_zone
 except ImportError:
+    # For HA versions prior to 0.69
     from homeassistant.components.zone import active_zone
 from homeassistant.const import (
     ATTR_FRIENDLY_NAME, ATTR_LATITUDE, ATTR_LONGITUDE,
@@ -39,7 +39,7 @@ from homeassistant.const import (
 try:
     from homeassistant.const import ATTR_BATTERY_CHARGING
 except ImportError:
-    # Not defined before HA version 0.73
+    # For HA versions prior to 0.37
     ATTR_BATTERY_CHARGING = 'battery_charging'
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import generate_entity_id
@@ -50,7 +50,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.9.0b1'
+__version__ = '2.9.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
