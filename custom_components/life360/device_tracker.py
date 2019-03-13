@@ -50,12 +50,16 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import generate_entity_id
 from homeassistant.helpers.event import track_time_interval
 from homeassistant.util import slugify
-from homeassistant.util.async_ import run_coroutine_threadsafe
+try:
+    from homeassistant.util.async_ import run_coroutine_threadsafe
+except ImportError:
+    # For HA versions prior to 0.66
+    from homeassistant.util.async import run_coroutine_threadsafe
 from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.9.0b3'
+__version__ = '2.9.0b4'
 
 _LOGGER = logging.getLogger(__name__)
 
