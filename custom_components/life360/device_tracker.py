@@ -33,9 +33,14 @@ except ImportError:
     from homeassistant.components.zone import active_zone
 from homeassistant.const import (
     ATTR_FRIENDLY_NAME, ATTR_LATITUDE, ATTR_LONGITUDE,
-    ATTR_NAME, CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX, CONF_USERNAME,
+    CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX, CONF_USERNAME,
     LENGTH_FEET, LENGTH_KILOMETERS, LENGTH_METERS, LENGTH_MILES, STATE_HOME,
     STATE_UNKNOWN)
+try:
+    from homeassistant.const import ATTR_NAME
+except ImportError:
+    # For HA versions prior to 0.70
+    ATTR_NAME = 'name'
 try:
     from homeassistant.const import ATTR_BATTERY_CHARGING
 except ImportError:
@@ -50,7 +55,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.9.0b2'
+__version__ = '2.9.0b3'
 
 _LOGGER = logging.getLogger(__name__)
 
