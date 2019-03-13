@@ -39,7 +39,7 @@ from homeassistant.const import (
 try:
     from homeassistant.const import ATTR_BATTERY_CHARGING
 except ImportError:
-    # For HA versions prior to 0.37
+    # For HA versions prior to 0.73
     ATTR_BATTERY_CHARGING = 'battery_charging'
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import generate_entity_id
