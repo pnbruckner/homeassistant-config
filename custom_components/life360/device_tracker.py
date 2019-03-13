@@ -10,7 +10,13 @@ from datetime import timedelta
 import logging
 import sys
 
-from json.decoder import JSONDecodeError
+try:
+    # Starting with Python 3.5 json.JSONDecoder raises a JSONDecodeError
+    from json.decoder import JSONDecodeError
+    _JSON_ERROR = JSONDecodeError
+except ImportError:
+    # Prior to Python 3.5 json.JSONDecoder raised a ValueError
+    _JSON_ERROR = ValueError
 from requests import HTTPError, ConnectionError, Timeout
 import voluptuous as vol
 
@@ -20,7 +26,11 @@ from homeassistant.components.device_tracker import (
 from homeassistant.components.zone import (
     DEFAULT_PASSIVE, ENTITY_ID_FORMAT as ZN_ENTITY_ID_FORMAT, ENTITY_ID_HOME,
     Zone)
-from homeassistant.components.zone.zone import active_zone
+try:
+    # For HA versions prior to 0.69
+    from homeassistant.components.zone.zone import active_zone
+except ImportError:
+    from homeassistant.components.zone import active_zone
 from homeassistant.const import (
     ATTR_BATTERY_CHARGING, ATTR_FRIENDLY_NAME, ATTR_LATITUDE, ATTR_LONGITUDE,
     ATTR_NAME, CONF_FILENAME, CONF_PASSWORD, CONF_PREFIX, CONF_USERNAME,
@@ -117,7 +127,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_ERROR_THRESHOLD, default = 0): cv.positive_int,
 })
 
-_API_EXCS = (HTTPError, ConnectionError, Timeout, JSONDecodeError)
+_API_EXCS = (HTTPError, ConnectionError, Timeout, _JSON_ERROR)
 
 
 def exc_msg(exc):
@@ -221,7 +231,10 @@ def setup_scanner(hass, config, see, discovery_info=None):
                 return places
 
     def zone_from_place(place, entity_id=None):
-        zone = Zone(hass, *place, None, DEFAULT_PASSIVE)
+        # NOTE: Prior to Python 3.5 *expression could not be used here,
+        #       so explicitly use each place attribute in call.
+        zone = Zone(hass, place.name, place.latitude, place.longitude,
+                    place.raidius, None, DEFAULT_PASSIVE)
         zone.entity_id = (
             entity_id or
             generate_entity_id(ZN_ENTITY_ID_FORMAT, place.name, None, hass))
