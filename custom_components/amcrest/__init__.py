@@ -13,7 +13,7 @@ from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
 
 REQUIREMENTS = ['amcrest==1.2.6']
 DEPENDENCIES = ['ffmpeg']
