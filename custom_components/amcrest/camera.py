@@ -322,6 +322,11 @@ class AmcrestCam(Camera):
         return 0
 
     @property
+    def stream_source(self):
+        """Return the source of the stream."""
+        return self._camera.rtsp_url(typeno=self._resolution)
+
+    @property
     def is_on(self):
         """Return true if on."""
         return bool(self.is_streaming_on)
