@@ -4,7 +4,6 @@ from datetime import timedelta
 
 import aiohttp
 import voluptuous as vol
-from requests.exceptions import RequestException
 
 from homeassistant.const import (
     CONF_NAME, CONF_HOST, CONF_PORT, CONF_USERNAME, CONF_PASSWORD,
@@ -16,7 +15,7 @@ import homeassistant.helpers.config_validation as cv
 
 __version__ = '1.0.0'
 
-REQUIREMENTS = ['amcrest==1.2.5']
+REQUIREMENTS = ['amcrest==1.2.6']
 DEPENDENCIES = ['ffmpeg']
 
 _LOGGER = logging.getLogger(__name__)
@@ -100,7 +99,7 @@ CONFIG_SCHEMA = vol.Schema({
 
 def setup(hass, config):
     """Set up the Amcrest IP Camera component."""
-    from amcrest import AmcrestCamera
+    from amcrest import AmcrestCamera, CommError, LoginError
 
     hass.data.setdefault(DATA_AMCREST, {})
     amcrest_cams = config[DOMAIN]
@@ -121,7 +120,7 @@ def setup(hass, config):
             # pylint: disable=pointless-statement
             camera.current_time
 
-        except RequestException as ex:
+        except (CommError, LoginError) as ex:
             _LOGGER.error("Unable to connect to Amcrest camera: %s", str(ex))
             hass.components.persistent_notification.create(
                 'Error: {}<br />'
