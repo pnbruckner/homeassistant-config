@@ -2,8 +2,6 @@
 import asyncio
 import logging
 
-from requests import RequestException
-from urllib3.exceptions import ReadTimeoutError
 import voluptuous as vol
 
 from homeassistant.components.camera import (
@@ -198,6 +196,8 @@ class AmcrestCam(Camera):
 
     async def async_camera_image(self):
         """Return a still image response from the camera."""
+        from amcrest import CommError
+
         if not self.is_on:
             return None
         async with self._snapshot_lock:
@@ -206,7 +206,7 @@ class AmcrestCam(Camera):
                 response = await self.hass.async_add_executor_job(
                     self._camera.snapshot, self._resolution)
                 return response.data
-            except (RequestException, ReadTimeoutError, ValueError) as error:
+            except CommError as error:
                 _LOGGER.error(
                     'Could not get camera image due to error %s', error)
                 return None
