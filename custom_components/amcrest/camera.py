@@ -2,8 +2,6 @@
 import asyncio
 import logging
 
-from requests import RequestException
-from urllib3.exceptions import ReadTimeoutError
 import voluptuous as vol
 
 from homeassistant.components.camera import (
@@ -198,6 +196,8 @@ class AmcrestCam(Camera):
 
     async def async_camera_image(self):
         """Return a still image response from the camera."""
+        from amcrest import AmcrestError
+
         if not self.is_on:
             return None
         async with self._snapshot_lock:
@@ -206,7 +206,7 @@ class AmcrestCam(Camera):
                 response = await self.hass.async_add_executor_job(
                     self._camera.snapshot, self._resolution)
                 return response.data
-            except (RequestException, ReadTimeoutError, ValueError) as error:
+            except AmcrestError as error:
                 _LOGGER.error(
                     'Could not get camera image due to error %s', error)
                 return None
@@ -320,6 +320,11 @@ class AmcrestCam(Camera):
     def frame_interval(self):
         """Return the interval between frames of the mjpeg stream."""
         return 0
+
+    @property
+    def stream_source(self):
+        """Return the source of the stream."""
+        return self._camera.rtsp_url(typeno=self._resolution)
 
     @property
     def is_on(self):
