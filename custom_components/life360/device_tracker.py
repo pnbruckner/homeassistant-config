@@ -35,7 +35,7 @@ from homeassistant.util.distance import convert
 import homeassistant.util.dt as dt_util
 
 
-__version__ = '2.9.0b1'
+__version__ = '2.9.0b2'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -225,7 +225,7 @@ def setup_scanner(hass, config, see, discovery_info=None):
 
     def log_places(msg, places):
         s = 's' if len(places) > 1 else ''
-        _LOGGER.debug('{} zone{} for Place{}: {}'.format(
+        _LOGGER.debug('{} zone{} from Place{}: {}'.format(
             msg, s, s,
             '; '.join(['{}: {}, {}, {}'.format(*place) for place
                        in sorted(places, key=lambda x: x.name.lower())])))
