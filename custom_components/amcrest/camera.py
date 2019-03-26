@@ -11,15 +11,14 @@ from homeassistant.core import callback
 from homeassistant.const import (
     ATTR_ENTITY_ID, CONF_NAME, STATE_ON, STATE_OFF)
 from homeassistant.helpers.aiohttp_client import (
-    async_get_clientsession, async_aiohttp_proxy_web,
-    async_aiohttp_proxy_stream)
+    async_aiohttp_proxy_stream, async_aiohttp_proxy_web,
+    async_get_clientsession)
 from homeassistant.helpers.service import extract_entity_ids
 try:
-    from . import (DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT)
+    from . import DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT
 except ImportError:
     from custom_components.amcrest import (
         DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT)
-
 
 DEPENDENCIES = ['amcrest', 'ffmpeg']
 
@@ -37,8 +36,6 @@ SERVICE_GOTO_PRESET = 'amcrest_goto_preset'
 SERVICE_SET_COLOR_BW = 'amcrest_set_color_bw'
 SERVICE_AUDIO_ON = 'amcrest_audio_on'
 SERVICE_AUDIO_OFF = 'amcrest_audio_off'
-SERVICE_MASK_ON = 'amcrest_mask_on'
-SERVICE_MASK_OFF = 'amcrest_mask_off'
 SERVICE_TOUR_ON = 'amcrest_tour_on'
 SERVICE_TOUR_OFF = 'amcrest_tour_off'
 
@@ -57,10 +54,12 @@ SERVICE_SET_COLOR_BW_SCHEMA = CAMERA_SERVICE_SCHEMA.extend({
     vol.Required(ATTR_COLOR_BW): vol.In(CBW),
 })
 
-_MOT_DET_WINDOW = {False: [{'window': 1, 'sensitive': 75, 'threshold': 12},
-                           {'window': 2, 'sensitive': 50, 'threshold': 16}],
-                   True:  [{'window': 1, 'sensitive': 75, 'threshold':  6},
-                           {'window': 2, 'sensitive': 75, 'threshold':  6}]}
+
+def _extract_attr(resp, sep='='):
+    try:
+        return resp.split(sep)[-1].strip()
+    except AttributeError:
+        return None
 
 
 async def async_setup_platform(hass, config, async_add_entities,
@@ -94,13 +93,9 @@ async def async_setup_platform(hass, config, async_add_entities,
             elif service.service == SERVICE_DISABLE_RECORDING:
                 await camera.async_disable_recording()
             elif service.service == SERVICE_AUDIO_ON:
-                await camera.async_audio_on()
+                await camera.async_enable_audio()
             elif service.service == SERVICE_AUDIO_OFF:
-                await camera.async_audio_off()
-            elif service.service == SERVICE_MASK_ON:
-                await camera.async_mask_on()
-            elif service.service == SERVICE_MASK_OFF:
-                await camera.async_mask_off()
+                await camera.async_disable_audio()
             elif service.service == SERVICE_TOUR_ON:
                 await camera.async_tour_on()
             elif service.service == SERVICE_TOUR_OFF:
@@ -145,8 +140,6 @@ async def async_setup_platform(hass, config, async_add_entities,
          SERVICE_SET_COLOR_BW_SCHEMA),
         (SERVICE_AUDIO_OFF, async_service_handler, CAMERA_SERVICE_SCHEMA),
         (SERVICE_AUDIO_ON, async_service_handler, CAMERA_SERVICE_SCHEMA),
-        (SERVICE_MASK_OFF, async_service_handler, CAMERA_SERVICE_SCHEMA),
-        (SERVICE_MASK_ON, async_service_handler, CAMERA_SERVICE_SCHEMA),
         (SERVICE_TOUR_OFF, async_service_handler, CAMERA_SERVICE_SCHEMA),
         (SERVICE_TOUR_ON, async_service_handler, CAMERA_SERVICE_SCHEMA))
     if not hass.services.has_service(DOMAIN, services[0][0]):
@@ -154,14 +147,6 @@ async def async_setup_platform(hass, config, async_add_entities,
             hass.services.async_register(DOMAIN, *service)
 
     return True
-
-
-def _check_result(result, data=None):
-    if not result.upper().startswith('OK'):
-        msg = 'Camera operation failed'
-        if data:
-            msg += ': ' + data
-        raise ValueError(msg)
 
 
 class AmcrestCam(Camera):
@@ -180,14 +165,12 @@ class AmcrestCam(Camera):
         self._stream_source = amcrest.stream_source
         self._resolution = amcrest.resolution
         self._token = self._auth = amcrest.authentication
-        self.is_streaming = None
-        self._is_recording = None
-        self._is_motion_detection_on = None
+        self._is_recording = False
+        self._motion_detection_enabled = None
         self._model = None
-        # Amcrest Camera unique state attributes
+        self._static_attrs = {}
+        self._audio_enabled = None
         self._color_bw = None
-        self._is_audio_on = None
-        self._is_mask_on = None
         self._snapshot_lock = asyncio.Lock()
 
     async def async_added_to_hass(self):
@@ -199,6 +182,8 @@ class AmcrestCam(Camera):
         from amcrest import AmcrestError
 
         if not self.is_on:
+            _LOGGER.error(
+                'Attempt to take snaphot when %s camera is off', self.name)
             return None
         async with self._snapshot_lock:
             try:
@@ -208,7 +193,8 @@ class AmcrestCam(Camera):
                 return response.data
             except AmcrestError as error:
                 _LOGGER.error(
-                    'Could not get camera image due to error %s', error)
+                    'Could not get image from %s camera due to error: %s',
+                    self.name, error)
                 return None
 
     async def handle_async_mjpeg_stream(self, request):
@@ -257,16 +243,14 @@ class AmcrestCam(Camera):
     @property
     def device_state_attributes(self):
         """Return the Amcrest-spectific camera state attributes."""
-        attr = {}
-        if self.is_motion_detection_on is not None:
+        attr = self._static_attrs.copy()
+        if self.motion_detection_enabled is not None:
             attr['motion_detection'] = _BOOL_TO_STATE.get(
-                self.is_motion_detection_on)
+                self.motion_detection_enabled)
+        if self.audio_enabled is not None:
+            attr['audio'] = _BOOL_TO_STATE.get(self.audio_enabled)
         if self.color_bw is not None:
             attr[ATTR_COLOR_BW] = self.color_bw
-        if self.is_audio_on is not None:
-            attr['audio'] = _BOOL_TO_STATE.get(self.is_audio_on)
-        if self.is_mask_on is not None:
-            attr['mask'] = _BOOL_TO_STATE.get(self.is_mask_on)
         return attr
 
     @property
@@ -289,13 +273,16 @@ class AmcrestCam(Camera):
     @is_recording.setter
     def is_recording(self, enable):
         """Turn recording on or off."""
+        from amcrest import AmcrestError
+
         rec_mode = {'Automatic': 0, 'Manual': 1}
         try:
             self._camera.record_mode = rec_mode[
                 'Manual' if enable else 'Automatic']
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In is_recording setter: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not %s %s camera recording due to error: %s',
+                'enable' if enable else 'disable', self.name, error)
         else:
             if OPTIMISTIC:
                 self._is_recording = enable
@@ -306,10 +293,26 @@ class AmcrestCam(Camera):
         """Return the camera brand."""
         return 'Amcrest'
 
-    # Don't use Camera's motion_detection_enabled method/property because
-    # Camera.state_attributes doesn't properly report the 'motion_detection'
-    # attribute.
-    # See is_motion_detection_on property/setter below.
+    @property
+    def motion_detection_enabled(self):
+        """Return the camera motion detection status."""
+        return self._motion_detection_enabled
+
+    @motion_detection_enabled.setter
+    def motion_detection_enabled(self, enable):
+        """Enable or disable motion detection."""
+        from amcrest import AmcrestError
+
+        try:
+            self._camera.motion_detection = str(enable).lower()
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not %s %s camera motion detection due to error: %s',
+                'enable' if enable else 'disable', self.name, error)
+        else:
+            if OPTIMISTIC:
+                self._motion_detection_enabled = enable
+                self.schedule_update_ha_state()
 
     @property
     def model(self):
@@ -329,44 +332,29 @@ class AmcrestCam(Camera):
     @property
     def is_on(self):
         """Return true if on."""
-        return bool(self.is_streaming_on)
+        return self.video_enabled
 
     # Additional Amcrest Camera properties
 
     @property
-    def is_streaming_on(self):
-        """Return the camera streaming status."""
+    def video_enabled(self):
+        """Return the camera video streaming status."""
         return self.is_streaming
 
-    @is_streaming_on.setter
-    def is_streaming_on(self, enable):
+    @video_enabled.setter
+    def video_enabled(self, enable):
         """Enable or disable camera video stream."""
+        from amcrest import AmcrestError
+
         try:
-            self._set_video(enable)
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In is_streaming_on setter: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
+            self._camera.video_enabled = enable
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not %s %s camera video stream due to error: %s',
+                'enable' if enable else 'disable', self.name, error)
         else:
             if OPTIMISTIC:
                 self.is_streaming = enable
-                self.schedule_update_ha_state()
-
-    @property
-    def is_motion_detection_on(self):
-        """Return the camera motion detection status."""
-        return self._is_motion_detection_on
-
-    @is_motion_detection_on.setter
-    def is_motion_detection_on(self, enable):
-        """Enable or disable motion detection."""
-        try:
-            self._camera.motion_detection = str(enable).lower()
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In is_motion_detection_on setter: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
-        else:
-            if OPTIMISTIC:
-                self._is_motion_detection_on = enable
                 self.schedule_update_ha_state()
 
     @property
@@ -377,103 +365,80 @@ class AmcrestCam(Camera):
     @color_bw.setter
     def color_bw(self, cbw):
         """Set camera color mode."""
+        from amcrest import AmcrestError
+
         try:
-            self._set_color_bw(cbw)
-        except (RequestException, ValueError, IndexError) as exc:
-            _LOGGER.error('In color_bw setter, cbw={}: {}: {}'.format(
-                cbw, exc.__class__.__name__, str(exc)))
+            self._camera.day_night_color = CBW.index(cbw)
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not set %s camera color mode to %s due to error: %s',
+                self.name, cbw, error)
         else:
             if OPTIMISTIC:
                 self._color_bw = cbw
                 self.schedule_update_ha_state()
 
     @property
-    def is_audio_on(self):
+    def audio_enabled(self):
         """Return if audio stream is enabled."""
-        return self._is_audio_on
+        return self._audio_enabled
 
-    @is_audio_on.setter
-    def is_audio_on(self, enable):
+    @audio_enabled.setter
+    def audio_enabled(self, enable):
         """Enable or disable audio stream."""
+        from amcrest import AmcrestError
+
         try:
-            self._set_audio(enable)
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In is_audio_on setter: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
+            self._camera.audio_enabled = enable
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not %s %s camera audio stream due to error: %s',
+                'enable' if enable else 'disable', self.name, error)
         else:
             if OPTIMISTIC:
-                self._is_audio_on = enable
-                self.schedule_update_ha_state()
-
-    @property
-    def is_mask_on(self):
-        """Return if mask is on."""
-        return self._is_mask_on
-
-    @is_mask_on.setter
-    def is_mask_on(self, enable):
-        """Enable or disable camera mask."""
-        try:
-            self._set_mask(enable)
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In is_mask_on setter: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
-        else:
-            if OPTIMISTIC:
-                self._is_mask_on = enable
+                self._audio_enabled = enable
                 self.schedule_update_ha_state()
 
     # Other Entity method overrides
 
     def update(self):
         """Update entity status."""
-        _LOGGER.debug('Pulling data from {} camera.'.format(self._name))
+        from amcrest import AmcrestError
+
+        _LOGGER.debug('Pulling data from %s camera', self.name)
         try:
-            encode_media = self._camera.encode_media.split()
-            self._is_recording = self._camera.record_mode == 'Manual'
-            self._is_motion_detection_on = self._camera.is_motion_detector_on()
-            # Model should not be changing dynamically so only need to grab
-            # once.
             if self._model is None:
-                self._model = self._camera.device_type.split('=')[1].strip()
-            video_in_options = self._camera.video_in_options.split()
-            video_widget_config = self._camera.video_widget_config.split()
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In update: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
-        else:
-            self.is_streaming = 'true' in [
-                s.split('=')[-1] for s in encode_media
-                if '.VideoEnable=' in s]
-            cbw = [
-                s.split('=')[-1] for s in video_in_options
-                if '].DayNightColor=' in s][0]
-            self._color_bw = CBW[int(cbw)]
-            self._is_audio_on = 'true' in [
-                s.split('=')[-1] for s in encode_media
-                if '.AudioEnable=' in s]
-            self._is_mask_on = 'true' in [
-                s.split('=')[-1] for s in video_widget_config
-                if '.Covers' in s and '.EncodeBlend=' in s]
+                self._model = _extract_attr(self._get_cam_attr('device_type'))
+            if not self._static_attrs:
+                self._update_static_attrs()
+            self.is_streaming = self._camera.video_enabled
+            self._is_recording = self._camera.record_mode == 'Manual'
+            self._motion_detection_enabled = self._camera.is_motion_detector_on()
+            self._audio_enabled = self._camera.audio_enabled
+            self._color_bw = CBW[self._camera.day_night_color]
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not get %s camera attributes due to error: %s',
+                self.name, error)
 
     # Other Camera method overrides
 
     def turn_off(self):
         """Turn off camera."""
         self.is_recording = False
-        self.is_streaming_on = False
+        self.video_enabled = False
 
     def turn_on(self):
         """Turn on camera."""
-        self.is_streaming_on = True
+        self.video_enabled = True
 
     def enable_motion_detection(self):
         """Enable motion detection in the camera."""
-        self.is_motion_detection_on = True
+        self.motion_detection_enabled = True
 
     def disable_motion_detection(self):
         """Disable motion detection in camera."""
-        self.is_motion_detection_on = False
+        self.motion_detection_enabled = False
 
     # Additional Amcrest Camera service methods
 
@@ -497,14 +462,15 @@ class AmcrestCam(Camera):
 
     def goto_preset(self, preset):
         """Move camera position and zoom to preset."""
+        from amcrest import AmcrestError
+
         try:
-            _check_result(
-                self._camera.go_to_preset(
-                    action='start', preset_point_number=preset),
-                'preset={}'.format(preset))
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In goto_preset: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
+            self._camera.go_to_preset(
+                    action='start', preset_point_number=preset)
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not move %s camera to preset %i due to error: %s',
+                self.name, preset, error)
 
     @callback
     def async_goto_preset(self, preset):
@@ -520,49 +486,34 @@ class AmcrestCam(Camera):
         """Set camera color mode."""
         return self.hass.async_add_job(self.set_color_bw, cbw)
 
-    def audio_on(self):
-        """Turn audio on."""
-        self.is_audio_on = True
+    def enable_audio(self):
+        """Enable audio."""
+        self.audio_enabled = True
 
     @callback
-    def async_audio_on(self):
-        """Turn audio on."""
-        return self.hass.async_add_job(self.audio_on)
+    def async_enable_audio(self):
+        """Enable audio."""
+        return self.hass.async_add_job(self.enable_audio)
 
-    def audio_off(self):
-        """Turn audio off."""
-        self.is_audio_on = False
-
-    @callback
-    def async_audio_off(self):
-        """Turn audio off."""
-        return self.hass.async_add_job(self.audio_off)
-
-    def mask_on(self):
-        """Turn mask on."""
-        self.is_mask_on = True
+    def disable_audio(self):
+        """Disable audio."""
+        self.audio_enabled = False
 
     @callback
-    def async_mask_on(self):
-        """Turn mask on."""
-        return self.hass.async_add_job(self.mask_on)
-
-    def mask_off(self):
-        """Turn mask off."""
-        self.is_mask_on = False
-
-    @callback
-    def async_mask_off(self):
-        """Turn mask off."""
-        return self.hass.async_add_job(self.mask_off)
+    def async_disable_audio(self):
+        """Disable audio."""
+        return self.hass.async_add_job(self.disable_audio)
 
     def tour_on(self):
         """Start camera tour."""
+        from amcrest import AmcrestError
+
         try:
-            self._tour(True)
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In tour_on: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
+            self._camera.tour(start=True)
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not start %s camera tour due to error: %s',
+                self.name, error)
 
     @callback
     def async_tour_on(self):
@@ -571,64 +522,48 @@ class AmcrestCam(Camera):
 
     def tour_off(self):
         """Stop camera tour."""
+        from amcrest import AmcrestError
+
         try:
-            self._tour(False)
-        except (RequestException, ValueError) as exc:
-            _LOGGER.error('In tour_off: {}: {}'.format(
-                exc.__class__.__name__, str(exc)))
+            self._camera.tour(start=False)
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not stop %s camera tour due to error: %s',
+                self.name, error)
 
     @callback
     def async_tour_off(self):
         """Stop camera tour."""
         return self.hass.async_add_job(self.tour_off)
 
-    # Methods missing from self._camera.
+    # Utility methods
 
-    def _set_color_bw(self, cbw):
-        cmd = '='.join([
-            'configManager.cgi?action',
-            'setConfig&VideoInOptions[0].DayNightColor',
-            str(CBW.index(cbw))])
-        _check_result(
-            self._camera.command(cmd).content.decode(),
-            'cbw = {}'.format(cbw))
+    def _get_cam_attr(self, attr):
+        from amcrest import AmcrestError
 
-    def _set_audio(self, enable):
-        self._set_audio_video('Audio', enable)
+        try:
+            return getattr(self._camera, attr)
+        except AmcrestError as error:
+            _LOGGER.error(
+                'Could not get %s camera %s due to error: %s',
+                self.name, attr, error)
+            return None
 
-    def _set_video(self, enable):
-        self._set_audio_video('Video', enable)
-        self._camera.command(
-            'configManager.cgi?action=setConfig'
-            '&VideoInOptions[0].InfraRed={}'.format(str(not enable).lower()))
+    def _update_cam_attr(self, attr):
+        value = self._get_cam_attr(attr)
+        if value is not None:
+            self._static_attrs[attr] = _extract_attr(value)
 
-    def _set_audio_video(self, param, enable):
-        cmd = 'configManager.cgi?action=setConfig'
-        formats = [('Extra', 3), ('Main', 4)]
-        if param == 'Video':
-            formats.append(('Snap', 3))
-        for fmt, num in formats:
-            for i in range(num):
-                cmd += '&Encode[0].{}Format[{}].{}Enable={}'.format(
-                    fmt, i, param, str(enable).lower())
-        self._camera.command(cmd)
-
-    def _set_mask(self, enable):
-        cmd = 'configManager.cgi?action=setConfig'
-        for i in range(4):
-            cmd += '&VideoWidget[0].Covers[{}].EncodeBlend={}'.format(
-                i, str(enable).lower())
-        self._camera.command(cmd)
-        cmd = 'configManager.cgi?action=setConfig'
-        for params in _MOT_DET_WINDOW[enable]:
-            cmd += '&MotionDetect[0].MotionDetectWindow[{window}]' \
-                   '.Sensitive={sensitive}'.format(**params)
-            cmd += '&MotionDetect[0].MotionDetectWindow[{window}]' \
-                   '.Threshold={threshold}'.format(**params)
-        self._camera.command(cmd)
-
-    def _tour(self, start):
-        self._camera.command(
-            'ptz.cgi?action=start&channel=0&code={}Tour'
-            '&arg1=1&arg2=0&arg3=0&arg4=0'.format(
-                'Start' if start else 'Stop'))
+    def _update_static_attrs(self):
+        for attr in ('hardware_version', 'machine_name', 'serial_number'):
+            self._update_cam_attr(attr)
+        try:
+            sw_ver, sw_date = self._get_cam_attr('software_information')
+        except TypeError:
+            pass
+        except ValueError:
+            _LOGGER.error(
+                'Unexpected %s camera software_information', self.name)
+        else:
+            self._static_attrs['software_version'] = _extract_attr(sw_ver)
+            self._static_attrs['software_build'] = _extract_attr(sw_date, ':')

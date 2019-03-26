@@ -13,9 +13,9 @@ from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 
 
-__version__ = '1.1.0'
+__version__ = '1.2.0'
 
-REQUIREMENTS = ['amcrest==1.2.6']
+REQUIREMENTS = ['amcrest==1.3.0']
 DEPENDENCIES = ['ffmpeg']
 
 _LOGGER = logging.getLogger(__name__)
