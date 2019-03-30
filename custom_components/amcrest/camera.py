@@ -13,7 +13,10 @@ from homeassistant.const import (
 from homeassistant.helpers.aiohttp_client import (
     async_aiohttp_proxy_stream, async_aiohttp_proxy_web,
     async_get_clientsession)
-from homeassistant.helpers.service import extract_entity_ids
+try:
+    from homeassistant.helpers.service import async_extract_entity_ids
+except ImportError:
+    from homeassistant.helpers.service import extract_entity_ids
 try:
     from . import DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT
 except ImportError:
@@ -75,19 +78,25 @@ async def async_setup_platform(hass, config, async_add_entities,
 
     async_add_entities([AmcrestCam(hass, amcrest)], True)
 
-    def target_cameras(service):
+    async def target_cameras(service):
+        cameras = []
         if DATA_AMCREST_CAMS in hass.data:
             if ATTR_ENTITY_ID in service.data:
-                entity_ids = extract_entity_ids(hass, service)
+                try:
+                    entity_ids = await async_extract_entity_ids(hass, service)
+                except NameError:
+                    entity_ids = await hass.async_add_executor_job(
+                        extract_entity_ids, hass, service)
             else:
                 entity_ids = None
             for camera in hass.data[DATA_AMCREST_CAMS]:
                 if entity_ids is None or camera.entity_id in entity_ids:
-                    yield camera
+                    cameras.append(camera)
+        return cameras
 
     async def async_service_handler(service):
         update_tasks = []
-        for camera in target_cameras(service):
+        for camera in await target_cameras(service):
             if service.service == SERVICE_ENABLE_RECORDING:
                 await camera.async_enable_recording()
             elif service.service == SERVICE_DISABLE_RECORDING:
@@ -110,7 +119,7 @@ async def async_setup_platform(hass, config, async_add_entities,
         preset = service.data.get(ATTR_PRESET)
 
         update_tasks = []
-        for camera in target_cameras(service):
+        for camera in await target_cameras(service):
             await camera.async_goto_preset(preset)
             if not camera.should_poll:
                 continue
@@ -122,7 +131,7 @@ async def async_setup_platform(hass, config, async_add_entities,
         cbw = service.data.get(ATTR_COLOR_BW)
 
         update_tasks = []
-        for camera in target_cameras(service):
+        for camera in await target_cameras(service):
             await camera.async_set_color_bw(cbw)
             if not camera.should_poll:
                 continue
