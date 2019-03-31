@@ -98,18 +98,7 @@ async def async_setup_platform(hass, config, async_add_entities,
     async def async_service_handler(service):
         update_tasks = []
         for camera in await async_extract_from_service(service):
-            if service.service == SERVICE_ENABLE_RECORDING:
-                await camera.async_enable_recording()
-            elif service.service == SERVICE_DISABLE_RECORDING:
-                await camera.async_disable_recording()
-            elif service.service == SERVICE_AUDIO_ON:
-                await camera.async_enable_audio()
-            elif service.service == SERVICE_AUDIO_OFF:
-                await camera.async_disable_audio()
-            elif service.service == SERVICE_TOUR_ON:
-                await camera.async_tour_on()
-            elif service.service == SERVICE_TOUR_OFF:
-                await camera.async_tour_off()
+            await getattr(camera, handler_services[service.service])()
             if camera.should_poll:
                 update_tasks.append(camera.async_update_ha_state(True))
         if update_tasks:
@@ -137,21 +126,24 @@ async def async_setup_platform(hass, config, async_add_entities,
         if update_tasks:
             await asyncio.wait(update_tasks, loop=hass.loop)
 
-    services = (
-        (SERVICE_ENABLE_RECORDING, async_service_handler,
-         CAMERA_SERVICE_SCHEMA),
-        (SERVICE_DISABLE_RECORDING, async_service_handler,
-         CAMERA_SERVICE_SCHEMA),
-        (SERVICE_GOTO_PRESET, async_goto_preset, SERVICE_GOTO_PRESET_SCHEMA),
-        (SERVICE_SET_COLOR_BW, async_set_color_bw,
-         SERVICE_SET_COLOR_BW_SCHEMA),
-        (SERVICE_AUDIO_OFF, async_service_handler, CAMERA_SERVICE_SCHEMA),
-        (SERVICE_AUDIO_ON, async_service_handler, CAMERA_SERVICE_SCHEMA),
-        (SERVICE_TOUR_OFF, async_service_handler, CAMERA_SERVICE_SCHEMA),
-        (SERVICE_TOUR_ON, async_service_handler, CAMERA_SERVICE_SCHEMA))
-    if not hass.services.has_service(DOMAIN, services[0][0]):
-        for service in services:
-            hass.services.async_register(DOMAIN, *service)
+    handler_services = {
+        SERVICE_ENABLE_RECORDING: 'async_enable_recording',
+        SERVICE_DISABLE_RECORDING: 'async_disable_recording',
+        SERVICE_AUDIO_ON: 'async_enable_audio',
+        SERVICE_AUDIO_OFF: 'async_disable_audio',
+        SERVICE_TOUR_ON: 'async_tour_on',
+        SERVICE_TOUR_OFF: 'async_tour_off'}
+
+    if not hass.services.has_service(DOMAIN, SERVICE_ENABLE_RECORDING):
+        for service in handler_services:
+            hass.services.async_register(
+                DOMAIN, service, async_service_handler, CAMERA_SERVICE_SCHEMA)
+        hass.services.async_register(
+            DOMAIN, SERVICE_GOTO_PRESET, async_goto_preset,
+            SERVICE_GOTO_PRESET_SCHEMA)
+        hass.services.async_register(
+            DOMAIN, SERVICE_SET_COLOR_BW, async_set_color_bw,
+            SERVICE_SET_COLOR_BW_SCHEMA)
 
     return True
 
