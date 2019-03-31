@@ -10,6 +10,10 @@ from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.core import callback
 from homeassistant.const import (
     ATTR_ENTITY_ID, CONF_NAME, STATE_ON, STATE_OFF)
+try:
+    from homeassistant.const import ENTITY_MATCH_ALL
+except ImportError:
+    ENTITY_MATCH_ALL = None
 from homeassistant.helpers.aiohttp_client import (
     async_aiohttp_proxy_stream, async_aiohttp_proxy_web,
     async_get_clientsession)
@@ -78,25 +82,22 @@ async def async_setup_platform(hass, config, async_add_entities,
 
     async_add_entities([AmcrestCam(hass, amcrest)], True)
 
-    async def target_cameras(service):
-        cameras = []
-        if DATA_AMCREST_CAMS in hass.data:
-            if ATTR_ENTITY_ID in service.data:
-                try:
-                    entity_ids = await async_extract_entity_ids(hass, service)
-                except NameError:
-                    entity_ids = await hass.async_add_executor_job(
-                        extract_entity_ids, hass, service)
-            else:
-                entity_ids = None
-            for camera in hass.data[DATA_AMCREST_CAMS]:
-                if entity_ids is None or camera.entity_id in entity_ids:
-                    cameras.append(camera)
-        return cameras
+    async def async_extract_from_service(service):
+        entity_ids = service.data.get(ATTR_ENTITY_ID)
+        if entity_ids == ENTITY_MATCH_ALL:
+            return [entity for entity in hass.data.get(DATA_AMCREST_CAMS, [])
+                    if entity.available]
+        try:
+            entity_ids = await async_extract_entity_ids(hass, service)
+        except NameError:
+            entity_ids = await hass.async_add_executor_job(
+                extract_entity_ids, hass, service)
+        return [entity for entity in hass.data.get(DATA_AMCREST_CAMS, [])
+                if entity.available and entity.entity_id in entity_ids]
 
     async def async_service_handler(service):
         update_tasks = []
-        for camera in await target_cameras(service):
+        for camera in await async_extract_from_service(service):
             if service.service == SERVICE_ENABLE_RECORDING:
                 await camera.async_enable_recording()
             elif service.service == SERVICE_DISABLE_RECORDING:
@@ -109,9 +110,8 @@ async def async_setup_platform(hass, config, async_add_entities,
                 await camera.async_tour_on()
             elif service.service == SERVICE_TOUR_OFF:
                 await camera.async_tour_off()
-            if not camera.should_poll:
-                continue
-            update_tasks.append(camera.async_update_ha_state(True))
+            if camera.should_poll:
+                update_tasks.append(camera.async_update_ha_state(True))
         if update_tasks:
             await asyncio.wait(update_tasks, loop=hass.loop)
 
@@ -119,11 +119,10 @@ async def async_setup_platform(hass, config, async_add_entities,
         preset = service.data.get(ATTR_PRESET)
 
         update_tasks = []
-        for camera in await target_cameras(service):
+        for camera in await async_extract_from_service(service):
             await camera.async_goto_preset(preset)
-            if not camera.should_poll:
-                continue
-            update_tasks.append(camera.async_update_ha_state(True))
+            if camera.should_poll:
+                update_tasks.append(camera.async_update_ha_state(True))
         if update_tasks:
             await asyncio.wait(update_tasks, loop=hass.loop)
 
@@ -131,11 +130,10 @@ async def async_setup_platform(hass, config, async_add_entities,
         cbw = service.data.get(ATTR_COLOR_BW)
 
         update_tasks = []
-        for camera in await target_cameras(service):
+        for camera in await async_extract_from_service(service):
             await camera.async_set_color_bw(cbw)
-            if not camera.should_poll:
-                continue
-            update_tasks.append(camera.async_update_ha_state(True))
+            if camera.should_poll:
+                update_tasks.append(camera.async_update_ha_state(True))
         if update_tasks:
             await asyncio.wait(update_tasks, loop=hass.loop)
 
