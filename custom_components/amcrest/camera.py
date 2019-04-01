@@ -72,8 +72,6 @@ def _extract_attr(resp, sep='='):
 async def async_setup_platform(hass, config, async_add_entities,
                                discovery_info=None):
     """Set up an Amcrest IP Camera."""
-    # pylint: disable=unused-argument
-    # pylint: disable=too-many-statements
     if discovery_info is None:
         return
 
@@ -88,10 +86,11 @@ async def async_setup_platform(hass, config, async_add_entities,
             return [entity for entity in hass.data.get(DATA_AMCREST_CAMS, [])
                     if entity.available]
         try:
+            # async_extract_entity_ids introduced in 0.90.0
             entity_ids = await async_extract_entity_ids(hass, service)
         except NameError:
-            entity_ids = await hass.async_add_executor_job(
-                extract_entity_ids, hass, service)
+            # Before 0.90.0 extract_entity_ids was async_friendly
+            entity_ids = extract_entity_ids(hass, service)
         return [entity for entity in hass.data.get(DATA_AMCREST_CAMS, [])
                 if entity.available and entity.entity_id in entity_ids]
 
@@ -150,9 +149,6 @@ async def async_setup_platform(hass, config, async_add_entities,
 
 class AmcrestCam(Camera):
     """An implementation of an Amcrest IP camera."""
-
-    # pylint: disable=too-many-public-methods
-    # pylint: disable=too-many-instance-attributes
 
     def __init__(self, hass, amcrest):
         """Initialize an Amcrest camera."""
@@ -412,7 +408,8 @@ class AmcrestCam(Camera):
                 self._update_static_attrs()
             self.is_streaming = self._camera.video_enabled
             self._is_recording = self._camera.record_mode == 'Manual'
-            self._motion_detection_enabled = self._camera.is_motion_detector_on()
+            self._motion_detection_enabled = (
+                self._camera.is_motion_detector_on())
             self._audio_enabled = self._camera.audio_enabled
             self._color_bw = CBW[self._camera.day_night_color]
         except AmcrestError as error:
@@ -465,7 +462,7 @@ class AmcrestCam(Camera):
 
         try:
             self._camera.go_to_preset(
-                    action='start', preset_point_number=preset)
+                action='start', preset_point_number=preset)
         except AmcrestError as error:
             _LOGGER.error(
                 'Could not move %s camera to preset %i due to error: %s',
