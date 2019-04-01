@@ -62,13 +62,6 @@ SERVICE_SET_COLOR_BW_SCHEMA = CAMERA_SERVICE_SCHEMA.extend({
 })
 
 
-def _extract_attr(resp, sep='='):
-    try:
-        return resp.split(sep)[-1].strip()
-    except AttributeError:
-        return None
-
-
 async def async_setup_platform(hass, config, async_add_entities,
                                discovery_info=None):
     """Set up an Amcrest IP Camera."""
@@ -163,7 +156,6 @@ class AmcrestCam(Camera):
         self._is_recording = False
         self._motion_detection_enabled = None
         self._model = None
-        self._static_attrs = {}
         self._audio_enabled = None
         self._color_bw = None
         self._snapshot_lock = asyncio.Lock()
@@ -238,7 +230,7 @@ class AmcrestCam(Camera):
     @property
     def device_state_attributes(self):
         """Return the Amcrest-spectific camera state attributes."""
-        attr = self._static_attrs.copy()
+        attr = {}
         if self.motion_detection_enabled is not None:
             attr['motion_detection'] = _BOOL_TO_STATE.get(
                 self.motion_detection_enabled)
@@ -255,7 +247,7 @@ class AmcrestCam(Camera):
 
     @property
     def supported_features(self):
-        """Flag supported features."""
+        """Return supported features."""
         return SUPPORT_ON_OFF
 
     # Camera property overrides
@@ -327,30 +319,9 @@ class AmcrestCam(Camera):
     @property
     def is_on(self):
         """Return true if on."""
-        return self.video_enabled
-
-    # Additional Amcrest Camera properties
-
-    @property
-    def video_enabled(self):
-        """Return the camera video streaming status."""
         return self.is_streaming
 
-    @video_enabled.setter
-    def video_enabled(self, enable):
-        """Enable or disable camera video stream."""
-        from amcrest import AmcrestError
-
-        try:
-            self._camera.video_enabled = enable
-        except AmcrestError as error:
-            _LOGGER.error(
-                'Could not %s %s camera video stream due to error: %s',
-                'enable' if enable else 'disable', self.name, error)
-        else:
-            if OPTIMISTIC:
-                self.is_streaming = enable
-                self.schedule_update_ha_state()
+    # Additional Amcrest Camera properties
 
     @property
     def color_bw(self):
@@ -401,11 +372,15 @@ class AmcrestCam(Camera):
         from amcrest import AmcrestError
 
         _LOGGER.debug('Pulling data from %s camera', self.name)
+        if self._model is None:
+            try:
+                self._model = self._camera.device_type.split('=')[-1].strip()
+            except AmcrestError as error:
+                _LOGGER.error(
+                    'Could not get %s camera model due to error: %s',
+                    self.name, error)
+                self._model = ''
         try:
-            if self._model is None:
-                self._model = _extract_attr(self._get_cam_attr('device_type'))
-            if not self._static_attrs:
-                self._update_static_attrs()
             self.is_streaming = self._camera.video_enabled
             self._is_recording = self._camera.record_mode == 'Manual'
             self._motion_detection_enabled = (
@@ -422,11 +397,11 @@ class AmcrestCam(Camera):
     def turn_off(self):
         """Turn off camera."""
         self.is_recording = False
-        self.video_enabled = False
+        self._enable_video_stream(False)
 
     def turn_on(self):
         """Turn on camera."""
-        self.video_enabled = True
+        self._enable_video_stream(True)
 
     def enable_motion_detection(self):
         """Enable motion detection in the camera."""
@@ -534,32 +509,17 @@ class AmcrestCam(Camera):
 
     # Utility methods
 
-    def _get_cam_attr(self, attr):
+    def _enable_video_stream(self, enable):
+        """Enable or disable camera video stream."""
         from amcrest import AmcrestError
 
         try:
-            return getattr(self._camera, attr)
+            self._camera.video_enabled = enable
         except AmcrestError as error:
             _LOGGER.error(
-                'Could not get %s camera %s due to error: %s',
-                self.name, attr, error)
-            return None
-
-    def _update_cam_attr(self, attr):
-        value = self._get_cam_attr(attr)
-        if value is not None:
-            self._static_attrs[attr] = _extract_attr(value)
-
-    def _update_static_attrs(self):
-        for attr in ('hardware_version', 'machine_name', 'serial_number'):
-            self._update_cam_attr(attr)
-        try:
-            sw_ver, sw_date = self._get_cam_attr('software_information')
-        except TypeError:
-            pass
-        except ValueError:
-            _LOGGER.error(
-                'Unexpected %s camera software_information', self.name)
+                'Could not %s %s camera video stream due to error: %s',
+                'enable' if enable else 'disable', self.name, error)
         else:
-            self._static_attrs['software_version'] = _extract_attr(sw_ver)
-            self._static_attrs['software_build'] = _extract_attr(sw_date, ':')
+            if OPTIMISTIC:
+                self.is_streaming = enable
+                self.schedule_update_ha_state()
