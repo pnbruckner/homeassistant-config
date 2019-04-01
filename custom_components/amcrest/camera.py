@@ -10,10 +10,17 @@ from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.core import callback
 from homeassistant.const import (
     ATTR_ENTITY_ID, CONF_NAME, STATE_ON, STATE_OFF)
+try:
+    from homeassistant.const import ENTITY_MATCH_ALL
+except ImportError:
+    ENTITY_MATCH_ALL = None
 from homeassistant.helpers.aiohttp_client import (
     async_aiohttp_proxy_stream, async_aiohttp_proxy_web,
     async_get_clientsession)
-from homeassistant.helpers.service import extract_entity_ids
+try:
+    from homeassistant.helpers.service import async_extract_entity_ids
+except ImportError:
+    from homeassistant.helpers.service import extract_entity_ids
 try:
     from . import DATA_AMCREST, STREAM_SOURCE_LIST, TIMEOUT
 except ImportError:
@@ -75,34 +82,25 @@ async def async_setup_platform(hass, config, async_add_entities,
 
     async_add_entities([AmcrestCam(hass, amcrest)], True)
 
-    def target_cameras(service):
-        if DATA_AMCREST_CAMS in hass.data:
-            if ATTR_ENTITY_ID in service.data:
-                entity_ids = extract_entity_ids(hass, service)
-            else:
-                entity_ids = None
-            for camera in hass.data[DATA_AMCREST_CAMS]:
-                if entity_ids is None or camera.entity_id in entity_ids:
-                    yield camera
+    async def async_extract_from_service(service):
+        entity_ids = service.data.get(ATTR_ENTITY_ID)
+        if entity_ids == ENTITY_MATCH_ALL:
+            return [entity for entity in hass.data.get(DATA_AMCREST_CAMS, [])
+                    if entity.available]
+        try:
+            entity_ids = await async_extract_entity_ids(hass, service)
+        except NameError:
+            entity_ids = await hass.async_add_executor_job(
+                extract_entity_ids, hass, service)
+        return [entity for entity in hass.data.get(DATA_AMCREST_CAMS, [])
+                if entity.available and entity.entity_id in entity_ids]
 
     async def async_service_handler(service):
         update_tasks = []
-        for camera in target_cameras(service):
-            if service.service == SERVICE_ENABLE_RECORDING:
-                await camera.async_enable_recording()
-            elif service.service == SERVICE_DISABLE_RECORDING:
-                await camera.async_disable_recording()
-            elif service.service == SERVICE_AUDIO_ON:
-                await camera.async_enable_audio()
-            elif service.service == SERVICE_AUDIO_OFF:
-                await camera.async_disable_audio()
-            elif service.service == SERVICE_TOUR_ON:
-                await camera.async_tour_on()
-            elif service.service == SERVICE_TOUR_OFF:
-                await camera.async_tour_off()
-            if not camera.should_poll:
-                continue
-            update_tasks.append(camera.async_update_ha_state(True))
+        for camera in await async_extract_from_service(service):
+            await getattr(camera, handler_services[service.service])()
+            if camera.should_poll:
+                update_tasks.append(camera.async_update_ha_state(True))
         if update_tasks:
             await asyncio.wait(update_tasks, loop=hass.loop)
 
@@ -110,11 +108,10 @@ async def async_setup_platform(hass, config, async_add_entities,
         preset = service.data.get(ATTR_PRESET)
 
         update_tasks = []
-        for camera in target_cameras(service):
+        for camera in await async_extract_from_service(service):
             await camera.async_goto_preset(preset)
-            if not camera.should_poll:
-                continue
-            update_tasks.append(camera.async_update_ha_state(True))
+            if camera.should_poll:
+                update_tasks.append(camera.async_update_ha_state(True))
         if update_tasks:
             await asyncio.wait(update_tasks, loop=hass.loop)
 
@@ -122,29 +119,31 @@ async def async_setup_platform(hass, config, async_add_entities,
         cbw = service.data.get(ATTR_COLOR_BW)
 
         update_tasks = []
-        for camera in target_cameras(service):
+        for camera in await async_extract_from_service(service):
             await camera.async_set_color_bw(cbw)
-            if not camera.should_poll:
-                continue
-            update_tasks.append(camera.async_update_ha_state(True))
+            if camera.should_poll:
+                update_tasks.append(camera.async_update_ha_state(True))
         if update_tasks:
             await asyncio.wait(update_tasks, loop=hass.loop)
 
-    services = (
-        (SERVICE_ENABLE_RECORDING, async_service_handler,
-         CAMERA_SERVICE_SCHEMA),
-        (SERVICE_DISABLE_RECORDING, async_service_handler,
-         CAMERA_SERVICE_SCHEMA),
-        (SERVICE_GOTO_PRESET, async_goto_preset, SERVICE_GOTO_PRESET_SCHEMA),
-        (SERVICE_SET_COLOR_BW, async_set_color_bw,
-         SERVICE_SET_COLOR_BW_SCHEMA),
-        (SERVICE_AUDIO_OFF, async_service_handler, CAMERA_SERVICE_SCHEMA),
-        (SERVICE_AUDIO_ON, async_service_handler, CAMERA_SERVICE_SCHEMA),
-        (SERVICE_TOUR_OFF, async_service_handler, CAMERA_SERVICE_SCHEMA),
-        (SERVICE_TOUR_ON, async_service_handler, CAMERA_SERVICE_SCHEMA))
-    if not hass.services.has_service(DOMAIN, services[0][0]):
-        for service in services:
-            hass.services.async_register(DOMAIN, *service)
+    handler_services = {
+        SERVICE_ENABLE_RECORDING: 'async_enable_recording',
+        SERVICE_DISABLE_RECORDING: 'async_disable_recording',
+        SERVICE_AUDIO_ON: 'async_enable_audio',
+        SERVICE_AUDIO_OFF: 'async_disable_audio',
+        SERVICE_TOUR_ON: 'async_tour_on',
+        SERVICE_TOUR_OFF: 'async_tour_off'}
+
+    if not hass.services.has_service(DOMAIN, SERVICE_ENABLE_RECORDING):
+        for service in handler_services:
+            hass.services.async_register(
+                DOMAIN, service, async_service_handler, CAMERA_SERVICE_SCHEMA)
+        hass.services.async_register(
+            DOMAIN, SERVICE_GOTO_PRESET, async_goto_preset,
+            SERVICE_GOTO_PRESET_SCHEMA)
+        hass.services.async_register(
+            DOMAIN, SERVICE_SET_COLOR_BW, async_set_color_bw,
+            SERVICE_SET_COLOR_BW_SCHEMA)
 
     return True
 
