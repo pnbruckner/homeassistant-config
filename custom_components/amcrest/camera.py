@@ -6,6 +6,10 @@ import voluptuous as vol
 
 from homeassistant.components.camera import (
     Camera, DOMAIN, SUPPORT_ON_OFF, CAMERA_SERVICE_SCHEMA)
+try:
+    from homeassistant.components.camera import SUPPORT_STREAM
+except ImportError:
+    SUPPORT_STREAM = 0
 from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.core import callback
 from homeassistant.const import (
@@ -262,7 +266,7 @@ class AmcrestCam(Camera):
     @property
     def supported_features(self):
         """Return supported features."""
-        return SUPPORT_ON_OFF
+        return SUPPORT_ON_OFF | SUPPORT_STREAM
 
     # Camera property overrides
 
