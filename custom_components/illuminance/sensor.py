@@ -17,19 +17,31 @@ import voluptuous as vol
 from homeassistant.components.sensor import (
     DOMAIN as SENSOR_DOMAIN, PLATFORM_SCHEMA, SCAN_INTERVAL)
 try:
-    from homeassistant.components.sensor.darksky import (
+    from homeassistant.components.darksky.sensor import (
         ATTRIBUTION as DSS_ATTRIBUTION)
 except ImportError:
-    from homeassistant.components.sensor.darksky import (
-        CONF_ATTRIBUTION as DSS_ATTRIBUTION)
+    try:
+        from homeassistant.components.sensor.darksky import (
+            ATTRIBUTION as DSS_ATTRIBUTION)
+    except ImportError:
+        from homeassistant.components.sensor.darksky import (
+            CONF_ATTRIBUTION as DSS_ATTRIBUTION)
 try:
-    from homeassistant.components.sensor.yr import (
+    from homeassistant.components.yr.sensor import (
         ATTRIBUTION as YRS_ATTRIBUTION)
 except ImportError:
-    from homeassistant.components.sensor.yr import (
-        CONF_ATTRIBUTION as YRS_ATTRIBUTION)
-from homeassistant.components.weather.darksky import (
-    ATTRIBUTION as DSW_ATTRIBUTION, MAP_CONDITION as DSW_MAP_CONDITION)
+    try:
+        from homeassistant.components.sensor.yr import (
+            ATTRIBUTION as YRS_ATTRIBUTION)
+    except ImportError:
+        from homeassistant.components.sensor.yr import (
+            CONF_ATTRIBUTION as YRS_ATTRIBUTION)
+try:
+    from homeassistant.components.darksky.weather import (
+        ATTRIBUTION as DSW_ATTRIBUTION, MAP_CONDITION as DSW_MAP_CONDITION)
+except ImportError:
+    from homeassistant.components.weather.darksky import (
+        ATTRIBUTION as DSW_ATTRIBUTION, MAP_CONDITION as DSW_MAP_CONDITION)
 from homeassistant.const import (
     ATTR_ATTRIBUTION, CONF_ENTITY_ID, CONF_API_KEY, CONF_NAME,
     CONF_SCAN_INTERVAL, EVENT_HOMEASSISTANT_START)
@@ -42,7 +54,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.sun import get_astral_event_date
 import homeassistant.util.dt as dt_util
 
-__version__ = '2.0.2'
+__version__ = '2.0.3'
 
 DEFAULT_NAME = 'Illuminance'
 MIN_SCAN_INTERVAL = dt.timedelta(minutes=5)
@@ -96,6 +108,7 @@ _WU_API_URL = 'http://api.wunderground.com/api/'\
 _20_MIN = dt.timedelta(minutes=20)
 _40_MIN = dt.timedelta(minutes=40)
 
+
 async def _async_get_wu_data(hass, session, api_key, features, query):
     try:
         with async_timeout.timeout(9, loop=hass.loop):
@@ -112,6 +125,7 @@ async def _async_get_wu_data(hass, session, api_key, features, query):
 
     return resp
 
+
 async def async_setup_platform(hass, config, async_add_entities,
                                discovery_info=None):
     using_wu = CONF_API_KEY in config
@@ -123,6 +137,7 @@ async def async_setup_platform(hass, config, async_add_entities,
             return False
 
     async_add_entities([IlluminanceSensor(using_wu, config, session)], True)
+
 
 class IlluminanceSensor(Entity):
     def __init__(self, using_wu, config, session):
