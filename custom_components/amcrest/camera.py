@@ -6,6 +6,10 @@ import voluptuous as vol
 
 from homeassistant.components.camera import (
     Camera, DOMAIN, SUPPORT_ON_OFF, CAMERA_SERVICE_SCHEMA)
+try:
+    from homeassistant.components.camera import SUPPORT_STREAM
+except ImportError:
+    SUPPORT_STREAM = 0
 from homeassistant.components.ffmpeg import DATA_FFMPEG
 from homeassistant.core import callback
 from homeassistant.const import (
@@ -203,7 +207,12 @@ class AmcrestCam(Camera):
                 self.hass, request, stream_coro)
 
         # streaming via ffmpeg
-        from haffmpeg import CameraMjpeg
+        try:
+            from haffmpeg.camera import CameraMjpeg
+            use_stream_reader = True
+        except ImportError:
+            from haffmpeg import CameraMjpeg
+            use_stream_reader = False
 
         streaming_url = self._camera.rtsp_url(typeno=self._resolution)
         stream = CameraMjpeg(self._ffmpeg.binary, loop=self.hass.loop)
@@ -211,8 +220,12 @@ class AmcrestCam(Camera):
             streaming_url, extra_cmd=self._ffmpeg_arguments)
 
         try:
+            if use_stream_reader:
+                stream_reader = await stream.get_reader()
+            else:
+                stream_reader = stream
             return await async_aiohttp_proxy_stream(
-                self.hass, request, stream,
+                self.hass, request, stream_reader,
                 self._ffmpeg.ffmpeg_stream_content_type)
         finally:
             await stream.close()
@@ -253,7 +266,7 @@ class AmcrestCam(Camera):
     @property
     def supported_features(self):
         """Return supported features."""
-        return SUPPORT_ON_OFF
+        return SUPPORT_ON_OFF | SUPPORT_STREAM
 
     # Camera property overrides
 
