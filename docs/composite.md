@@ -7,7 +7,9 @@ See [Installing and Updating](custom_updater.md) to use Custom Updater. The name
 
 Alternatively, place a copy of:
 
-[`composite/device_tracker.py`](../custom_components/composite/device_tracker.py) at `<config>/custom_components/composite/device_tracker.py`
+[`composite/__init__.py`](../custom_components/composite/device_tracker.py) at `<config>/custom_components/composite/__init__.py`  
+[`composite/device_tracker.py`](../custom_components/composite/device_tracker.py) at `<config>/custom_components/composite/device_tracker.py`  
+[`composite/manifest.json`](../custom_components/composite/device_tracker.py) at `<config>/custom_components/composite/manifest.json`
 
 where `<config>` is your Home Assistant configuration directory.
 
