@@ -1,0 +1,10 @@
+{
+  "domain": "life360",
+  "name": "Life360",
+  "documentation": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md",
+  "requirements": [],
+  "dependencies": [],
+  "codeowners": [
+    "@pnbruckner"
+  ]
+}
