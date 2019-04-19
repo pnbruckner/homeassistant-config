@@ -5,7 +5,9 @@ See [Installing and Updating](custom_updater.md) to use Custom Updater. The name
 
 Alternatively, place a copy of:
 
-[`life360/device_tracker.py`](../custom_components/life360/device_tracker.py) at `<config>/custom_components/life360/device_tracker.py`
+[`life360/__init__.py`](../custom_components/life360/__init__.py) at `<config>/custom_components/life360/__init__.py`  
+[`life360/device_tracker.py`](../custom_components/life360/device_tracker.py) at `<config>/custom_components/life360/device_tracker.py`  
+[`life360/manifest.json`](../custom_components/life360/manifest.json) at `<config>/custom_components/life360/manifest.json`
 
 where `<config>` is your Home Assistant configuration directory.
 
