@@ -1,0 +1,14 @@
+{
+  "domain": "amcrest",
+  "name": "Amcrest Camera",
+  "documentation": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/amcrest.md",
+  "requirements": [
+    "amcrest==1.3.0"
+  ],
+  "dependencies": [
+    "ffmpeg"
+  ],
+  "codeowners": [
+    "@pnbruckner"
+  ]
+}

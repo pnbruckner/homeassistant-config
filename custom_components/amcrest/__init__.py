@@ -12,11 +12,7 @@ from homeassistant.const import (
 from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 
-
-__version__ = '1.3.1'
-
-REQUIREMENTS = ['amcrest==1.3.0']
-DEPENDENCIES = ['ffmpeg']
+__version__ = '1.3.2'
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 {
   "amcrest": {
-    "updated_at": "2019-04-06",
-    "version": "1.3.1",
+    "updated_at": "2019-04-19",
+    "version": "1.3.2",
     "local_location": "/custom_components/amcrest/__init__.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/amcrest/__init__.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
@@ -10,28 +10,31 @@
       "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/amcrest/binary_sensor.py",
       "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/amcrest/camera.py",
       "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/amcrest/sensor.py",
-      "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/amcrest/switch.py"
+      "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/amcrest/switch.py",
+      "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/amcrest/manifest.json"
     ]
   },
   "device_tracker.composite": {
     "updated_at": "2019-04-19",
-    "version": "1.7.1",
-    "local_location": "/custom_components/composite/device_tracker.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/composite/device_tracker.py",
+    "version": "1.7.2",
+    "local_location": "/custom_components/composite/__init__.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/composite/_init__.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/composite.md#release-notes",
     "resources": [
+      "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/composite/device_tracker.py",
       "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/composite/manifest.json"
     ]
   },
   "device_tracker.life360": {
     "updated_at": "2019-04-19",
-    "version": "2.9.1",
-    "local_location": "/custom_components/life360/device_tracker.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/life360/device_tracker.py",
+    "version": "2.9.2",
+    "local_location": "/custom_components/life360/__init__.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/life360/__init__.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/life360.md#release-notes",
     "resources": [
+      "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/life360/device_tracker.py",
       "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/life360/manifest.json"
     ]
   },

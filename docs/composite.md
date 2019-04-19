@@ -111,3 +111,4 @@ Date | Version | Notes
 20181109 | [1.6.0](https://github.com/pnbruckner/homeassistant-config/blob/a38ddea71232053e6f8824822e31cd5060801334/custom_components/device_tracker/composite.py) | In addition to 'battery' attribute, also accept 'battery_level' attribute, and use for 'battery' attribute. Accept either 'battery_charging' or 'charging' attribute and use for new 'battery_charging' attribute. 
 20190123 | [1.7.0](https://github.com/pnbruckner/homeassistant-config/blob/0f0254c1137255662e1fe53e0d08a8bbf4e2f1b2/custom_components/device_tracker/composite.py) | Add `time_as` option.
 20190419 | [1.7.1](https://github.com/pnbruckner/homeassistant-config/blob/4f638d1ac9abd12f7bc1e8080763b545fd2385fa/custom_components/composite/device_tracker.py) | Add manifest.json required by 0.92.
+20190419 | [1.7.2]() | ... and apparently custom_updater needs an `__init__.py` file, too.
