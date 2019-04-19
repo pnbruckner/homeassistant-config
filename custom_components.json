@@ -37,12 +37,13 @@
   },
   "sensor.illuminance": {
     "updated_at": "2019-04-19",
-    "version": "2.0.4",
-    "local_location": "/custom_components/illuminance/sensor.py",
-    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/illuminance/sensor.py",
+    "version": "2.0.5",
+    "local_location": "/custom_components/illuminance/__init__.py",
+    "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/illuminance/__init__.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
     "changelog": "https://github.com/pnbruckner/homeassistant-config/blob/master/docs/illuminance.md#release-notes",
     "resources": [
+      "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/illuminance/sensor.py",
       "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/illuminance/manifest.json"
     ]
   },
