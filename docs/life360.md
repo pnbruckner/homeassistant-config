@@ -214,3 +214,4 @@ Date | Version | Notes
 20190222 | [2.8.0](https://github.com/pnbruckner/homeassistant-config/blob/8b6f2bdbefc2d54632611e212986eb683cf219bc/custom_components/device_tracker/life360.py) | Delay firing events at startup so automations have a chance to get ready.
 20190321 | [2.9.0](https://github.com/pnbruckner/homeassistant-config/blob/3c019c1d47d4376fb2787185fd717854983a685b/custom_components/life360/device_tracker.py) | Bump life360 package to 3.0.0 which saves credentials in authorization cache file and checks if the credentials have changed when loading. If they have changed, cache is discarded and a new authorization token is obtained and cached.
 20190419 | [2.9.1](https://github.com/pnbruckner/homeassistant-config/blob/4f638d1ac9abd12f7bc1e8080763b545fd2385fa/custom_components/life360/device_tracker.py) | Add manifest.json required by 0.92.
+20190419 | [2.9.2]() | ... and apparently custom_updater needs an `__init__.py` file, too.
