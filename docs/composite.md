@@ -114,4 +114,4 @@ Date | Version | Notes
 20190123 | [1.7.0](https://github.com/pnbruckner/homeassistant-config/blob/0f0254c1137255662e1fe53e0d08a8bbf4e2f1b2/custom_components/device_tracker/composite.py) | Add `time_as` option.
 20190419 | [1.7.1](https://github.com/pnbruckner/homeassistant-config/blob/4f638d1ac9abd12f7bc1e8080763b545fd2385fa/custom_components/composite/device_tracker.py) | Add manifest.json required by 0.92.
 20190419 | [1.7.2](https://github.com/pnbruckner/homeassistant-config/blob/6da2f09b5cf49db3b02403958e41763231c0a7ec/custom_components/composite) | ... and apparently custom_updater needs an `__init__.py` file, too.
-20190419 | [1.7.3]() | ... and older HA versions still need REQUIREMENTS & DEPENDENCIES!
+20190419 | [1.7.3](https://github.com/pnbruckner/homeassistant-config/blob/7be70ac6f3445a755c4f3060bfc00cc3019a33b3/custom_components/composite) | ... and older HA versions still need REQUIREMENTS & DEPENDENCIES!
