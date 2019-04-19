@@ -91,3 +91,4 @@ Date | Version | Notes
 20190307 | [2.0.2](https://github.com/pnbruckner/homeassistant-config/blob/3a5676b8108fe3aaaf6676019cb19b128e6dec07/custom_components/illuminance/sensor.py) | Adapt to change in Yr Sensor in HA 0.89 release (see [PR #21069](https://github.com/home-assistant/home-assistant/pull/21069).)
 20190406 | [2.0.3](https://github.com/pnbruckner/homeassistant-config/blob/70f78675abdd27bafb46a20bebbb53718c8356bc/custom_components/illuminance/sensor.py) | Adapt to last pieces of Great Migration in HA 0.91 release.
 20190419 | [2.0.4](https://github.com/pnbruckner/homeassistant-config/blob/4f638d1ac9abd12f7bc1e8080763b545fd2385fa/custom_components/illuminance/sensor.py) | Add manifest.json required by 0.92.
+20190419 | [2.0.5]() | ... and apparently custom_updater needs an `__init__.py` file, too.
