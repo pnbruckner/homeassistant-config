@@ -16,7 +16,9 @@ See [Installing and Updating](custom_updater.md) to use Custom Updater. The name
 
 Alternatively, place a copy of:
 
-[`illuminance/sensor.py`](../custom_components/illuminance/sensor.py) at `<config>/custom_components/illuminance/sensor.py`
+[`illuminance/__init__.py`](../custom_components/illuminance/__init__.py) at `<config>/custom_components/illuminance/__init__.py`  
+[`illuminance/sensor.py`](../custom_components/illuminance/sensor.py) at `<config>/custom_components/illuminance/sensor.py`  
+[`illuminance/manifest.json`](../custom_components/illuminance/manifest.json) at `<config>/custom_components/illuminance/manifest.json`
 
 where `<config>` is your Home Assistant configuration directory.
 
