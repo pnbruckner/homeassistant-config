@@ -10,7 +10,7 @@ See [Installing and Updating](custom_updater.md) to use Custom Updater. The name
 
 Alternatively, place a copy of:
 
-[`sun/__init__.py`](../custom_components/sun/__init__.py) at `<config>/custom_components/sun/__init__.py` 
+[`sun/__init__.py`](../custom_components/sun/__init__.py) at `<config>/custom_components/sun/__init__.py`  
 [`sun/automation.py`](../custom_components/sun/automation.py) at `<config>/custom_components/sun/automation.py`  
 [`sun/manifest.json`](../custom_components/sun/manifest.json) at `<config>/custom_components/sun/manifest.json`
 
