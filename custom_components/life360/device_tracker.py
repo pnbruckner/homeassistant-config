@@ -36,6 +36,9 @@ import homeassistant.util.dt as dt_util
 
 _LOGGER = logging.getLogger(__name__)
 
+DEPENDENCIES = ['zone']
+REQUIREMENTS = ['life360==3.0.0', 'timezonefinderL==2.0.1']
+
 DEFAULT_FILENAME = 'life360.conf'
 DEFAULT_HOME_PLACE = 'Home'
 SPEED_FACTOR_MPH = 2.25
