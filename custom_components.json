@@ -15,8 +15,8 @@
     ]
   },
   "device_tracker.composite": {
-    "updated_at": "2019-04-19",
-    "version": "1.7.3",
+    "updated_at": "2019-04-21",
+    "version": "1.7.4",
     "local_location": "/custom_components/composite/__init__.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/composite/__init__.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
@@ -27,8 +27,8 @@
     ]
   },
   "device_tracker.life360": {
-    "updated_at": "2019-04-19",
-    "version": "2.9.3",
+    "updated_at": "2019-04-21",
+    "version": "2.9.4",
     "local_location": "/custom_components/life360/__init__.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/life360/__init__.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
