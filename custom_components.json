@@ -27,8 +27,8 @@
     ]
   },
   "device_tracker.life360": {
-    "updated_at": "2019-04-22",
-    "version": "2.9.4",
+    "updated_at": "2019-04-23",
+    "version": "2.9.5",
     "local_location": "/custom_components/life360/__init__.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/life360/__init__.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",
