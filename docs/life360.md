@@ -1,5 +1,8 @@
 # Life360
 This platform allows you to detect presence using [Life360](http://life360.com/). It can also automatically create Home Assistant zones based on Life360 Places.
+
+>__NOTE__: Home Assistant version 0.92.0 or later requires version 2.9.4 or later of this custom component!
+
 ## Installation
 See [Installing and Updating](custom_updater.md) to use Custom Updater. The name of this `"element"` is `"device_tracker.life360"`.
 
