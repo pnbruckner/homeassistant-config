@@ -24,9 +24,7 @@ device_tracker:
   - platform: life360
     username: !secret life360_username
     password: !secret life360_password
-    max_gps_accuracy: 200
     prefix: life360
-    show_as_state: driving, moving, places
 ```
 ### Home Assistant before 0.86
 For manual installation, place a copy of:
@@ -50,6 +48,7 @@ sudo apt install libatlas3-base
 - **max_gps_accuracy** (*Meters, Optional*): If specified, and reported GPS accuracy is larger (i.e., *less* accurate), then update is ignored.
 - **max_update_wait** (*Optional*): If specified, then if Life360 does not provide an update for a member within that maximum time window, the life360 platform will fire an event named `life360_update_overdue` with the entity_id of the corresponding member's device_tracker entity. Once an update does come it will fire an event named `life360_update_restored` with the entity_id of the corresponding member's device_tracker entity and another data item named `wait` that will indicate the amount of time spent waiting for the update. You can use these events in automations to be notified when they occur. See [example automations](#example-overdue-update-automations) below. 
 - **members** (*Optional*): Default is to track all Life360 Members in all Circles. If you'd rather only track a specific set of members, then list them with each member specified as `first,last`, or if they only have one name, then `name`. Names are case insensitive, and extra spaces are ignored (except within a name, like `van Gogh`.) For backwards compatibility, a member with a single name can also be entered as `name,` or `,name`.
+> **NOTE**: The Life360 app and web interface typically only show a Member's first name. However, for `members` you need to use the Life360 Member's _full_ name. Either ask the Members what they used for first _and_ last name in their Life360 account, or temporarily remove `members`, enable debug logging, and look in `home-assistant.log` for debug output from this component which will show the full names.
 - **prefix** (*Optional*): Default is to name entities `device_tracker.<first_name>_<last_name>`, where `<first_name>` and `<last_name>` are specified by Life360. If a prefix is specified, then entity will be named `device_tracker.<prefix>_<first_name>_<last_name>`. If the member only has a first or last name in Life360, then the underscore that would normally separate the names is left out.
 - **show_as_state** (*Optional*): One or more of: `driving`, `moving` and `places`. Default is for Device Tracker Component to determine entity state as normal. When specified these can cause the entity's state to show other statuses according to the [States](#states) chart below.
 - **time_as** (*Optional*): One of `utc`, `local`, `device_or_utc` or `device_or_local`. Default is `utc` which shows time attributes in UTC. `local` shows time attributes per HA's `time_zone` configuration. `device_or_utc` and `device_or_local` attempt to determine the time zone in which the device is located based on its GPS coordinates. The name of the time zone (or `unknown`) will be shown in a new [attribute](#additional-attributes) named `time_zone`. If the time zone can be determined, then time attributes will be shown in that time zone. If the time zone cannot be determined, then time attributes will be shown in UTC if `device_or_utc` is selected, or in HA's local time zone if `device_or_local` is selected.
@@ -223,3 +222,4 @@ Date | Version | Notes
 20190419 | [2.9.3](https://github.com/pnbruckner/homeassistant-config/blob/7be70ac6f3445a755c4f3060bfc00cc3019a33b3/custom_components/life360) | ... and older HA versions still need REQUIREMENTS & DEPENDENCIES!
 20190422 | [2.9.4](https://github.com/pnbruckner/homeassistant-config/blob/e8e87ca3019ed98cb54f119032266fd72e86b3be/custom_components/life360) | ... and they need to be in the right place!!
 20190423 | [2.9.5](https://github.com/pnbruckner/homeassistant-config/blob/e10832d66e36cd691a7c40770d733ae73dc29af0/custom_components/life360) | Fix flake8 & pylint errors and move some error checking to custom configuration validators.
+20190503 | [2.10.0]() | Add debug output showing dev_id's (i.e., the second part of the device_tracker entity_id's) that will be included if `members` is used. Also, the first time data for each member is retrieved from the server, output the full name of the member, the corresponding dev_id, and whether or not that member will be tracked.
