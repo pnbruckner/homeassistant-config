@@ -223,3 +223,4 @@ Date | Version | Notes
 20190422 | [2.9.4](https://github.com/pnbruckner/homeassistant-config/blob/e8e87ca3019ed98cb54f119032266fd72e86b3be/custom_components/life360) | ... and they need to be in the right place!!
 20190423 | [2.9.5](https://github.com/pnbruckner/homeassistant-config/blob/e10832d66e36cd691a7c40770d733ae73dc29af0/custom_components/life360) | Fix flake8 & pylint errors and move some error checking to custom configuration validators.
 20190503 | [2.10.0](https://github.com/pnbruckner/homeassistant-config/blob/b0a9a8f4a317f300c3075f8a393e6119d4527e46/custom_components/life360) | Add debug output showing dev_id's (i.e., the second part of the device_tracker entity_id's) that will be included if `members` is used. Also, the first time data for each member is retrieved from the server, output the full name of the member, the corresponding dev_id, and whether or not that member will be tracked.
+20190531 | [2.10.1]() | Adjust to changes in HA 0.94.
