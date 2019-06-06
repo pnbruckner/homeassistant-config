@@ -15,8 +15,8 @@
     ]
   },
   "device_tracker.composite": {
-    "updated_at": "2019-04-22",
-    "version": "1.7.4",
+    "updated_at": "2019-06-06",
+    "version": "1.7.5",
     "local_location": "/custom_components/composite/__init__.py",
     "remote_location": "https://raw.githubusercontent.com/pnbruckner/homeassistant-config/master/custom_components/composite/__init__.py",
     "visit_repo": "https://github.com/pnbruckner/homeassistant-config",

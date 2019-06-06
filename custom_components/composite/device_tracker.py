@@ -12,11 +12,18 @@ import voluptuous as vol
 
 from homeassistant.components.binary_sensor import DOMAIN as BS_DOMAIN
 from homeassistant.components.device_tracker import (
-    ATTR_BATTERY, ATTR_SOURCE_TYPE, ENTITY_ID_FORMAT, PLATFORM_SCHEMA,
+    ATTR_BATTERY, ATTR_SOURCE_TYPE, PLATFORM_SCHEMA,
     SOURCE_TYPE_BLUETOOTH, SOURCE_TYPE_BLUETOOTH_LE, SOURCE_TYPE_GPS,
     SOURCE_TYPE_ROUTER)
+try:
+    from homeassistant.components.device_tracker.const import ENTITY_ID_FORMAT
+except ImportError:
+    from homeassistant.components.device_tracker import ENTITY_ID_FORMAT
 from homeassistant.components.zone import ENTITY_ID_HOME
-from homeassistant.components.zone.zone import active_zone
+try:
+    from homeassistant.components.zone import async_active_zone
+except ImportError:
+    from homeassistant.components.zone.zone import async_active_zone
 from homeassistant.const import (
     ATTR_BATTERY_CHARGING, ATTR_BATTERY_LEVEL,
     ATTR_ENTITY_ID, ATTR_GPS_ACCURACY, ATTR_LATITUDE, ATTR_LONGITUDE,
@@ -24,6 +31,7 @@ from homeassistant.const import (
     STATE_HOME, STATE_NOT_HOME, STATE_ON, STATE_UNKNOWN)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import track_state_change
+from homeassistant.util.async_ import run_callback_threadsafe
 import homeassistant.util.dt as dt_util
 
 _LOGGER = logging.getLogger(__name__)
@@ -221,8 +229,10 @@ class CompositeScanner:
                     cur_lon = cur_state.attributes[ATTR_LONGITUDE]
                     cur_acc = cur_state.attributes[ATTR_GPS_ACCURACY]
                     cur_gps_is_home = (
-                        active_zone(self._hass, cur_lat, cur_lon, cur_acc)
-                        .entity_id == ENTITY_ID_HOME)
+                        run_callback_threadsafe(
+                            self._hass.loop, async_active_zone, self._hass,
+                            cur_lat, cur_lon, cur_acc
+                        ).result().entity_id == ENTITY_ID_HOME)
                 except (AttributeError, KeyError):
                     cur_gps_is_home = False
 
@@ -255,6 +265,8 @@ class CompositeScanner:
                     'unsupported source_type: {}'.format(source_type),
                     init)
                 return
+
+            _LOGGER.debug('Updating %s from %s', self._entity_id, entity_id)
 
             tz = None
             if self._time_as in [TZ_DEVICE_UTC, TZ_DEVICE_LOCAL]:
