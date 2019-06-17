@@ -1,4 +1,8 @@
 # Illuminance Sensor
+
+> **OUT OF DATE**  
+> See https://github.com/pnbruckner/ha-illuminance for newer versions.
+
 Estimates outdoor illuminance based on current weather conditions and time of day. At night the value is 10. From a little before sunrise to a little after the value is ramped up to whatever the current conditions indicate. The same happens around sunset, except the value is ramped down. Below is an example of what that might look like over a three day period.
 
 <p align="center">
