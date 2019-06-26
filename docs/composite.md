@@ -1,4 +1,8 @@
 # Composite Device Tracker
+
+> **OUT OF DATE**  
+> See https://github.com/pnbruckner/ha-composite-tracker
+
 This platform creates a composite device tracker from one or more other device trackers and/or binary sensors. It will update whenever one of the watched entities updates, taking the last_seen/last_updated (and possibly GPS and battery) data from the changing entity. The result can be a more accurate and up-to-date device tracker if the "input" device tracker's update irregularly.
 
 Currently device_tracker's with a source_type of bluetooth, bluetooth_le, gps or router are supported, as well as binary_sensor's.
