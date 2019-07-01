@@ -1,4 +1,12 @@
 # Life360
+
+## Life360 is now a standard integration
+> As of HA 0.95.0b0 Life360 is now a standard integration. See the [Release Notes](https://www.home-assistant.io/blog/2019/06/26/release-95/#life360). To transition to the standard integration see [these instructions](https://community.home-assistant.io/t/life360-device-tracker-platform/52406/1077).
+
+> **This custom integration is no longer supported**
+
+## Original documentation follows
+
 This platform allows you to detect presence using [Life360](http://life360.com/). It can also automatically create Home Assistant zones based on Life360 Places.
 
 >__NOTE__: Home Assistant version 0.92.0 or later requires version 2.9.4 or later of this custom component!
