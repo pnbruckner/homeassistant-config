@@ -1,4 +1,4 @@
-VERSION = '1.2.0'
+VERSION = '1.3.0'
 
 DOMAIN = 'light_store'
 
@@ -6,6 +6,7 @@ ATTR_OPERATION  = 'operation'
 ATTR_OP_SAVE    = 'save'
 ATTR_OP_RESTORE = 'restore'
 ATTR_OVERWRITE  = 'overwrite'
+ATTR_TRANSITION = 'transition'
 
 ATTR_STORE_NAME = 'store_name'
 ATTR_ENTITY_ID  = 'entity_id'
@@ -110,6 +111,9 @@ else:
                 component = entity_id.split('.')[0]
                 if component == 'light' and turn_on and old_state.attributes:
                     service_data.update(old_state.attributes)
+                # Get optional transition parameter (only applies to restoring.)
+                transition = {'transition': data.get(ATTR_TRANSITION, 1)}
+                service_data.update(transition)
                 hass.services.call(component,
                                    'turn_on' if turn_on else 'turn_off',
                                    service_data)
