@@ -27,7 +27,9 @@ attrs[entity_id] = entity_attrs
 
 haevent = re.compile(r'([0-9-]+ [0-9:]+).*homeassistant_(start|close|stop).*')
 new_state = re.compile(
-    r'([0-9-]+ [0-9:]+).*new_state=<state ([^=]+)=([^;]+); (.*) @ ([0-9-:.T]+)>.*')
+    r'([0-9-]+ [0-9:]+).*new_state=<state ([^=]+)=([^;]*); (.*) @ ([0-9+-:.T]+)>.*')
+new_state2 = re.compile(
+    r'([0-9-]+ [0-9:]+).*new_state=<state ([^=]+)=([^@]*) @ ([0-9+-:.T]+)>.*')
 
 ent_hdr = 'entity_id'
 max_ent = len(ent_hdr)
@@ -59,16 +61,21 @@ with open(filename) as f:
             states.append((None, ts, last_changed, None, None))
             continue
         m = new_state.match(line)
+        if m:
+            s = m.group(4)
+            last_changed = m.group(5)
+        else:
+            m = new_state2.match(line)
+            s = ''
+            last_changed = m.group(4) if m else ''
         if m and m.group(2) in attrs:
             entity_id = m.group(2)
             max_ent = max(max_ent, len(entity_id))
             ts = m.group(1)
             max_ts = max(max_ts, len(ts))
-            last_changed = m.group(5)
             max_lc = max(max_lc, len(last_changed))
             state = m.group(3)
             max_state = max(max_state, len(state))
-            s = m.group(4)
             _attrs = OrderedDict()
             for attr in attrs[entity_id]:
                 try:
