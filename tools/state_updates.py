@@ -26,6 +26,8 @@ for arg in sys.argv[2:]:
 attrs[entity_id] = entity_attrs
 
 haevent = re.compile(r'([0-9-]+ [0-9:]+).*homeassistant_(start|close|stop).*')
+new_state_none = re.compile(r'([0-9-]+ [0-9:]+)(.*)new_state=None(.*)')
+ent_id = re.compile(r'.*entity_id=([^,>]+).*')
 new_state = re.compile(
     r'([0-9-]+ [0-9:]+).*new_state=<state ([^=]+)=([^;]*); (.*) @ ([0-9+-:.T]+)>.*')
 new_state2 = re.compile(
@@ -60,6 +62,20 @@ with open(filename) as f:
             max_lc = max(max_lc, len(last_changed))
             states.append((None, ts, last_changed, None, None))
             continue
+
+        m = new_state_none.match(line)
+        if m:
+            n = ent_id.match(m.group(2)) or ent_id.match(m.group(3))
+            entity_id = n.group(1)
+            if entity_id in attrs:
+                max_ent = max(max_ent, len(entity_id))
+                ts = m.group(1)
+                max_ts = max(max_ts, len(ts))
+                state = '=== None ==='
+                max_state = max(max_state, len(state))
+                states.append((entity_id, ts, '', state, {}))
+            continue
+
         m = new_state.match(line)
         if m:
             s = m.group(4)
