@@ -25,6 +25,9 @@ def main():
 
     cam = Http(host, port, user, pswd, retries_connection=1, timeout_protocol=3.05)
 
+    print(cam.device_type)
+    print(*cam.software_information)
+
     ret = cam.command(
         'eventManager.cgi?action=attach&codes=[VideoMotion]',
         timeout_cmd=(3.05, None), stream=True)
