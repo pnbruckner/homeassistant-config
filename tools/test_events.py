@@ -27,6 +27,7 @@ def main():
 
     print(cam.device_type)
     print(*cam.software_information)
+    print(cam.version_http_api)
 
     ret = cam.command(
         'eventManager.cgi?action=attach&codes=[VideoMotion]',
