@@ -1,6 +1,8 @@
 # Sun
 >__NOTE__: This custom integration, although it may still work, has been replaced with a completely new implementation. You can find it here: https://github.com/pnbruckner/ha-sun2
 
+>__NOTE__: This custom integration no longer works starting with HA 0.115.x.
+
 This is an enhanced version of the [standard Sun component](https://www.home-assistant.io/components/sun/). Without configuration additions it behaves exactly as the standard component. With configuration additions you can:
 
 - Select which attributes sun.sun should have from the original set, as well as a few new ones.
