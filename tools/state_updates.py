@@ -25,7 +25,9 @@ for arg in sys.argv[2:]:
         entity_attrs.append(arg)
 attrs[entity_id] = entity_attrs
 
-haevent = re.compile(r'([0-9-]+ [0-9:]+).*homeassistant_(start|close|stop).*')
+haevent = re.compile(
+    r'([0-9-]+ [0-9:]+).*homeassistant_(start|started|stop|final_write|close)\[.*'
+)
 new_state_none = re.compile(r'([0-9-]+ [0-9:]+)(.*)new_state=None(.*)')
 ent_id = re.compile(r'.*entity_id=([^,>]+).*')
 new_state = re.compile(
@@ -58,7 +60,7 @@ with open(filename) as f:
         if m:
             ts = m.group(1)
             max_ts = max(max_ts, len(ts))
-            last_changed = HAFMT.format(m.group(2).title())
+            last_changed = HAFMT.format(m.group(2).replace('_', ' ').title())
             max_lc = max(max_lc, len(last_changed))
             states.append((None, ts, last_changed, None, None))
             continue
