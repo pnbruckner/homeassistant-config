@@ -26,14 +26,14 @@ for arg in sys.argv[2:]:
 attrs[entity_id] = entity_attrs
 
 haevent = re.compile(
-    r'([0-9-]+ [0-9:]+).*homeassistant_(start|started|stop|final_write|close)\[.*'
+    r'([0-9-]+ [0-9:.]+).*homeassistant_(start|started|stop|final_write|close)\[.*'
 )
-new_state_none = re.compile(r'([0-9-]+ [0-9:]+)(.*)new_state=None(.*)')
+new_state_none = re.compile(r'([0-9-]+ [0-9:.]+)(.*)new_state=None(.*)')
 ent_id = re.compile(r'.*entity_id=([^,>]+).*')
 new_state = re.compile(
-    r'([0-9-]+ [0-9:]+).*new_state=<state ([^=]+)=([^;]*); (.*) @ ([0-9+-:.T]+)>.*')
+    r'([0-9-]+ [0-9:.]+).*new_state=<state ([^=]+)=([^;]*); (.*) @ ([0-9+-:.T]+)>.*')
 new_state2 = re.compile(
-    r'([0-9-]+ [0-9:]+).*new_state=<state ([^=]+)=([^@]*) @ ([0-9+-:.T]+)>.*')
+    r'([0-9-]+ [0-9:.]+).*new_state=<state ([^=]+)=([^@]*) @ ([0-9+-:.T]+)>.*')
 
 ent_hdr = 'entity_id'
 max_ent = len(ent_hdr)
