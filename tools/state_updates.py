@@ -26,7 +26,8 @@ for arg in sys.argv[2:]:
 attrs[entity_id] = entity_attrs
 
 haevent = re.compile(
-    r'([0-9-]+ [0-9:.]+).*homeassistant_(start|started|stop|final_write|close)\[.*'
+    r'([0-9-]+ [0-9:.]+).*(?:homeassistant|core)_'
+    r'(start|started|stop|final_write|close|config_updated)\[.*'
 )
 new_state_none = re.compile(r'([0-9-]+ [0-9:.]+)(.*)new_state=None(.*)')
 ent_id = re.compile(r'.*entity_id=([^,>]+).*')
