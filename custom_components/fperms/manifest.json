@@ -1,0 +1,16 @@
+{
+    "domain": "fperms",
+    "name": "File Permisions",
+    "after_dependencies": [],
+    "codeowners": ["@pnbruckner"],
+    "config_flow": false,
+    "dependencies": [],
+    "documentation": "",
+    "integration_type": "service",
+    "iot_class": "assumed_state",
+    "issue_tracker": "",
+    "loggers": [],
+    "requirements": [],
+    "version": "1.0.0b0"
+  }
+  
