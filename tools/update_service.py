@@ -15,8 +15,8 @@ from typing import Any, cast
 from awesomeversion import AwesomeVersion
 from yaml import safe_load
 
-def_tag = "latest"
-def_service = "1"
+DEF_TAG = "latest"
+COMPOSE_FILES = ["compose.yml", "docker-compose.yml"]
 
 
 class ExitError(Exception):
@@ -130,17 +130,16 @@ def update(
     docker("compose", "-f", compose_fullpath, "up", "-d")
 
 
-def find_compose_path(compose_file: str, verbose: bool) -> Path | None:
+def find_compose_path(args: ArgsNamespace, verbose: bool) -> Path | None:
     """Find docker compose file."""
-    if compose_file:
-        compose_files = [compose_file]
+    if args.file:
+        compose_paths = [Path(args.file)]
     else:
-        compose_files = ["compose.yml", "docker-compose.yml"]
-    for compose_file in compose_files:
-        path = Path(compose_file)
-        if path.expanduser().resolve().is_file():
-            log(verbose, "Config file", path)
-            return path
+        compose_paths = [Path(args.dir, file) for file in COMPOSE_FILES]
+    for compose_path in compose_paths:
+        if compose_path.expanduser().resolve().is_file():
+            log(verbose, "Config file", compose_path)
+            return compose_path
     return None
 
 
@@ -198,6 +197,7 @@ class ArgsNamespace:
 
     command: str
     file: str | None
+    dir: str
     service_idx: int
     service: str | None
     quiet: bool
@@ -213,7 +213,7 @@ def main(args: ArgsNamespace) -> str | int | None:
     verbose = not args.quiet
     no_prompt = args.yes
 
-    if not (compose_path := find_compose_path(args.file, verbose)):
+    if not (compose_path := find_compose_path(args, verbose)):
         return "Could not find compose configuration file"
 
     try:
@@ -326,7 +326,11 @@ if __name__ == "__main__":
         help="check | config | restart"
     )
 
-    parser.add_argument("-f", "--file", help=f"Compose configuration file")
+    file_group = parser.add_mutually_exclusive_group()
+    file_group.add_argument("-f", "--file", help="Compose configuration file")
+    file_group.add_argument(
+        "-d", "--dir", default=".", help="Compose configuration file directory"
+    )
 
     service_group = parser.add_mutually_exclusive_group()
     service_group.add_argument(
@@ -353,9 +357,9 @@ if __name__ == "__main__":
     tag_group.add_argument(
         "-t",
         "--tag-version",
-        default=def_tag,
+        default=DEF_TAG,
         metavar="TAG",
-        help=f"use version of TAG (default: {def_tag})",
+        help=f"use version of TAG (default: {DEF_TAG})",
     )
     tag_group.add_argument(
         "-T", "--tag", metavar="TAG", help="use TAG"
