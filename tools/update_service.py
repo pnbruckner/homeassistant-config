@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from datetime import datetime
 from enum import IntEnum
 import json
 from pathlib import Path
@@ -112,6 +113,8 @@ def update(
         print("Changing to", target_tag, "...")
 
     compose_fullpath = compose_path.expanduser().resolve()
+    compose_backup = compose_fullpath.with_suffix(".bak" + compose_fullpath.suffix)
+    compose_log = compose_fullpath.with_suffix(compose_fullpath.suffix + ".log")
 
     with tempfile.NamedTemporaryFile(
         mode="x", dir=compose_fullpath.parent, delete=False
@@ -124,10 +127,18 @@ def update(
             for line in old.readlines():
                 new_line = image_pat.sub(sub_string, line)
                 tmp.write(new_line)
+    compose_fullpath.replace(compose_backup)
     Path(tmp.name).replace(compose_fullpath)
+    with compose_log.open("a") as f:
+        print("=" * 50, file=f)
+        print(datetime.now().replace(microsecond=0), file=f)
+        print(f"{current_tag} -> {target_tag}", file=f)
 
-    docker("compose", "-f", compose_fullpath, "pull")
-    docker("compose", "-f", compose_fullpath, "up", "-d")
+    if restart:
+        docker("compose", "-f", compose_fullpath, "pull")
+        docker("compose", "-f", compose_fullpath, "up", "-d")
+        with compose_log.open("a") as f:
+            print("Restarted", file=f)
 
 
 def find_compose_path(args: ArgsNamespace, verbose: bool) -> Path | None:
