@@ -27,7 +27,7 @@ class ExitError(Exception):
 def run_cmd(
     *cmd: tuple[str, ...],
     capture_stdout: bool = True,
-    capture_stderr: bool = True,
+    capture_stderr: bool = False,
 ) -> CompletedProcess:
     """Run a shell command.
     
@@ -46,7 +46,7 @@ def run_cmd(
 def docker(
     *cmd: tuple[str, ...],
     capture_stdout: bool = True,
-    capture_stderr: bool = True,
+    capture_stderr: bool = False,
 ) -> CompletedProcess:
     """Run a docker command.
     
@@ -135,8 +135,8 @@ def update(
         print(f"{current_tag} -> {target_tag}", file=f)
 
     if restart:
-        docker("compose", "-f", compose_fullpath, "pull")
-        docker("compose", "-f", compose_fullpath, "up", "-d")
+        docker("compose", "-f", compose_fullpath, "pull", capture_stdout=not verbose)
+        docker("compose", "-f", compose_fullpath, "up", "-d", capture_stdout=not verbose)
         with compose_log.open("a") as f:
             print("Restarted", file=f)
 
