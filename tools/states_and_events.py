@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from contextlib import suppress
 from dataclasses import dataclass, field
 import datetime as dt
 import json
@@ -31,7 +32,6 @@ COLORS_HA_EVENT = ("black", "on_cyan")
 COLORS_USER_EVENT = ("black", "on_yellow")
 COLOR_BANNER = "light_green"
 COLORS_STATES = [
-    # "light_grey",
     "light_magenta",
     "light_blue",
     "light_green",
@@ -44,6 +44,7 @@ COLORS_STATES = [
     "red",
     "yellow",
 ]
+COLORS_TS = ["light_grey", "white"]
 
 
 def find_stop(stops: int) -> dt.datetime | None:
@@ -354,7 +355,7 @@ def print_results(
         attr_hdrs.append("attributes")
     print(
         f"{COL1_HEADER:{col_1_width}}",
-        f"{'last_update':26}",
+        f"{'last_updated / time_fired':26}",
         *state_hdr,
         *attr_hdrs,
         sep=" | ",
@@ -368,13 +369,25 @@ def print_results(
         hdr += "-" * (get_terminal_size().columns - len(hdr))
     print(hdr)
 
-    prev_entity_id = None
     state_color = {
         entity_id: COLORS_STATES[idx % len(COLORS_STATES)]
         for idx, entity_id in enumerate(entity_attrs)
     }
+    rows = sorted(states + events, key=lambda x: x.ts)
+    prev_entity_id = None
+    ts_idx = 0
+    ts_color = COLORS_TS[0]
+    sep = colored(" | ", ts_color)
+    with suppress(IndexError):
+        prev_date = rows[0].ts.date()
 
-    for row in sorted(states + events, key=lambda x: x.ts):
+    for row in rows:
+        if (row_date := row.ts.date()) != prev_date:
+            ts_idx += 1
+            ts_color = COLORS_TS[ts_idx % len(COLORS_TS)]
+            sep = colored(" | ", ts_color)
+            prev_date = row_date
+        ts_str = colored(row.ts, ts_color)
         if isinstance(row, Event):
             event = row
             event_str = f" {event.type} "
@@ -390,9 +403,9 @@ def print_results(
                 colors = COLORS_USER_EVENT
             print(
                 colored(f"{event_str:{fill}^{col_1_width}}", *colors),
-                event.ts,
+                ts_str,
                 ", ".join([f"{k}: {v}" for k, v in event.data.items()]),
-                sep=" | ",
+                sep=sep,
             )
             prev_entity_id = None
         else:
@@ -418,10 +431,10 @@ def print_results(
                 )
             print(
                 colored(f"{entity_id_str:{col_1_width}}", color),
-                state.ts,
+                ts_str,
                 colored(f"{state.state:{max_state_len}}", color),
                 *_attrs,
-                sep=" | "
+                sep=sep
             )
 
 
