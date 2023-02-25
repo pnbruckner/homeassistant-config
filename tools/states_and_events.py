@@ -47,6 +47,12 @@ COLORS_STATES = [
 COLORS_TS = ["light_grey", "white"]
 
 
+def print_error(*args: Any, **kwargs: Any) -> None:
+    """Print error message to stderr."""
+    print_usage(file=sys.stderr)
+    print(f"{basename(sys.argv[0])}: error:", *args, **kwargs, file=sys.stderr)
+
+
 def find_stop(stops: int) -> dt.datetime | None:
     """Find time HA stopped # of times ago."""
     result = con.execute(
@@ -149,10 +155,7 @@ def process_args(args: ArgsNamespace, params: Params) -> int:
     elif args.end_stops_ago is not None:
         args.end = find_stop(args.end_stops_ago)
         if args.end is None:
-            print(
-                f"error: argument -ES: could not find {args.end_stops_ago} stops",
-                file=sys.stderr,
-            )
+            print_error(f"argument -ES: could not find {args.end_stops_ago} stops")
             return 1
 
     if params.window_specified:
@@ -168,11 +171,8 @@ def process_args(args: ArgsNamespace, params: Params) -> int:
         args.start = days_ago(0)
 
     if args.start is not None and args.end is not None and args.start > args.end:
-        print(
-            f"error: start ({args.start}) must not be before end ({args.end})",
-            file=sys.stderr,
-        )
-        return 1
+        print_error(f"start ({args.start}) must not be after end ({args.end})")
+        return 2
 
     return 0
 
@@ -189,6 +189,17 @@ def print_banner(args: ArgsNamespace) -> None:
         start_str = args.start
     end_str = args.end if args.end is not None else "end (now)"
     cprint(f"Showing from {start_str} to {end_str}", COLOR_BANNER)
+
+
+def get_all(table: str, key: str, ts: str, args: ArgsNamespace) -> set[str]:
+    """Get all entity IDs."""
+    return {
+        value[0]
+        for value in con.execute(
+            f"SELECT {key} AS key, {ts} AS ts FROM {table}"
+            f" {where([], args.start, args.end)} GROUP BY key"
+        ).fetchall()
+    }
 
 
 EntityAttrs = dict[str, list[str]]
@@ -453,7 +464,16 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
 
         print_banner(args)
 
+        all_entity_ids = get_all("states", "entity_id", "last_updated_ts", args)
+        all_event_types = get_all("events", "event_type", "time_fired_ts", args)
+
         entity_attrs, max_entity_id_len = get_entity_ids_and_attributes(args)
+        if not set(entity_attrs).issubset(all_entity_ids):
+            print_error(
+                "entity IDs not found in time window: "
+                f"{', '.join(set(entity_attrs) - all_entity_ids)}"
+            )
+            return 1
         if entity_attrs:
             states = get_states(
                 list(entity_attrs),
@@ -469,6 +489,12 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
             max_state_len = 0
 
         event_types, max_event_type_len = get_event_types(args)
+        if not set(event_types).issubset(all_event_types):
+            print_error(
+                "event types not found in time window: "
+                f"{', '.join(set(event_types) - all_event_types)}"
+            )
+            return 1
         if event_types:
             events = get_events(event_types, start=args.start, end=args.end)
         else:
@@ -494,9 +520,12 @@ class ArgError(Exception):
 
 def parse_args() -> tuple[ArgsNamespace, Params]:
     """Parse command line arguments."""
+    global print_usage
+
     parser = argparse.ArgumentParser(
         description="Retrieve states and/or events from HA database"
     )
+    print_usage = parser.print_usage
 
     state_group = parser.add_argument_group("states", "Entity IDs & attributes")
     state_group.add_argument(
@@ -651,8 +680,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
             raise ArgError("can only specify at most 2 of start, end & window")
 
     except ArgError as exc:
-        parser.print_usage(file=sys.stderr)
-        print(f"{basename(sys.argv[0])}: error:", exc, file=sys.stderr)
+        print_error(exc)
         sys.exit(2)
 
     return args, Params(start_specified, end_specified, window_specified)
