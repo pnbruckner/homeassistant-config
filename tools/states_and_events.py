@@ -420,11 +420,14 @@ def print_results(
                 for attr, attr_len in attr_fields
             ]
             if other_attrs:
+                e_attrs = entity_attrs[entity_id]
+                if "*" in e_attrs:
+                    e_attrs = list(state.attributes)
                 _attrs.append(
                     colored(
                         ", ".join(
                             f"{e_attr}={state.attributes.get(e_attr, MISSING)}"
-                            for e_attr in entity_attrs[entity_id]
+                            for e_attr in e_attrs
                         ),
                         color,
                     )
@@ -509,7 +512,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         action="append",
         nargs="+",
         default=[],
-        help="entity ID & optional attributes; e.g., -e domain.object_id attr_1 attr_2",
+        help="entity ID & optional attributes; use \"*\" for all attributes",
         metavar="VALUE",
         dest="entity_ids_attrs"
     )
