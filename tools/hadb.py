@@ -9,6 +9,7 @@ import datetime as dt
 import json
 from os.path import basename
 from pathlib import Path
+import re
 from shutil import get_terminal_size
 import sqlite3
 import sys
@@ -118,8 +119,10 @@ class ArgsNamespace:
     entity_ids_attrs: list[list[str]]
 
     event_types: list[str]
-    uppercase_event_types: bool
+    event_types_re: list[str]
+    core_event_types: bool
     lowercase_event_types: bool
+    uppercase_event_types: bool
 
     start: dt.datetime | None
     start_days_ago: int | None
@@ -274,17 +277,30 @@ def get_states(
     return states
 
 
-def get_event_types(args: ArgsNamespace) -> tuple[list[str], int]:
+def get_event_types(
+    args: ArgsNamespace, all_event_types: set[str]
+) -> tuple[list[str], int]:
     """Get event types."""
     event_types = args.event_types
-    if args.lowercase_event_types:
+
+    for pat in args.event_types_re:
+        pat = re.compile(pat)
+        event_types.extend(
+            [event_type for event_type in all_event_types if pat.fullmatch(event_type)]
+        )
+
+    if args.core_event_types:
         event_types.extend(CORE_EVENTS)
     if args.uppercase_event_types:
-        event_types.extend(["double_tap", "bi_camera", "SIM_PERIODS_SET"])
+        event_types.extend(filter(lambda s: s.isupper(), all_event_types))
+    if args.lowercase_event_types:
+        event_types.extend(filter(lambda s: s.islower(), all_event_types))
+
     if event_types:
         max_event_type_len = max(len(event_type) for event_type in event_types) + 6
     else:
         max_event_type_len = 0
+
     return event_types, max_event_type_len
 
 
@@ -493,7 +509,7 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
             states = []
             max_state_len = 0
 
-        event_types, max_event_type_len = get_event_types(args)
+        event_types, max_event_type_len = get_event_types(args, all_event_types)
         if not set(event_types).issubset(all_event_types):
             print_error(
                 "event types not found in time window: "
@@ -532,6 +548,8 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     )
     print_usage = parser.print_usage
 
+    # states
+
     state_group = parser.add_argument_group("states", "Entity IDs & attributes")
     state_group.add_argument(
         "-a",
@@ -551,9 +569,31 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         dest="entity_ids_attrs"
     )
 
+    # events
+
     event_group = parser.add_argument_group("events", "Event types")
     event_group.add_argument(
-        "-e", nargs="+", default=[], metavar="EVENT_TYPE", dest="event_types"
+        "-e", nargs="+", default=[], help="event types", metavar="TYPE", dest="event_types"
+    )
+    event_group.add_argument(
+        "-er",
+        nargs="+",
+        default=[],
+        help="event type regular expressions",
+        metavar="RE",
+        dest="event_types_re",
+    )
+    event_group.add_argument(
+        "-c",
+        action="store_true",
+        help="show all HA core events",
+        dest="core_event_types",
+    )
+    event_group.add_argument(
+        "-l",
+        action="store_true",
+        help="show all lowercase/system event types",
+        dest="lowercase_event_types",
     )
     event_group.add_argument(
         "-u",
@@ -561,12 +601,8 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         help="show all uppercase/user event types",
         dest="uppercase_event_types",
     )
-    event_group.add_argument(
-        "-l",
-        action="store_true",
-        help="show all lowercase/core event types",
-        dest="lowercase_event_types",
-    )
+
+    # time
 
     time_group = parser.add_argument_group(
         "time",
@@ -576,7 +612,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     start_group.add_argument(
         "-S",
         help="start at DATETIME, DATE or TIME",
-        metavar="VALUE",
+        metavar="DATETIME",
         dest="start",
     )
     start_group.add_argument(
@@ -603,7 +639,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     end_group.add_argument(
         "-E",
         help="end at DATETIME, DATE or TIME",
-        metavar="VALUE",
+        metavar="DATETIME",
         dest="end",
     )
     end_group.add_argument(
