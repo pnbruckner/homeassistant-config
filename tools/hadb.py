@@ -103,6 +103,11 @@ def where(
     return f"WHERE {' AND '.join(result)}" if result else ""
 
 
+def today_at(time: dt.time = dt.time()) -> dt.datetime:
+    """Return datetime for today at specified time or midnight this morning."""
+    return dt.datetime.combine(dt.datetime.now().date(), time)
+
+
 @dataclass(init=False)
 class ArgsNamespace:
     """Namespace for arguments."""
@@ -142,7 +147,7 @@ def process_args(args: ArgsNamespace, params: Params) -> int:
 
     def days_ago(days: int) -> dt.datetime:
         """Return start of number of days ago."""
-        start_of_today = dt.datetime.combine(dt.datetime.now().date(), dt.time())
+        start_of_today = today_at()
         return start_of_today - dt.timedelta(days)
 
     if args.start_days_ago is not None:
@@ -570,8 +575,8 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     start_group = time_group.add_mutually_exclusive_group()
     start_group.add_argument(
         "-S",
-        help="start at DATETIME",
-        metavar="DATETIME",
+        help="start at DATETIME, DATE or TIME",
+        metavar="VALUE",
         dest="start",
     )
     start_group.add_argument(
@@ -597,8 +602,8 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     end_group = time_group.add_mutually_exclusive_group()
     end_group.add_argument(
         "-E",
-        help="end at DATETIME",
-        metavar="DATETIME",
+        help="end at DATETIME, DATE or TIME",
+        metavar="VALUE",
         dest="end",
     )
     end_group.add_argument(
@@ -634,6 +639,8 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
 
     def datetime_arg(opt: str, arg: str) -> dt.datetime:
         """Convert argument string to datetime."""
+        with suppress(ValueError):
+            return today_at(dt.time.fromisoformat(arg))
         try:
             return dt.datetime.fromisoformat(arg)
         except ValueError as exc:
