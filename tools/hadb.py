@@ -117,6 +117,7 @@ class ArgsNamespace:
 
     attributes: list[str]
     entity_ids_attrs: list[list[str]]
+    entity_ids_attrs_re: list[list[str]]
 
     event_types: list[str]
     event_types_re: list[str]
@@ -210,19 +211,33 @@ def get_all(table: str, key: str, ts: str, args: ArgsNamespace) -> set[str]:
     }
 
 
-EntityAttrs = dict[str, list[str]]
+EntityAttrs = dict[str, list[str] | list[re.Pattern[str]]]
 
 
-def get_entity_ids_and_attributes(args: ArgsNamespace) -> tuple[EntityAttrs, int]:
+def get_entity_ids_and_attributes(
+    args: ArgsNamespace, all_entity_ids: set[str]
+) -> tuple[EntityAttrs, int]:
     """Get entity IDs and their associated attributes."""
     max_entity_id_len = 0
     entity_attrs: EntityAttrs = {}
+
     for values in args.entity_ids_attrs:
         entity_id = values[0]
         attrs = values[1:]
         entity_attrs[entity_id] = attrs
         if (entity_id_len := len(entity_id)) > max_entity_id_len:
             max_entity_id_len = entity_id_len
+
+    for regexs in args.entity_ids_attrs_re:
+        eid_pat = re.compile(regexs[0])
+        attr_pats = [re.compile(regex) for regex in regexs[1:]]
+        for entity_id in all_entity_ids:
+            if not eid_pat.fullmatch(entity_id):
+                continue
+            entity_attrs[entity_id] = attr_pats
+            if (entity_id_len := len(entity_id)) > max_entity_id_len:
+                max_entity_id_len = entity_id_len
+
     return entity_attrs, max_entity_id_len
 
 
@@ -401,10 +416,13 @@ def print_results(
         hdr += "-" * (get_terminal_size().columns - len(hdr))
     print(hdr)
 
-    state_color = {
-        entity_id: COLORS_STATES[idx % len(COLORS_STATES)]
-        for idx, entity_id in enumerate(entity_attrs)
-    }
+    state_color: dict[str, str] = {}
+    idx = 0
+    for entity_id in entity_attrs:
+        if entity_id not in state_color:
+            state_color[entity_id] = COLORS_STATES[idx % len(COLORS_STATES)]
+            idx += 1
+
     rows = sorted(states + events, key=lambda x: x.ts)
     prev_entity_id = None
     ts_idx = 0
@@ -452,9 +470,17 @@ def print_results(
                 for attr, attr_len in attr_fields
             ]
             if other_attrs:
-                e_attrs = entity_attrs[entity_id]
-                if "*" in e_attrs:
+                attr_strs_pats = entity_attrs[entity_id]
+                if any(isinstance(attr_str_pat, re.Pattern) for attr_str_pat in attr_strs_pats):
+                    e_attrs: list[str] = []
+                    for attr_pat in cast(list[re.Pattern[str]], attr_strs_pats):
+                        for attr in state.attributes:
+                            if attr not in e_attrs and attr_pat.fullmatch(attr):
+                                e_attrs.append(attr)
+                elif "*" in cast(list[str], attr_strs_pats):
                     e_attrs = list(state.attributes)
+                else:
+                    e_attrs = cast(list[str], attr_strs_pats)
                 _attrs.append(
                     colored(
                         ", ".join(
@@ -488,7 +514,7 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
         all_entity_ids = get_all("states", "entity_id", "last_updated_ts", args)
         all_event_types = get_all("events", "event_type", "time_fired_ts", args)
 
-        entity_attrs, max_entity_id_len = get_entity_ids_and_attributes(args)
+        entity_attrs, max_entity_id_len = get_entity_ids_and_attributes(args, all_entity_ids)
         if not set(entity_attrs).issubset(all_entity_ids):
             print_error(
                 "entity IDs not found in time window: "
@@ -567,6 +593,15 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         help="entity ID & optional attributes; use \"*\" for all attributes",
         metavar="VALUE",
         dest="entity_ids_attrs"
+    )
+    state_group.add_argument(
+        "-sr",
+        action="append",
+        nargs="+",
+        default=[],
+        help="entity ID & optional attributes regular expressions",
+        metavar="RE",
+        dest="entity_ids_attrs_re"
     )
 
     # events
