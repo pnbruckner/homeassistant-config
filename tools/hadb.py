@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sequence
 from contextlib import suppress
 from dataclasses import dataclass, field
 import datetime as dt
@@ -13,7 +13,7 @@ import re
 from shutil import get_terminal_size
 import sqlite3
 import sys
-from typing import Any, cast
+from typing import Any, TypeVar, cast
 
 from termcolor import colored, cprint
 
@@ -129,13 +129,21 @@ def today_at(time: dt.time = dt.time()) -> dt.datetime:
     return dt.datetime.combine(dt.datetime.now().date(), time)
 
 
+@dataclass
+class StateArgument:
+    """State argument."""
+
+    entity_id: str
+    attrs: list[str]
+    is_regex: bool
+
+
 @dataclass(init=False)
 class ArgsNamespace:
     """Namespace for arguments."""
 
     attributes: list[str]
-    entity_ids_attrs: list[list[str]]
-    entity_ids_attrs_re: list[list[str]]
+    entity_ids_attrs: list[StateArgument]
 
     event_types: list[str]
     event_types_re: list[str]
@@ -236,17 +244,18 @@ EntityAttrs = dict[str, list[str] | list[re.Pattern[str]]]
 
 def get_entity_ids_and_attributes(args: ArgsNamespace) -> EntityAttrs:
     """Get entity IDs and their associated attributes."""
-    entity_attrs: EntityAttrs = {
-        values[0]: values[1:] for values in args.entity_ids_attrs
-    }
+    entity_attrs: EntityAttrs = {}
 
     all_entity_ids = get_unique("states", "entity_id")
-    for regexs in args.entity_ids_attrs_re:
-        eid_pat = re.compile(regexs[0])
-        attr_pats = [re.compile(regex) for regex in regexs[1:]]
-        for entity_id in all_entity_ids:
-            if eid_pat.fullmatch(entity_id):
-                entity_attrs[entity_id] = attr_pats
+    for state_arg in args.entity_ids_attrs:
+        if state_arg.is_regex:
+            eid_pat = re.compile(state_arg.entity_id)
+            attr_pats = [re.compile(regex) for regex in state_arg.attrs]
+            for entity_id in all_entity_ids:
+                if eid_pat.fullmatch(entity_id):
+                    entity_attrs[entity_id] = attr_pats
+        else:
+            entity_attrs[state_arg.entity_id] = state_arg.attrs
 
     return entity_attrs
 
@@ -641,6 +650,59 @@ class ArgError(Exception):
     """Argument error."""
 
 
+_T = TypeVar("_T")
+
+
+class StateAction(argparse.Action):
+    """Action to store state entity IDs & attributes."""
+
+    def __init__(
+        self,
+        option_strings: Sequence[str],
+        dest: str,
+        nargs: int | str | None = None,
+        const: _T | None = None,
+        default: _T | str | None = None,
+        type: Callable[[str], _T] | argparse.FileType | None = None,
+        choices: Iterable[_T] | None = None,
+        required: bool = False,
+        help: str | None = None,
+        metavar: str | tuple[str, ...] | None = None,
+    ) -> None:
+        if nargs == 0:
+            raise ValueError('nargs for append actions must be != 0; if arg '
+                             'strings are not supplying the value to append, '
+                             'the append const action may be more appropriate')
+        if const is not None and nargs != argparse.OPTIONAL:
+            raise ValueError('nargs must be %r to supply const' % argparse.OPTIONAL)
+        super().__init__(
+            option_strings,
+            dest,
+            nargs,
+            const,
+            default,
+            type,
+            choices,
+            required,
+            help,
+            metavar,
+        )
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: ArgsNamespace,
+        values: list[str],
+        option_string: str | None = None,
+    ) -> None:
+        """Process state entity ID & attributes argument."""
+        items = cast(list[StateArgument] | None, getattr(namespace, self.dest, None))
+        if items is None:
+            items = []
+        items.append(StateArgument(values[0], values[1:], option_string.endswith("r")))
+        setattr(namespace, self.dest, items)
+
+
 def parse_args() -> tuple[ArgsNamespace, Params]:
     """Parse command line arguments."""
     global print_usage
@@ -664,21 +726,19 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     )
     state_group.add_argument(
         "-s",
-        action="append",
+        action=StateAction,
         nargs="+",
-        default=[],
-        help='entity ID & optional attributes; use "*" for all attributes',
-        metavar="VALUE",
+        help='entity ID & optional attributes; ATTR may be "*" for all attributes',
+        metavar=("ID", "ATTR"),
         dest="entity_ids_attrs",
     )
     state_group.add_argument(
         "-sr",
-        action="append",
+        action=StateAction,
         nargs="+",
-        default=[],
-        help="entity ID & optional attributes regular expressions",
-        metavar="RE",
-        dest="entity_ids_attrs_re",
+        help="regular expressions for entity ID & optional attributes",
+        metavar=("ID_RE", "ATTR_RE"),
+        dest="entity_ids_attrs",
     )
 
     # events
@@ -698,8 +758,8 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         action="extend",
         nargs="+",
         default=[],
-        help="event type regular expressions",
-        metavar="RE",
+        help="regular expressions for event type",
+        metavar="TYPE_RE",
         dest="event_types_re",
     )
     event_group.add_argument(
@@ -793,7 +853,9 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
 
     try:
         for entity_id_attrs in args.entity_ids_attrs:
-            if (entity_id := entity_id_attrs[0]).count(".") != 1:
+            if entity_id_attrs.is_regex:
+                continue
+            if (entity_id := entity_id_attrs.entity_id).count(".") != 1:
                 raise ArgError(
                     f"first argument -s: must be domain.object_id: '{entity_id}'"
                 )
