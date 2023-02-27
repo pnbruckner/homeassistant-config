@@ -655,6 +655,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     state_group = parser.add_argument_group("states", "Entity IDs & attributes")
     state_group.add_argument(
         "-a",
+        action="extend",
         nargs="+",
         default=[],
         help="global attributes",
@@ -685,6 +686,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     event_group = parser.add_argument_group("events", "Event types")
     event_group.add_argument(
         "-e",
+        action="extend",
         nargs="+",
         default=[],
         help="event types",
@@ -693,6 +695,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     )
     event_group.add_argument(
         "-er",
+        action="extend",
         nargs="+",
         default=[],
         help="event type regular expressions",
