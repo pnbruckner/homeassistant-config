@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
+from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
 import datetime as dt
@@ -48,10 +48,30 @@ COLORS_STATES = [
 COLORS_TS = ["light_grey", "white"]
 
 
-def print_error(*args: Any, **kwargs: Any) -> None:
+def print_msg(
+    text: str,
+    color: str | None = None,
+    on_color: str | None = None,
+    attrs: Iterable[str] | None = None,
+    prefix: str | None = "error",
+    usage: bool = True,
+    **kwargs: Any
+) -> None:
     """Print error message to stderr."""
-    print_usage(file=sys.stderr)
-    print(f"{basename(sys.argv[0])}: error:", *args, **kwargs, file=sys.stderr)
+    if usage:
+        print_usage(file=sys.stderr)
+    if prefix is None:
+        prefix = ""
+    else:
+        prefix = f" {prefix}:"
+    cprint(
+        f"{basename(sys.argv[0])}:{prefix} {text}",
+        color=color,
+        on_color=on_color,
+        attrs=attrs,
+        **kwargs,
+        file=sys.stderr,
+    )
 
 
 def find_stop(stops: int) -> dt.datetime | None:
@@ -87,7 +107,7 @@ def find_oldest() -> dt.datetime:
 
 
 def where(
-    keys: Sequence[str],
+    keys: list[str],
     start: dt.datetime | None = None,
     end: dt.datetime | None = None,
 ) -> str:
@@ -164,7 +184,7 @@ def process_args(args: ArgsNamespace, params: Params) -> int:
     elif args.end_stops_ago is not None:
         args.end = find_stop(args.end_stops_ago)
         if args.end is None:
-            print_error(f"argument -ES: could not find {args.end_stops_ago} stops")
+            print_msg(f"argument -ES: could not find {args.end_stops_ago} stops")
             return 1
 
     if params.window_specified:
@@ -180,7 +200,7 @@ def process_args(args: ArgsNamespace, params: Params) -> int:
         args.start = days_ago(0)
 
     if args.start is not None and args.end is not None and args.start > args.end:
-        print_error(f"start ({args.start}) must not be after end ({args.end})")
+        print_msg(f"start ({args.start}) must not be after end ({args.end})")
         return 2
 
     return 0
@@ -200,104 +220,146 @@ def print_banner(args: ArgsNamespace) -> None:
     cprint(f"Showing from {start_str} to {end_str}", COLOR_BANNER)
 
 
-def get_all(table: str, key: str, ts: str, args: ArgsNamespace) -> set[str]:
-    """Get all entity IDs."""
-    return {
-        value[0]
-        for value in con.execute(
-            f"SELECT {key} AS key, {ts} AS ts FROM {table}"
-            f" {where([], args.start, args.end)} GROUP BY key"
-        ).fetchall()
-    }
+def get_unique(table: str, key: str) -> set[str]:
+    """Get all unique keys from table."""
+    try:
+        return set(
+            list(zip(*con.execute(f"SELECT DISTINCT {key} FROM {table}").fetchall()))[0]
+        )
+    except IndexError:
+        return set()
 
 
 EntityAttrs = dict[str, list[str] | list[re.Pattern[str]]]
 
 
-def get_entity_ids_and_attributes(
-    args: ArgsNamespace, all_entity_ids: set[str]
-) -> tuple[EntityAttrs, int]:
+def get_entity_ids_and_attributes(args: ArgsNamespace) -> EntityAttrs:
     """Get entity IDs and their associated attributes."""
-    max_entity_id_len = 0
-    entity_attrs: EntityAttrs = {}
+    entity_attrs: EntityAttrs = {
+        values[0]: values[1:] for values in args.entity_ids_attrs
+    }
 
-    for values in args.entity_ids_attrs:
-        entity_id = values[0]
-        attrs = values[1:]
-        entity_attrs[entity_id] = attrs
-        if (entity_id_len := len(entity_id)) > max_entity_id_len:
-            max_entity_id_len = entity_id_len
-
+    all_entity_ids = get_unique("states", "entity_id")
     for regexs in args.entity_ids_attrs_re:
         eid_pat = re.compile(regexs[0])
         attr_pats = [re.compile(regex) for regex in regexs[1:]]
         for entity_id in all_entity_ids:
-            if not eid_pat.fullmatch(entity_id):
-                continue
-            entity_attrs[entity_id] = attr_pats
-            if (entity_id_len := len(entity_id)) > max_entity_id_len:
-                max_entity_id_len = entity_id_len
+            if eid_pat.fullmatch(entity_id):
+                entity_attrs[entity_id] = attr_pats
 
-    return entity_attrs, max_entity_id_len
+    return entity_attrs
 
 
 @dataclass
-class State:
-    """State"""
+class StateQueryResult:
+    """State query result."""
 
-    ts: dt.datetime
+    ts: float
     entity_id: str
     state: str | None
-    attributes: dict[str, Any] = field(default_factory=dict)
+    old_state_id: int | None
+    shared_attrs: str
+
+
+class State:
+    """State."""
+
+    def __init__(
+        self,
+        ts: float,
+        entity_id: str,
+        state: str | None,
+        attrs: str,
+    ) -> None:
+        """Initialize."""
+        self.ts = dt.datetime.fromtimestamp(ts)
+        self.entity_id = entity_id
+        self.state = state
+        self.attributes = cast(dict[str, Any], json.loads(attrs))
 
 
 def get_states(
-    entity_ids: Sequence[str],
+    entity_ids: list[str],
     include_attrs: bool = True,
     start: dt.datetime | None = None,
     end: dt.datetime | None = None,
 ) -> list[State]:
     """Get states."""
-    states: list[State] = []
-
     if include_attrs:
-        cmd = (
-            "SELECT last_updated_ts AS ts, entity_id AS key, state, shared_attrs"
-            " FROM states AS s"
-            " INNER JOIN state_attributes AS a ON s.attributes_id = a.attributes_id"
-            f" {where(entity_ids, start, end)}"
-            " ORDER BY ts"
+        shared_attrs_str = "shared_attrs"
+        join_str = (
+            "INNER JOIN state_attributes AS a ON s.attributes_id = a.attributes_id"
         )
-        for ts, entity_id, state, shared_attrs in cast(
-            list[tuple[float, str | None, str]], con.execute(cmd).fetchall()
-        ):
-            shared_attrs = cast(dict[str, Any], json.loads(shared_attrs))
-            states.append(
-                State(dt.datetime.fromtimestamp(ts), entity_id, state, shared_attrs)
-            )
     else:
-        cmd = (
-            "SELECT last_updated_ts AS ts, entity_id AS key, state"
-            " FROM states"
+        shared_attrs_str = "'{}'"
+        join_str = ""
+    results = [
+        StateQueryResult(*result)
+        for result in con.execute(
+            "SELECT last_updated_ts AS ts, entity_id AS key, state, old_state_id"
+            f", {shared_attrs_str}"
+            " FROM states AS s"
+            f" {join_str}"
             f" {where(entity_ids, start, end)}"
             " ORDER BY ts"
-        )
-        for ts, entity_id, state in cast(
-            list[tuple[float, str | None]], con.execute(cmd).fetchall()
-        ):
-            states.append(
-                State(dt.datetime.fromtimestamp(ts), entity_id, state)
+        ).fetchall()
+    ]
+
+    states = [
+        State(result.ts, result.entity_id, result.state, result.shared_attrs)
+        for result in results
+    ]
+
+    if start is not None:
+        not_found_entity_ids = entity_ids[:]
+        prev_states: list[State] = []
+
+        for entity_id in entity_ids:
+            try:
+                old_state_id = [
+                    result.old_state_id
+                    for result in results
+                    if result.entity_id == entity_id
+                ][0]
+            except IndexError:
+                continue
+            if old_state_id is None:
+                continue
+            prev_states.append(
+                State(
+                    *con.execute(
+                        "SELECT last_updated_ts, entity_id, state"
+                        f", {shared_attrs_str}"
+                        " FROM states AS s"
+                        f" {join_str}"
+                        f" WHERE state_id = {old_state_id}"
+                    ).fetchone()
+                )
             )
+            not_found_entity_ids.remove(entity_id)
+
+        for entity_id in not_found_entity_ids:
+            result = con.execute(
+                "SELECT last_updated_ts AS ts, entity_id AS key, state"
+                f", {shared_attrs_str}"
+                " FROM states AS s"
+                f" {join_str}"
+                f" WHERE key = '{entity_id}' AND ts < {start.timestamp()}"
+                " ORDER BY ts DESC LIMIT 1"
+            ).fetchone()
+            if result:
+                prev_states.append(State(*result))
+
+        states = sorted(states + prev_states, key=lambda state: state.ts)
 
     return states
 
 
-def get_event_types(
-    args: ArgsNamespace, all_event_types: set[str]
-) -> tuple[list[str], int]:
+def get_event_types(args: ArgsNamespace) -> list[str]:
     """Get event types."""
     event_types = args.event_types
 
+    all_event_types = get_unique("events", "event_type")
     for pat in args.event_types_re:
         pat = re.compile(pat)
         event_types.extend(
@@ -311,12 +373,7 @@ def get_event_types(
     if args.lowercase_event_types:
         event_types.extend(filter(lambda s: s.islower(), all_event_types))
 
-    if event_types:
-        max_event_type_len = max(len(event_type) for event_type in event_types) + 6
-    else:
-        max_event_type_len = 0
-
-    return event_types, max_event_type_len
+    return event_types
 
 
 @dataclass
@@ -333,7 +390,7 @@ class Event:
 
 
 def get_events(
-    event_types: Sequence[str],
+    event_types: list[str],
     include_data: bool = True,
     start: dt.datetime | None = None,
     end: dt.datetime | None = None,
@@ -375,18 +432,24 @@ def get_events(
 
 
 def print_results(
+    start: dt.datetime | None,
     entity_attrs: EntityAttrs,
     attributes: list[str],
-    max_entity_id_len: int,
     states: list[State],
-    max_state_len: int,
-    max_event_type_len: int,
     events: list[Event],
 ) -> None:
     """Print results."""
-    col_1_width = max(max_entity_id_len, max_event_type_len + 6, len(COL1_HEADER))
+    col_1_width = max(
+        max(len(state.entity_id) for state in states) if states else 0,
+        (max(len(event.type) for event in events) + 6) if events else 0,
+        len(COL1_HEADER),
+    )
 
-    state_hdr = [f"{STATE_HEADER:{max_state_len}}"] if max_state_len else []
+    if states:
+        max_state_len = max(*[len(state.state) for state in states], len(STATE_HEADER))
+        state_hdr = [f"{STATE_HEADER:{max_state_len}}"]
+    else:
+        state_hdr = []
     attr_fields = [
         (
             attr,
@@ -408,13 +471,17 @@ def print_results(
         sep=" | ",
     )
 
-    state_hdr = ["-" * max_state_len] if max_state_len else []
+    state_hdr = ["-" * max_state_len] if states else []
     attr_hdrs = ["-" * attr_len for _, attr_len in attr_fields]
     hdr = "-|-".join(["-" * col_1_width, "-" * 26] + state_hdr + attr_hdrs)
     if other_attrs:
         hdr += "-|-"
         hdr += "-" * (get_terminal_size().columns - len(hdr))
     print(hdr)
+
+    rows = sorted(states + events, key=lambda x: x.ts)
+    if not rows:
+        return
 
     state_color: dict[str, str] = {}
     idx = 0
@@ -423,21 +490,25 @@ def print_results(
             state_color[entity_id] = COLORS_STATES[idx % len(COLORS_STATES)]
             idx += 1
 
-    rows = sorted(states + events, key=lambda x: x.ts)
     prev_entity_id = None
     ts_idx = 0
     ts_color = COLORS_TS[0]
     sep = colored(" | ", ts_color)
-    with suppress(IndexError):
-        prev_date = rows[0].ts.date()
+    prev_date = rows[0].ts.date()
+    state_printed = False
 
     for row in rows:
+        if start and state_printed and row.ts >= start:
+            print(hdr)
+            start = None
+            prev_entity_id = None
         if (row_date := row.ts.date()) != prev_date:
             ts_idx += 1
             ts_color = COLORS_TS[ts_idx % len(COLORS_TS)]
             sep = colored(" | ", ts_color)
             prev_date = row_date
         ts_str = colored(row.ts, ts_color)
+
         if isinstance(row, Event):
             event = row
             event_str = f" {event.type} "
@@ -497,6 +568,7 @@ def print_results(
                 *_attrs,
                 sep=sep
             )
+            state_printed = True
 
 
 def main(args: ArgsNamespace, params: Params) -> str | int | None:
@@ -511,16 +583,7 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
 
         print_banner(args)
 
-        all_entity_ids = get_all("states", "entity_id", "last_updated_ts", args)
-        all_event_types = get_all("events", "event_type", "time_fired_ts", args)
-
-        entity_attrs, max_entity_id_len = get_entity_ids_and_attributes(args, all_entity_ids)
-        if not set(entity_attrs).issubset(all_entity_ids):
-            print_error(
-                "entity IDs not found in time window: "
-                f"{', '.join(set(entity_attrs) - all_entity_ids)}"
-            )
-            return 1
+        entity_attrs = get_entity_ids_and_attributes(args)
         if entity_attrs:
             states = get_states(
                 list(entity_attrs),
@@ -528,37 +591,39 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
                 start=args.start,
                 end=args.end,
             )
-            max_state_len = max(
-                [len(state.state) for state in states] + [len(STATE_HEADER)]
-            )
         else:
             states = []
-            max_state_len = 0
-
-        event_types, max_event_type_len = get_event_types(args, all_event_types)
-        if not set(event_types).issubset(all_event_types):
-            print_error(
-                "event types not found in time window: "
-                f"{', '.join(set(event_types) - all_event_types)}"
+        queried_entity_ids = set(entity_attrs)
+        found_entity_ids = set(state.entity_id for state in states)
+        if found_entity_ids != queried_entity_ids:
+            print_msg(
+                "states not found for: "
+                f"{', '.join(queried_entity_ids - found_entity_ids)}",
+                color="light_yellow",
+                prefix="NOTE",
+                usage=False,
             )
-            return 1
+
+        event_types = get_event_types(args)
         if event_types:
             events = get_events(event_types, start=args.start, end=args.end)
         else:
             events = []
+        queried_event_types = set(event_types)
+        found_event_types = set(event.type for event in events)
+        if found_event_types != queried_event_types:
+            print_msg(
+                "events not found for: "
+                f"{', '.join(queried_event_types - found_event_types)}",
+                color="light_yellow",
+                prefix="NOTE",
+                usage=False,
+            )
 
     finally:
         con.close()
 
-    print_results(
-        entity_attrs,
-        args.attributes,
-        max_entity_id_len,
-        states,
-        max_state_len,
-        max_event_type_len,
-        events,
-    )
+    print_results(args.start, entity_attrs, args.attributes, states, events)
 
 
 class ArgError(Exception):
@@ -758,7 +823,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
             raise ArgError("can only specify at most 2 of start, end & window")
 
     except ArgError as exc:
-        print_error(exc)
+        print_msg(exc)
         sys.exit(2)
 
     return args, Params(start_specified, end_specified, window_specified)
