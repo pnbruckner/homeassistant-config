@@ -412,9 +412,7 @@ def get_events(
         ):
             if shared_data is not None:
                 shared_data = cast(dict[str, Any], json.loads(shared_data))
-            events.append(
-                Event(dt.datetime.fromtimestamp(ts), event_type, shared_data)
-            )
+            events.append(Event(dt.datetime.fromtimestamp(ts), event_type, shared_data))
     else:
         cmd = (
             "SELECT time_fired_ts AS ts, event_type AS key"
@@ -425,9 +423,7 @@ def get_events(
         for ts, event_type in cast(
             list[tuple[float, str]], con.execute(cmd).fetchall()
         ):
-            events.append(
-                Event(dt.datetime.fromtimestamp(ts), event_type)
-            )
+            events.append(Event(dt.datetime.fromtimestamp(ts), event_type))
 
     return events
 
@@ -670,7 +666,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         action="append",
         nargs="+",
         default=[],
-        help="entity ID & optional attributes; use \"*\" for all attributes",
+        help='entity ID & optional attributes; use "*" for all attributes',
         metavar="VALUE",
         dest="entity_ids_attrs",
     )
@@ -736,18 +732,10 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         dest="start",
     )
     start_group.add_argument(
-        "-SD",
-        type=int,
-        help="start DAYS ago",
-        metavar="DAYS",
-        dest="start_days_ago"
+        "-SD", type=int, help="start DAYS ago", metavar="DAYS", dest="start_days_ago"
     )
     start_group.add_argument(
-        "-SS",
-        type=int,
-        help="start STOPS ago",
-        metavar="STOPS",
-        dest="start_stops_ago"
+        "-SS", type=int, help="start STOPS ago", metavar="STOPS", dest="start_stops_ago"
     )
     start_group.add_argument(
         "-SB",
@@ -763,18 +751,10 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         dest="end",
     )
     end_group.add_argument(
-        "-ED",
-        type=int,
-        help="end DAYS ago",
-        metavar="DAYS",
-        dest="end_days_ago"
+        "-ED", type=int, help="end DAYS ago", metavar="DAYS", dest="end_days_ago"
     )
     end_group.add_argument(
-        "-ES",
-        type=int,
-        help="end STOPS ago",
-        metavar="STOPS",
-        dest="end_stops_ago"
+        "-ES", type=int, help="end STOPS ago", metavar="STOPS", dest="end_stops_ago"
     )
     time_group.add_argument(
         "-W",
