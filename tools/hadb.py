@@ -543,7 +543,7 @@ def print_results(
         else:
             state = row
             if (entity_id := state.entity_id) != prev_entity_id:
-                entity_id_str = prev_entity_id = entity_id
+                entity_id_str = entity_id
             else:
                 entity_id_str = ""
             color = state_color[entity_id]
@@ -586,6 +586,7 @@ def print_results(
                 state_attrs,
                 sep=sep,
             )
+            prev_entity_id = entity_id
             state_printed = True
             if not all_states:
                 last_state_attrs[entity_id] = state_attrs
