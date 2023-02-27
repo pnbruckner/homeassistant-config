@@ -437,6 +437,15 @@ def get_events(
     return events
 
 
+@dataclass
+class TimestampParams:
+    """Timestamp display parameters."""
+
+    idx: int = -1
+    color: str = ""
+    last_date: dt.date | None = None
+
+
 def print_results(
     args: ArgsNamespace,
     entity_attrs: EntityAttrs,
@@ -499,26 +508,28 @@ def print_results(
             state_color[entity_id] = COLORS_STATES[idx % len(COLORS_STATES)]
             idx += 1
 
+    ts_params = TimestampParams()
     prev_entity_id = None
-    ts_idx = 0
-    ts_color = COLORS_TS[0]
-    sep = colored(" | ", ts_color)
-    prev_date = rows[0].ts.date()
     state_printed = False
     if not all_states:
-        last_state_attrs: dict[str, str | None] = dict.fromkeys(entity_attrs)
+        last_state_attrs: dict[str, tuple[str, list[str]] | None] = dict.fromkeys(
+            entity_attrs
+        )
+
+    def ts_str_sep(row_ts: dt.datetime) -> tuple[str, str]:
+        """Return row timestamp & separator strings."""
+        row_date = row_ts.date()
+        if row_date != ts_params.last_date:
+            ts_params.idx += 1
+            ts_params.color = COLORS_TS[ts_params.idx % len(COLORS_TS)]
+            ts_params.last_date = row_date
+        return colored(row_ts, ts_params.color), colored(" | ", ts_params.color)
 
     for row in rows:
         if start and state_printed and row.ts >= start:
             print(hdr)
             start = None
             prev_entity_id = None
-        if (row_date := row.ts.date()) != prev_date:
-            ts_idx += 1
-            ts_color = COLORS_TS[ts_idx % len(COLORS_TS)]
-            sep = colored(" | ", ts_color)
-            prev_date = row_date
-        ts_str = colored(row.ts, ts_color)
 
         if isinstance(row, Event):
             event = row
@@ -533,6 +544,7 @@ def print_results(
             else:
                 fill = "-"
                 colors = COLORS_USER_EVENT
+            ts_str, sep = ts_str_sep(row.ts)
             print(
                 colored(f"{event_str:{fill}^{col_1_width}}", *colors),
                 ts_str,
@@ -575,21 +587,21 @@ def print_results(
                         color,
                     )
                 )
-            state_attrs = sep.join(
-                [colored(f"{state.state:{max_state_len}}", color), *_attrs]
-            )
+            state_attrs = (state.state, _attrs)
             if not all_states and state_attrs == last_state_attrs[entity_id]:
                 continue
+            ts_str, sep = ts_str_sep(row.ts)
             print(
                 colored(f"{entity_id_str:{col_1_width}}", color),
                 ts_str,
-                state_attrs,
+                colored(f"{state.state:{max_state_len}}", color),
+                *_attrs,
                 sep=sep,
             )
-            prev_entity_id = entity_id
             state_printed = True
             if not all_states:
                 last_state_attrs[entity_id] = state_attrs
+            prev_entity_id = entity_id
 
 
 def main(args: ArgsNamespace, params: Params) -> str | int | None:
