@@ -55,7 +55,7 @@ def print_msg(
     attrs: Iterable[str] | None = None,
     prefix: str | None = "error",
     usage: bool = True,
-    **kwargs: Any
+    **kwargs: Any,
 ) -> None:
     """Print error message to stderr."""
     if usage:
@@ -133,8 +133,6 @@ def today_at(time: dt.time = dt.time()) -> dt.datetime:
 class ArgsNamespace:
     """Namespace for arguments."""
 
-    dbpath: str
-
     attributes: list[str]
     entity_ids_attrs: list[list[str]]
     entity_ids_attrs_re: list[list[str]]
@@ -155,6 +153,9 @@ class ArgsNamespace:
     end_stops_ago: int | None
 
     time_window: dt.timedelta | None
+
+    dbpath: str
+    all_states: bool
 
 
 @dataclass
@@ -220,12 +221,12 @@ def print_banner(args: ArgsNamespace) -> None:
     cprint(f"Showing from {start_str} to {end_str}", COLOR_BANNER)
 
 
-def get_unique(table: str, key: str) -> set[str]:
+def get_unique(table: str, key: str) -> list[str]:
     """Get all unique keys from table."""
     try:
-        return set(
-            list(zip(*con.execute(f"SELECT DISTINCT {key} FROM {table}").fetchall()))[0]
-        )
+        return list(
+            zip(*con.execute(f"SELECT DISTINCT {key} FROM {table}").fetchall())
+        )[0]
     except IndexError:
         return set()
 
@@ -432,13 +433,16 @@ def get_events(
 
 
 def print_results(
-    start: dt.datetime | None,
+    args: ArgsNamespace,
     entity_attrs: EntityAttrs,
-    attributes: list[str],
     states: list[State],
     events: list[Event],
 ) -> None:
     """Print results."""
+    start = args.start
+    attributes = args.attributes
+    all_states = args.all_states
+
     col_1_width = max(
         max(len(state.entity_id) for state in states) if states else 0,
         (max(len(event.type) for event in events) + 6) if events else 0,
@@ -456,7 +460,7 @@ def print_results(
             max(
                 [len(str(state.attributes.get(attr, MISSING))) for state in states]
                 + [len(attr)]
-            )
+            ),
         )
         for attr in attributes
     ]
@@ -496,6 +500,8 @@ def print_results(
     sep = colored(" | ", ts_color)
     prev_date = rows[0].ts.date()
     state_printed = False
+    if not all_states:
+        last_state_attrs: dict[str, str | None] = dict.fromkeys(entity_attrs)
 
     for row in rows:
         if start and state_printed and row.ts >= start:
@@ -542,7 +548,10 @@ def print_results(
             ]
             if other_attrs:
                 attr_strs_pats = entity_attrs[entity_id]
-                if any(isinstance(attr_str_pat, re.Pattern) for attr_str_pat in attr_strs_pats):
+                if any(
+                    isinstance(attr_str_pat, re.Pattern)
+                    for attr_str_pat in attr_strs_pats
+                ):
                     e_attrs: list[str] = []
                     for attr_pat in cast(list[re.Pattern[str]], attr_strs_pats):
                         for attr in state.attributes:
@@ -561,14 +570,20 @@ def print_results(
                         color,
                     )
                 )
+            state_attrs = sep.join(
+                [colored(f"{state.state:{max_state_len}}", color), *_attrs]
+            )
+            if not all_states and state_attrs == last_state_attrs[entity_id]:
+                continue
             print(
                 colored(f"{entity_id_str:{col_1_width}}", color),
                 ts_str,
-                colored(f"{state.state:{max_state_len}}", color),
-                *_attrs,
-                sep=sep
+                state_attrs,
+                sep=sep,
             )
             state_printed = True
+            if not all_states:
+                last_state_attrs[entity_id] = state_attrs
 
 
 def main(args: ArgsNamespace, params: Params) -> str | int | None:
@@ -623,7 +638,7 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
     finally:
         con.close()
 
-    print_results(args.start, entity_attrs, args.attributes, states, events)
+    print_results(args, entity_attrs, states, events)
 
 
 class ArgError(Exception):
@@ -657,7 +672,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         default=[],
         help="entity ID & optional attributes; use \"*\" for all attributes",
         metavar="VALUE",
-        dest="entity_ids_attrs"
+        dest="entity_ids_attrs",
     )
     state_group.add_argument(
         "-sr",
@@ -666,14 +681,19 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         default=[],
         help="entity ID & optional attributes regular expressions",
         metavar="RE",
-        dest="entity_ids_attrs_re"
+        dest="entity_ids_attrs_re",
     )
 
     # events
 
     event_group = parser.add_argument_group("events", "Event types")
     event_group.add_argument(
-        "-e", nargs="+", default=[], help="event types", metavar="TYPE", dest="event_types"
+        "-e",
+        nargs="+",
+        default=[],
+        help="event types",
+        metavar="TYPE",
+        dest="event_types",
     )
     event_group.add_argument(
         "-er",
@@ -769,6 +789,12 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         default=DEF_DATABASE,
         help=f"database path (default: {DEF_DATABASE})",
         dest="dbpath",
+    )
+    parser.add_argument(
+        "-A",
+        action="store_true",
+        help="show all states (not just unique ones)",
+        dest="all_states",
     )
 
     args = parser.parse_args(namespace=ArgsNamespace())
