@@ -437,171 +437,212 @@ def get_events(
     return events
 
 
-@dataclass
-class TimestampParams:
-    """Timestamp display parameters."""
+class Printer:
+    """State & event printer."""
 
-    idx: int = -1
-    color: str = ""
-    last_date: dt.date | None = None
+    _col_1_width: int
+    _max_state_len: int
+    _attr_fields: list[tuple[str, int]]
+    _row_sep: str | None = None
 
+    _ts_idx: int = -1
+    _ts_color: str
+    _ts_last_date: dt.date | None = None
 
-def print_results(
-    args: ArgsNamespace,
-    entity_attrs: EntityAttrs,
-    states: list[State],
-    events: list[Event],
-) -> None:
-    """Print results."""
-    start = args.start
-    attributes = args.attributes
-    all_states = args.all_states
+    _state_color: dict[str, str]
+    _state_printed: bool = False
+    _prev_entity_id: str | None = None
 
-    col_1_width = max(
-        max(len(state.entity_id) for state in states) if states else 0,
-        (max(len(event.type) for event in events) + 6) if events else 0,
-        len(COL1_HEADER),
-    )
+    def __init__(
+        self,
+        args: ArgsNamespace,
+        entity_attrs: EntityAttrs,
+        states: list[State],
+        events: list[Event],
+    ) -> None:
+        """Initialize printer."""
+        self._entity_attrs = entity_attrs
+        self._states = states
+        self._events = events
 
-    if states:
-        max_state_len = max(*[len(state.state) for state in states], len(STATE_HEADER))
-        state_hdr = [f"{STATE_HEADER:{max_state_len}}"]
-    else:
-        state_hdr = []
-    attr_fields = [
-        (
-            attr,
-            max(
-                [len(str(state.attributes.get(attr, MISSING))) for state in states]
-                + [len(attr)]
-            ),
-        )
-        for attr in attributes
-    ]
-    attr_hdrs = [f"{attr:{attr_len}}" for attr, attr_len in attr_fields]
-    if other_attrs := any(entity_attrs.values()):
-        attr_hdrs.append("attributes")
-    print(
-        f"{COL1_HEADER:{col_1_width}}",
-        f"{'last_updated / time_fired':26}",
-        *state_hdr,
-        *attr_hdrs,
-        sep=" | ",
-    )
+        self._start = args.start
+        self._attributes = args.attributes
+        self._all_states = args.all_states
+        self._other_attrs = any(entity_attrs.values())
 
-    state_hdr = ["-" * max_state_len] if states else []
-    attr_hdrs = ["-" * attr_len for _, attr_len in attr_fields]
-    hdr = "-|-".join(["-" * col_1_width, "-" * 26] + state_hdr + attr_hdrs)
-    if other_attrs:
-        hdr += "-|-"
-        hdr += "-" * (get_terminal_size().columns - len(hdr))
-    print(hdr)
-
-    rows = sorted(states + events, key=lambda x: x.ts)
-    if not rows:
-        return
-
-    state_color: dict[str, str] = {}
-    idx = 0
-    for entity_id in entity_attrs:
-        if entity_id not in state_color:
-            state_color[entity_id] = COLORS_STATES[idx % len(COLORS_STATES)]
-            idx += 1
-
-    ts_params = TimestampParams()
-    prev_entity_id = None
-    state_printed = False
-    if not all_states:
-        last_state_attrs: dict[str, tuple[str, list[str]] | None] = dict.fromkeys(
-            entity_attrs
+        self._last_state_attrs = cast(
+            dict[str, tuple[str, list[str]] | None],
+            dict.fromkeys(entity_attrs),
         )
 
-    def ts_str_sep(row_ts: dt.datetime) -> tuple[str, str]:
+    def print(self) -> None:
+        """Print header, states & events."""
+        self._print_hdr()
+        self._print_sep_row()
+
+        rows = sorted(self._states + self._events, key=lambda x: x.ts)
+        if not rows:
+            return
+
+        self._assign_state_colors()
+        print_old_states = bool(self._start)
+        for row in rows:
+            if print_old_states and self._state_printed and row.ts >= self._start:
+                print_old_states = False
+                self._print_sep_row()
+                self._prev_entity_id = None
+
+            if isinstance(row, Event):
+                self._print_event_row(row)
+                self._prev_entity_id = None
+            else:
+                self._print_state_row(row)
+
+    def _print_hdr(self) -> None:
+        """Print header."""
+        self._col_1_width = max(
+            max(len(state.entity_id) for state in self._states) if self._states else 0,
+            (max(len(event.type) for event in self._events) + 6) if self._events else 0,
+            len(COL1_HEADER),
+        )
+
+        if self._states:
+            self._max_state_len = max(
+                *[len(state.state) for state in self._states],
+                len(STATE_HEADER),
+            )
+            state_hdr = [f"{STATE_HEADER:{self._max_state_len}}"]
+        else:
+            self._max_state_len = 0
+            state_hdr = []
+
+        self._attr_fields = [
+            (
+                attr,
+                max(
+                    [
+                        len(str(state.attributes.get(attr, MISSING)))
+                        for state in self._states
+                    ] + [len(attr)]
+                ),
+            )
+            for attr in self._attributes
+        ]
+        attr_hdrs = [f"{attr:{attr_len}}" for attr, attr_len in self._attr_fields]
+        if self._other_attrs:
+            attr_hdrs.append("attributes")
+        print(
+            f"{COL1_HEADER:{self._col_1_width}}",
+            f"{'last_updated / time_fired':26}",
+            *state_hdr,
+            *attr_hdrs,
+            sep=" | ",
+        )
+
+    def _print_sep_row(self) -> None:
+        """Print separation row."""
+        if not self._row_sep:
+            state_hdr = ["-" * self._max_state_len] if self._states else []
+            attr_hdrs = ["-" * attr_len for _, attr_len in self._attr_fields]
+            self._row_sep = "-|-".join(
+                ["-" * self._col_1_width, "-" * 26] + state_hdr + attr_hdrs
+            )
+            if self._other_attrs:
+                self._row_sep += "-|-"
+                self._row_sep += "-" * (
+                    get_terminal_size().columns - len(self._row_sep)
+                )
+        print(self._row_sep)
+
+    def _assign_state_colors(self) -> None:
+        """Assign state colors."""
+        self._state_color = {}
+        idx = 0
+        for entity_id in self._entity_attrs:
+            if entity_id not in self._state_color:
+                self._state_color[entity_id] = COLORS_STATES[idx % len(COLORS_STATES)]
+                idx += 1
+
+    def _print_event_row(self, event: Event) -> None:
+        """Print event row."""
+        event_str = f" {event.type} "
+        if event.type in CORE_EVENTS:
+            if event.type == "homeassistant_stop":
+                fill = "#"
+                colors = COLORS_STOP
+            else:
+                fill = "="
+                colors = COLORS_HA_EVENT
+        else:
+            fill = "-"
+            colors = COLORS_USER_EVENT
+        ts_str, sep = self._ts_str_sep(event.ts)
+        print(
+            colored(f"{event_str:{fill}^{self._col_1_width}}", *colors),
+            ts_str,
+            ", ".join([f"{k}: {v}" for k, v in event.data.items()]),
+            sep=sep,
+        )
+
+    def _print_state_row(self, state: State) -> None:
+        """Print state row."""
+        if (entity_id := state.entity_id) != self._prev_entity_id:
+            entity_id_str = entity_id
+        else:
+            entity_id_str = ""
+        color = self._state_color[entity_id]
+        _attrs = [
+            colored(f"{state.attributes.get(attr, MISSING):<{attr_len}}", color)
+            for attr, attr_len in self._attr_fields
+        ]
+        if self._other_attrs:
+            attr_strs_pats = self._entity_attrs[entity_id]
+            if any(
+                isinstance(attr_str_pat, re.Pattern)
+                for attr_str_pat in attr_strs_pats
+            ):
+                e_attrs: list[str] = []
+                for attr_pat in cast(list[re.Pattern[str]], attr_strs_pats):
+                    for attr in state.attributes:
+                        if attr not in e_attrs and attr_pat.fullmatch(attr):
+                            e_attrs.append(attr)
+            elif "*" in cast(list[str], attr_strs_pats):
+                e_attrs = list(state.attributes)
+            else:
+                e_attrs = cast(list[str], attr_strs_pats)
+            _attrs.append(
+                colored(
+                    ", ".join(
+                        f"{e_attr}={state.attributes.get(e_attr, MISSING)}"
+                        for e_attr in e_attrs
+                    ),
+                    color,
+                )
+            )
+        state_attrs = (state.state, _attrs)
+        if not self._all_states and state_attrs == self._last_state_attrs[entity_id]:
+            return
+        ts_str, sep = self._ts_str_sep(state.ts)
+        print(
+            colored(f"{entity_id_str:{self._col_1_width}}", color),
+            ts_str,
+            colored(f"{state.state:{self._max_state_len}}", color),
+            *_attrs,
+            sep=sep,
+        )
+        self._state_printed = True
+        if not self._all_states:
+            self._last_state_attrs[entity_id] = state_attrs
+        self._prev_entity_id = entity_id
+
+    def _ts_str_sep(self, row_ts: dt.datetime) -> tuple[str, str]:
         """Return row timestamp & separator strings."""
         row_date = row_ts.date()
-        if row_date != ts_params.last_date:
-            ts_params.idx += 1
-            ts_params.color = COLORS_TS[ts_params.idx % len(COLORS_TS)]
-            ts_params.last_date = row_date
-        return colored(row_ts, ts_params.color), colored(" | ", ts_params.color)
-
-    for row in rows:
-        if start and state_printed and row.ts >= start:
-            print(hdr)
-            start = None
-            prev_entity_id = None
-
-        if isinstance(row, Event):
-            event = row
-            event_str = f" {event.type} "
-            if event.type in CORE_EVENTS:
-                if event.type == "homeassistant_stop":
-                    fill = "#"
-                    colors = COLORS_STOP
-                else:
-                    fill = "="
-                    colors = COLORS_HA_EVENT
-            else:
-                fill = "-"
-                colors = COLORS_USER_EVENT
-            ts_str, sep = ts_str_sep(row.ts)
-            print(
-                colored(f"{event_str:{fill}^{col_1_width}}", *colors),
-                ts_str,
-                ", ".join([f"{k}: {v}" for k, v in event.data.items()]),
-                sep=sep,
-            )
-            prev_entity_id = None
-        else:
-            state = row
-            if (entity_id := state.entity_id) != prev_entity_id:
-                entity_id_str = entity_id
-            else:
-                entity_id_str = ""
-            color = state_color[entity_id]
-            _attrs = [
-                colored(f"{state.attributes.get(attr, MISSING):<{attr_len}}", color)
-                for attr, attr_len in attr_fields
-            ]
-            if other_attrs:
-                attr_strs_pats = entity_attrs[entity_id]
-                if any(
-                    isinstance(attr_str_pat, re.Pattern)
-                    for attr_str_pat in attr_strs_pats
-                ):
-                    e_attrs: list[str] = []
-                    for attr_pat in cast(list[re.Pattern[str]], attr_strs_pats):
-                        for attr in state.attributes:
-                            if attr not in e_attrs and attr_pat.fullmatch(attr):
-                                e_attrs.append(attr)
-                elif "*" in cast(list[str], attr_strs_pats):
-                    e_attrs = list(state.attributes)
-                else:
-                    e_attrs = cast(list[str], attr_strs_pats)
-                _attrs.append(
-                    colored(
-                        ", ".join(
-                            f"{e_attr}={state.attributes.get(e_attr, MISSING)}"
-                            for e_attr in e_attrs
-                        ),
-                        color,
-                    )
-                )
-            state_attrs = (state.state, _attrs)
-            if not all_states and state_attrs == last_state_attrs[entity_id]:
-                continue
-            ts_str, sep = ts_str_sep(row.ts)
-            print(
-                colored(f"{entity_id_str:{col_1_width}}", color),
-                ts_str,
-                colored(f"{state.state:{max_state_len}}", color),
-                *_attrs,
-                sep=sep,
-            )
-            state_printed = True
-            if not all_states:
-                last_state_attrs[entity_id] = state_attrs
-            prev_entity_id = entity_id
+        if row_date != self._ts_last_date:
+            self._ts_idx += 1
+            self._ts_color = COLORS_TS[self._ts_idx % len(COLORS_TS)]
+            self._ts_last_date = row_date
+        return colored(row_ts, self._ts_color), colored(" | ", self._ts_color)
 
 
 def main(args: ArgsNamespace, params: Params) -> str | int | None:
@@ -656,7 +697,7 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
     finally:
         con.close()
 
-    print_results(args, entity_attrs, states, events)
+    Printer(args, entity_attrs, states, events).print()
 
 
 class ArgError(Exception):
@@ -741,6 +782,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         "-s",
         action=StateAction,
         nargs="+",
+        default=[],
         help='entity ID & optional attributes; ATTR may be "*" for all attributes',
         metavar=("ID", "ATTR"),
         dest="entity_ids_attrs",
@@ -749,6 +791,7 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         "-sr",
         action=StateAction,
         nargs="+",
+        default=[],
         help="regular expressions for entity ID & optional attributes",
         metavar=("ID_RE", "ATTR_RE"),
         dest="entity_ids_attrs",
