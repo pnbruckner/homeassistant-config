@@ -137,8 +137,8 @@ class ArgsNamespace:
     entity_ids_attrs: dict[str, list[str]]
     entity_ids_attrs_er: dict[str, list[str]]
 
-    event_types: list[str]
-    event_types_re: list[str]
+    event_types: list[list[str]]
+    event_types_re: list[list[str]]
     core_event_types: bool
     lowercase_event_types: bool
     uppercase_event_types: bool
@@ -221,7 +221,7 @@ def print_banner(args: ArgsNamespace) -> None:
     cprint(f"Showing from {start_str} to {end_str}", COLOR_BANNER)
 
 
-def get_unique(table: str, key: str) -> list[str]:
+def get_unique(key: str, table: str) -> list[str]:
     """Get all unique keys from table."""
     try:
         return list(
@@ -235,10 +235,10 @@ EntityAttrs = dict[str, list[str] | list[re.Pattern[str]]]
 
 
 def get_entity_ids_and_attributes(args: ArgsNamespace) -> EntityAttrs:
-    """Get entity IDs and their associated attributes."""
+    """Get entity IDs and their associated attribute keys."""
     entity_attrs: EntityAttrs = {}
 
-    all_entity_ids = get_unique("states", "entity_id")
+    all_entity_ids = get_unique("entity_id", "states")
     for eid, is_regex in StateAction.entries.items():
         if is_regex:
             eid_pat = re.compile(eid)
@@ -357,25 +357,33 @@ def get_states(
     return states
 
 
-def get_event_types(args: ArgsNamespace) -> list[str]:
-    """Get event types."""
-    event_types = args.event_types
+EventData = dict[str, list[str] | list[re.Pattern[str]]]
 
-    all_event_types = get_unique("events", "event_type")
-    for pat in args.event_types_re:
-        pat = re.compile(pat)
-        event_types.extend(
-            [event_type for event_type in all_event_types if pat.fullmatch(event_type)]
-        )
+
+def get_event_types_and_data(args: ArgsNamespace) -> EventData:
+    """Get event types and associated data keys."""
+    event_data: EventData = {event[0]: event[1:] for event in args.event_types}
+
+    all_event_types = get_unique("event_type", "events")
+    for event in args.event_types_re:
+        type_pat = re.compile(event[0])
+        data_pats = [re.compile(datum) for datum in event[1:]]
+        for event_type in all_event_types:
+            if type_pat.fullmatch(event_type):
+                event_data[event_type] = data_pats
+
+    def add_event_types(event_types: Iterable) -> None:
+        """Add event types to event_data."""
+        event_data.update(dict.fromkeys(event_types, []))
 
     if args.core_event_types:
-        event_types.extend(CORE_EVENTS)
+        add_event_types(CORE_EVENTS)
     if args.uppercase_event_types:
-        event_types.extend(filter(lambda s: s.isupper(), all_event_types))
+        add_event_types(filter(lambda s: s.isupper(), all_event_types))
     if args.lowercase_event_types:
-        event_types.extend(filter(lambda s: s.islower(), all_event_types))
+        add_event_types(filter(lambda s: s.islower(), all_event_types))
 
-    return event_types
+    return event_data
 
 
 @dataclass
@@ -449,11 +457,13 @@ class Printer:
         self,
         args: ArgsNamespace,
         entity_attrs: EntityAttrs,
+        event_data: EventData,
         states: list[State],
         events: list[Event],
     ) -> None:
         """Initialize printer."""
         self._entity_attrs = entity_attrs
+        self._event_data = event_data
         self._states = states
         self._events = events
 
@@ -486,7 +496,6 @@ class Printer:
 
             if isinstance(row, Event):
                 self._print_event_row(row)
-                self._prev_entity_id = None
             else:
                 self._print_state_row(row)
 
@@ -515,7 +524,8 @@ class Printer:
                     [
                         len(str(state.attributes.get(attr, MISSING)))
                         for state in self._states
-                    ] + [len(attr)]
+                    ]
+                    + [len(attr)]
                 ),
             )
             for attr in self._attributes
@@ -568,13 +578,25 @@ class Printer:
         else:
             fill = "-"
             colors = COLORS_USER_EVENT
+        data_strs_pats = self._event_data[event.type]
+        if any(isinstance(data_str_pat, re.Pattern) for data_str_pat in data_strs_pats):
+            e_data: list[str] = []
+            for data_pat in cast(list[re.Pattern[str]], data_strs_pats):
+                for data in event.data:
+                    if data not in e_data and data_pat.fullmatch(data):
+                        e_data.append(data)
+        elif "*" in cast(list[str], data_strs_pats):
+            e_data = list(event.data)
+        else:
+            e_data = cast(list[str], data_strs_pats)
         ts_str, sep = self._ts_str_sep(event.ts)
         print(
             colored(f"{event_str:{fill}^{self._col_1_width}}", *colors),
             ts_str,
-            ", ".join([f"{k}: {v}" for k, v in event.data.items()]),
+            ", ".join([f"{k}: {event.data.get(k, MISSING)}" for k in e_data]),
             sep=sep,
         )
+        self._prev_entity_id = None
 
     def _print_state_row(self, state: State) -> None:
         """Print state row."""
@@ -590,8 +612,7 @@ class Printer:
         if self._other_attrs:
             attr_strs_pats = self._entity_attrs[entity_id]
             if any(
-                isinstance(attr_str_pat, re.Pattern)
-                for attr_str_pat in attr_strs_pats
+                isinstance(attr_str_pat, re.Pattern) for attr_str_pat in attr_strs_pats
             ):
                 e_attrs: list[str] = []
                 for attr_pat in cast(list[re.Pattern[str]], attr_strs_pats):
@@ -670,12 +691,12 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
                 usage=False,
             )
 
-        event_types = get_event_types(args)
-        if event_types:
-            events = get_events(event_types, start=args.start, end=args.end)
+        event_data = get_event_types_and_data(args)
+        if event_data:
+            events = get_events(list(event_data), start=args.start, end=args.end)
         else:
             events = []
-        queried_event_types = set(event_types)
+        queried_event_types = set(event_data)
         found_event_types = set(event.type for event in events)
         if found_event_types != queried_event_types:
             print_msg(
@@ -689,7 +710,7 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
     finally:
         con.close()
 
-    Printer(args, entity_attrs, states, events).print()
+    Printer(args, entity_attrs, event_data, states, events).print()
 
 
 class ArgError(Exception):
@@ -711,7 +732,7 @@ class StateAction(argparse.Action):
         """Process state entity ID & attributes argument."""
         entity_id = values[0]
         attrs = values[1:]
-        is_regex=self.dest.endswith("_er")
+        is_regex = self.dest.endswith("_er")
         self.__class__.entries[entity_id] = is_regex
         cast(dict[str, list[str]], getattr(namespace, self.dest))[entity_id] = attrs
 
@@ -725,18 +746,16 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     )
     print_usage = parser.print_usage
 
+    parser.add_argument(
+        "-d",
+        default=DEF_DATABASE,
+        help=f"database path (default: {DEF_DATABASE})",
+        dest="dbpath",
+    )
+
     # states
 
     state_group = parser.add_argument_group("states", "Entity IDs & attributes")
-    state_group.add_argument(
-        "-a",
-        action="extend",
-        nargs="+",
-        default=[],
-        help="global attributes",
-        metavar="ATTR",
-        dest="attributes",
-    )
     state_group.add_argument(
         "-s",
         action=StateAction,
@@ -755,26 +774,41 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         metavar=("ID_RE", "ATTR_RE"),
         dest="entity_ids_attrs_er",
     )
+    state_group.add_argument(
+        "-a",
+        action="extend",
+        nargs="+",
+        default=[],
+        help="global attributes",
+        metavar="ATTR",
+        dest="attributes",
+    )
+    state_group.add_argument(
+        "-A",
+        action="store_true",
+        help="show all states (not just unique ones)",
+        dest="all_states",
+    )
 
     # events
 
     event_group = parser.add_argument_group("events", "Event types")
     event_group.add_argument(
         "-e",
-        action="extend",
+        action="append",
         nargs="+",
         default=[],
-        help="event types",
-        metavar="TYPE",
+        help='event type & optional data; DATA may be "*" for all data',
+        metavar=("TYPE", "DATA"),
         dest="event_types",
     )
     event_group.add_argument(
         "-er",
-        action="extend",
+        action="append",
         nargs="+",
         default=[],
-        help="regular expressions for event type",
-        metavar="TYPE_RE",
+        help="regular expressions for event type & optional data",
+        metavar=("TYPE_RE", "DATA_RE"),
         dest="event_types_re",
     )
     event_group.add_argument(
@@ -800,7 +834,8 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
 
     time_group = parser.add_argument_group(
         "time",
-        "Time window. Can specify up to 2 of start, end & window. Default is today.",
+        "Time window. Can specify up to 2 of start, end & window."
+        " Default is today (-SD 0).",
     )
     start_group = time_group.add_mutually_exclusive_group()
     start_group.add_argument(
@@ -840,19 +875,6 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         help="time window in days",
         metavar="DAYS",
         dest="time_window",
-    )
-
-    parser.add_argument(
-        "-d",
-        default=DEF_DATABASE,
-        help=f"database path (default: {DEF_DATABASE})",
-        dest="dbpath",
-    )
-    parser.add_argument(
-        "-A",
-        action="store_true",
-        help="show all states (not just unique ones)",
-        dest="all_states",
     )
 
     args = parser.parse_args(namespace=ArgsNamespace())
