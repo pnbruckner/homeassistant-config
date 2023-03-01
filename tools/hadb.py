@@ -13,7 +13,7 @@ import re
 from shutil import get_terminal_size
 import sqlite3
 import sys
-from typing import Any, TypeVar, cast
+from typing import Any, NewType, TypeVar, cast
 
 from termcolor import colored, cprint
 
@@ -47,6 +47,7 @@ COLORS_STATES = [
 ]
 COLORS_TS = ["light_grey", "white"]
 
+_REGEX = re.compile(r".*\W.*")
 
 def print_msg(
     text: str,
@@ -129,6 +130,23 @@ def today_at(time: dt.time = dt.time()) -> dt.datetime:
     return dt.datetime.combine(dt.datetime.now().date(), time)
 
 
+@dataclass
+class KeyExpr:
+    """Attribute or data key expression."""
+
+    key: str | re.Pattern
+    op: str | None = None
+    operand: str | None = None
+
+
+@dataclass
+class IdKeyExprs:
+    """ID & key expressions."""
+
+    id: str | re.Pattern
+    key_exprs: list[KeyExpr]
+
+
 @dataclass(init=False)
 class ArgsNamespace:
     """Namespace for arguments."""
@@ -137,8 +155,7 @@ class ArgsNamespace:
     entity_ids_attrs: dict[str, list[str]]
     entity_ids_attrs_er: dict[str, list[str]]
 
-    event_types: list[list[str]]
-    event_types_re: list[list[str]]
+    event_types: list[IdKeyExprs]
     core_event_types: bool
     lowercase_event_types: bool
     uppercase_event_types: bool
@@ -357,22 +374,24 @@ def get_states(
     return states
 
 
-EventData = dict[str, list[str] | list[re.Pattern[str]]]
+EventType = NewType("EventType", str)
+EventData = dict[EventType, list[KeyExpr]]
 
 
 def get_event_types_and_data(args: ArgsNamespace) -> EventData:
-    """Get event types and associated data keys."""
-    event_data: EventData = {event[0]: event[1:] for event in args.event_types}
+    """Get event types and associated data expressions."""
+    event_data: EventData = {}
 
-    all_event_types = get_unique("event_type", "events")
-    for event in args.event_types_re:
-        type_pat = re.compile(event[0])
-        data_pats = [re.compile(datum) for datum in event[1:]]
-        for event_type in all_event_types:
-            if type_pat.fullmatch(event_type):
-                event_data[event_type] = data_pats
+    all_event_types = cast(list[EventType], get_unique("event_type", "events"))
+    for event in args.event_types:
+        if isinstance(event.id, str):
+            event_data[EventType(event.id)] = event.key_exprs
+        else:
+            for event_type in all_event_types:
+                if event.id.fullmatch(event_type):
+                    event_data[event_type] = event.key_exprs
 
-    def add_event_types(event_types: Iterable) -> None:
+    def add_event_types(event_types: Iterable[EventType]) -> None:
         """Add event types to event_data."""
         event_data.update(dict.fromkeys(event_types, []))
 
@@ -391,7 +410,7 @@ class Event:
     """Event"""
 
     ts: dt.datetime
-    type: str
+    type: EventType
     data: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -400,7 +419,7 @@ class Event:
 
 
 def get_events(
-    event_types: list[str],
+    event_types: list[EventType],
     include_data: bool = True,
     start: dt.datetime | None = None,
     end: dt.datetime | None = None,
@@ -578,22 +597,30 @@ class Printer:
         else:
             fill = "-"
             colors = COLORS_USER_EVENT
-        data_strs_pats = self._event_data[event.type]
-        if any(isinstance(data_str_pat, re.Pattern) for data_str_pat in data_strs_pats):
-            e_data: list[str] = []
-            for data_pat in cast(list[re.Pattern[str]], data_strs_pats):
-                for data in event.data:
-                    if data not in e_data and data_pat.fullmatch(data):
-                        e_data.append(data)
-        elif "*" in cast(list[str], data_strs_pats):
-            e_data = list(event.data)
-        else:
-            e_data = cast(list[str], data_strs_pats)
+        key_exprs = self._event_data[event.type]
+        data: dict[str, KeyExpr] = {}
+        for key_expr in key_exprs:
+            if isinstance(key_expr.key, str):
+                data[key_expr.key] = key_expr
+            else:
+                for data_key in event.data:
+                    if key_expr.key.fullmatch(data_key):
+                        data[data_key] = key_expr
+        data_strs: list[str] = []
+        for data_key, key_expr in data.items():
+            data_value = event.data.get(data_key, MISSING)
+            if key_expr.op == "=":
+                operand = key_expr.operand
+                if data_value is not None and operand is not None:
+                    operand = type(data_value)(operand)
+                if data_value != operand:
+                    return
+            data_strs.append(f"{data_key}: {data_value}")
         ts_str, sep = self._ts_str_sep(event.ts)
         print(
             colored(f"{event_str:{fill}^{self._col_1_width}}", *colors),
             ts_str,
-            ", ".join([f"{k}: {event.data.get(k, MISSING)}" for k in e_data]),
+            ", ".join(data_strs),
             sep=sep,
         )
         self._prev_entity_id = None
@@ -693,7 +720,12 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
 
         event_data = get_event_types_and_data(args)
         if event_data:
-            events = get_events(list(event_data), start=args.start, end=args.end)
+            events = get_events(
+                list(event_data),
+                include_data=any(event_data.values()),
+                start=args.start,
+                end=args.end,
+            )
         else:
             events = []
         queried_event_types = set(event_data)
@@ -735,6 +767,42 @@ class StateAction(argparse.Action):
         is_regex = self.dest.endswith("_er")
         self.__class__.entries[entity_id] = is_regex
         cast(dict[str, list[str]], getattr(namespace, self.dest))[entity_id] = attrs
+
+
+class IdKeyExprsAction(argparse.Action):
+    """Action to store ID & optional key expressions."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: ArgsNamespace,
+        values: list[str],
+        option_string: str | None = None,
+    ) -> None:
+        """Process ID & optional key expressions argument."""
+        try:
+            id: str | re.Pattern = values[0]
+            if _REGEX.fullmatch(id):
+                regex = id
+                id = re.compile(regex)
+            key_exprs: list[KeyExpr] = []
+            for key_expr in values[1:]:
+                parts = key_expr.split("=")
+                key: str | re.Pattern = parts[0]
+                if _REGEX.fullmatch(key):
+                    regex = key
+                    key = re.compile(regex)
+                if len(parts) == 1:
+                    key_exprs.append(KeyExpr(key))
+                else:
+                    key_exprs.append(KeyExpr(key, "=", parts[1]))
+        except re.error as exc:
+            raise ArgError(
+                f"invalid {option_string} regex argument: '{regex}': {exc}"
+            ) from exc
+        cast(list[IdKeyExprs], getattr(namespace, self.dest)).append(
+            IdKeyExprs(id, key_exprs)
+        )
 
 
 def parse_args() -> tuple[ArgsNamespace, Params]:
@@ -795,21 +863,12 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
     event_group = parser.add_argument_group("events", "Event types")
     event_group.add_argument(
         "-e",
-        action="append",
+        action=IdKeyExprsAction,
         nargs="+",
         default=[],
-        help='event type & optional data; DATA may be "*" for all data',
-        metavar=("TYPE", "DATA"),
+        help='event type & optional data expression (DATA[=VALUE])',
+        metavar=("TYPE", "DATA_EXPR"),
         dest="event_types",
-    )
-    event_group.add_argument(
-        "-er",
-        action="append",
-        nargs="+",
-        default=[],
-        help="regular expressions for event type & optional data",
-        metavar=("TYPE_RE", "DATA_RE"),
-        dest="event_types_re",
     )
     event_group.add_argument(
         "-c",
@@ -877,8 +936,6 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         dest="time_window",
     )
 
-    args = parser.parse_args(namespace=ArgsNamespace())
-
     def datetime_arg(opt: str, arg: str) -> dt.datetime:
         """Convert argument string to datetime."""
         with suppress(ValueError):
@@ -886,9 +943,11 @@ def parse_args() -> tuple[ArgsNamespace, Params]:
         try:
             return dt.datetime.fromisoformat(arg)
         except ValueError as exc:
-            raise ArgError(f"argument {opt}: {exc}")
+            raise ArgError(f"argument {opt}: {exc}") from exc
 
     try:
+        args = parser.parse_args(namespace=ArgsNamespace())
+
         for entity_id in args.entity_ids_attrs:
             if entity_id.count(".") != 1:
                 raise ArgError(
