@@ -16,7 +16,7 @@ import re
 from shutil import get_terminal_size
 import sqlite3
 import sys
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
 from ordered_set import OrderedSet
 from termcolor import colored, cprint
@@ -89,26 +89,29 @@ def print_msg(
 
 def find_stop(stops: int) -> dt.datetime | None:
     """Find time HA stopped # of times ago."""
-    result = con.execute(
-        "SELECT time_fired_ts FROM events"
-        " WHERE event_type = 'homeassistant_stop'"
-        " ORDER BY time_fired_ts DESC LIMIT ?",
-        (stops,),
-    ).fetchall()
+    result = cast(
+        list[tuple[dt.datetime]],
+        con.execute(
+            "SELECT time_fired_ts AS '[timestamp]'"
+            " FROM events"
+            " WHERE event_type = 'homeassistant_stop'"
+            " ORDER BY time_fired_ts DESC LIMIT ?",
+            (stops,),
+        ).fetchall(),
+    )
     if len(result) != stops:
         return None
-    return dt.datetime.fromtimestamp(result[-1][0])
+    return result[-1][0]
 
 
 def get_oldest(column: str, table: str) -> dt.datetime:
-    """Get oldest value from table column."""
-    return dt.datetime.fromtimestamp(
+    """Get oldest value from table timestamp column."""
+    return cast(
+        dt.datetime,
         con.execute(
-            "SELECT {column} FROM {table} ORDER BY {column} LIMIT 1".format(
-                column=column,
-                table=table,
-            )
-        ).fetchone()[0]
+            f"SELECT {column} AS '[timestamp]'"
+            f" FROM {table} ORDER BY {column} LIMIT 1"
+        ).fetchone()[0],
     )
 
 
@@ -134,6 +137,7 @@ def get_unique(column: str, table: str) -> list[str]:
 
 def where(
     keys: Sequence[str],
+    ts_column: str,
     start: dt.datetime | None = None,
     end: dt.datetime | None = None,
 ) -> str:
@@ -144,9 +148,9 @@ def where(
     elif len(keys) > 1:
         exprs.append(f"key IN {repr(tuple(keys))}")
     if start is not None:
-        exprs.append(f"ts >= {start.timestamp()}")
+        exprs.append(f"{ts_column} >= {start.timestamp()}")
     if end is not None:
-        exprs.append(f"ts < {end.timestamp()}")
+        exprs.append(f"{ts_column} < {end.timestamp()}")
     return f"WHERE {' AND '.join(exprs)}" if exprs else ""
 
 
@@ -340,9 +344,6 @@ class NameValueExprs(list[NameValueExpr]):
         return all_match, all_name_matching_items
 
 
-TRow = TypeVar("TRow", bound="Row")
-
-
 class Row(ABC):
     """Timestamped ID, items & optional value."""
 
@@ -355,16 +356,6 @@ class Row(ABC):
         self.id = id
         self.items = items
         self.value = value
-
-    @classmethod
-    def from_db_values(
-        cls: type[TRow], ts: float, id: str, items: str, value: str | None = None
-    ) -> TRow:
-        """Create object from raw database values."""
-        args = (dt.datetime.fromtimestamp(ts), id, cast(Items, json.loads(items)))
-        if value is None:
-            return cls(*args)
-        return cls(*args, value)
 
 
 class IdItemsExpr:
@@ -540,29 +531,6 @@ def print_banner(args: ArgsNamespace) -> None:
     cprint(f"Showing from {start_str} to {end_str}", COLOR_BANNER)
 
 
-@dataclass
-class StateQueryResult:
-    """State query result."""
-
-    last_updated_ts: float
-    entity_id: str
-    shared_attrs: str
-    state: str | None
-    old_state_id: int | None
-
-    def as_row_dict(self) -> dict[str, Any]:
-        """Return as dict to be used for Row.from_db_values arguments."""
-        return {
-            "ts": self.last_updated_ts,
-            "id": self.entity_id,
-            "items": self.shared_attrs,
-            "value": self.state,
-        }
-
-
-TRawState = TypeVar("TRawState", bound="RawState")
-
-
 class RawState(Row):
     """Raw state."""
 
@@ -585,19 +553,6 @@ class RawState(Row):
             ]
         )
         return f"{self.__class__.__name__} ({s})"
-
-    @classmethod
-    def _from_query(cls: type[TRawState], result: StateQueryResult) -> TRawState:
-        """Create object from query result."""
-        return cls.from_db_values(**result.as_row_dict())
-
-    @classmethod
-    def from_queries(
-        cls: type[TRawState], results: Iterable[StateQueryResult]
-    ) -> Generator[TRawState, None, None]:
-        """Create object from query result."""
-        for result in results:
-            yield cls._from_query(result)
 
     @property
     def last_updated(self) -> dt.datetime:
@@ -669,20 +624,22 @@ def get_states(
     else:
         shared_attrs_str = "'{}'"
         join_str = ""
-    results = [
-        StateQueryResult(*result)
-        for result in cast(
-            list[tuple[float, str, str, str | None, int | None]],
-            con.execute(
-                "SELECT last_updated_ts AS ts, entity_id AS key"
-                f", {shared_attrs_str}, state, old_state_id"
-                " FROM states AS s"
-                f" {join_str}"
-                f" {where(entity_ids, args.start, args.end)}"
-                " ORDER BY ts"
-            ).fetchall(),
-        )
-    ]
+    raw_states: list[RawState] = []
+    old_state_ids: dict[str, int] = {}
+    for last_updated, entity_id, attributes, state, old_state_id in cast(
+        list[tuple[dt.datetime, str, Items, str | None, int]],
+        con.execute(
+            "SELECT last_updated_ts AS '[timestamp]', entity_id AS key"
+            f", {shared_attrs_str} AS '[items]', state, old_state_id"
+            " FROM states AS s"
+            f" {join_str}"
+            f" {where(entity_ids, 'last_updated_ts', args.start, args.end)}"
+            " ORDER BY last_updated_ts"
+        ).fetchall(),
+    ):
+        raw_states.append(RawState(last_updated, entity_id, attributes, state))
+        if entity_id not in old_state_ids:
+            old_state_ids[entity_id] = old_state_id
 
     def filter_states(
         state_exprs: IdItemsExprs,
@@ -702,56 +659,43 @@ def get_states(
                     global_attrs,
                 )
 
-    states = list(
-        filter_states(
-            args.state_exprs, args.global_attr_exprs, RawState.from_queries(results)
-        )
-    )
+    states = list(filter_states(args.state_exprs, args.global_attr_exprs, raw_states))
 
-    prev_states: list[State] = []
-    if len(states) == len(results) and args.start is not None:
+    if len(states) == len(raw_states) and args.start is not None:
 
         def get_prev_raw_states() -> Generator[RawState, None, None]:
             """Get previous states in raw form."""
 
             prev_state_base_cmd = (
-                "SELECT last_updated_ts AS ts, entity_id AS key"
-                f", {shared_attrs_str}, state"
+                "SELECT last_updated_ts AS '[timestamp]', entity_id AS key"
+                f", {shared_attrs_str} as '[items]', state"
                 " FROM states AS s"
                 f" {join_str}"
             )
-            not_found_entity_ids = list(entity_ids)
 
-            for entity_id in entity_ids:
-                old_state_id: int | None = None
-                for result in results:
-                    if result.entity_id == entity_id:
-                        old_state_id = result.old_state_id
-                        break
+            for old_state_id in old_state_ids.values():
                 if old_state_id is None:
                     continue
-
-                yield RawState.from_db_values(
+                yield RawState(
                     *cast(
-                        tuple[float, str, str, str | None],
+                        tuple[dt.datetime, str, Items, str | None],
                         con.execute(
                             prev_state_base_cmd + f" WHERE state_id = {old_state_id}"
                         ).fetchone(),
                     )
                 )
 
-                not_found_entity_ids.remove(entity_id)
-
-            for entity_id in not_found_entity_ids:
-                raw_result = cast(
-                    tuple[float, str, str, str | None],
+            for entity_id in entity_ids - OrderedSet(old_state_ids):
+                result = cast(
+                    tuple[dt.datetime, str, Items, str | None],
                     con.execute(
-                        prev_state_base_cmd + f" {where([entity_id], end=args.start)}"
-                        " ORDER BY ts DESC LIMIT 1"
+                        prev_state_base_cmd
+                        + f" {where([entity_id], 'last_updated_ts', end=args.start)}"
+                        " ORDER BY last_updated_ts DESC LIMIT 1"
                     ).fetchone(),
                 )
-                if raw_result:
-                    yield RawState.from_db_values(*raw_result)
+                if result:
+                    yield RawState(*result)
 
         def convert_prev_states(
             state_exprs: IdItemsExprs,
@@ -776,6 +720,8 @@ def get_states(
             convert_prev_states(args.state_exprs, get_prev_raw_states()),
             key=lambda state: state.last_updated,
         )
+    else:
+        prev_states = []
 
     return entity_ids, global_attr_names, prev_states, states
 
@@ -783,8 +729,22 @@ def get_states(
 class Event(Row):
     """Event."""
 
-    def __init__(self, time_fired: dt.datetime, type: str, data: Items) -> None:
-        super().__init__(time_fired, type, data)
+    def __init__(self, time_fired: dt.datetime, type: str, data: Items | None) -> None:
+        super().__init__(time_fired, type, data or {})
+
+    def __repr__(self) -> str:
+        """Return representation string."""
+        s = ", ".join(
+            [
+                str(getattr(self, attr))
+                for attr in [
+                    "time_fired",
+                    "type",
+                    "data",
+                ]
+            ]
+        )
+        return f"{self.__class__.__name__} ({s})"
 
     @property
     def time_fired(self) -> dt.datetime:
@@ -822,16 +782,16 @@ def get_events(args: ArgsNamespace) -> list[Event]:
         shared_data_str = "'{}'"
         join_str = ""
     return [
-        Event.from_db_values(*result)
-        for result in cast(
-            list[tuple[float, str, str]],
+        Event(time_fired, type, data)
+        for time_fired, type, data in cast(
+            list[tuple[dt.datetime, str, Items | None]],
             con.execute(
-                "SELECT time_fired_ts AS ts, event_type AS key"
-                f", {shared_data_str}"
+                "SELECT time_fired_ts AS '[timestamp]', event_type AS key"
+                f", {shared_data_str} AS '[items]'"
                 " FROM events AS e"
                 f" {join_str}"
-                f" {where(event_types, args.start, args.end)}"
-                " ORDER BY ts"
+                f" {where(event_types, 'time_fired_ts', args.start, args.end)}"
+                " ORDER BY time_fired_ts"
             ).fetchall(),
         )
     ]
@@ -1065,11 +1025,26 @@ class Printer:
         return colored(row_ts, self._ts_color), colored(COL_SEP, self._ts_color)
 
 
+def convert_timestamp(val: bytes) -> dt.datetime:
+    """Convert epoch timestamp to datetime."""
+    return dt.datetime.fromtimestamp(float(val))
+
+
+def convert_items(val: bytes) -> Items:
+    """Coonvert items JSON string to Items dictionary."""
+    return json.loads(val)
+
+
 def main(args: ArgsNamespace, params: Params) -> str | int | None:
     """Print requested events and/or states."""
     global con
 
-    con = sqlite3.connect(Path(args.dbpath).expanduser().resolve())
+    sqlite3.register_converter("timestamp", convert_timestamp)
+    sqlite3.register_converter("items", convert_items)
+    con = sqlite3.connect(
+        Path(args.dbpath).expanduser().resolve(),
+        detect_types=sqlite3.PARSE_COLNAMES,
+    )
 
     try:
         if err := process_args(args, params):
