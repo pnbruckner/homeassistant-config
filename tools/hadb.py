@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 import argparse
 from collections.abc import Collection, Generator, Iterable, Mapping, Sequence
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import datetime as dt
 from enum import Enum
 from itertools import cycle
@@ -607,6 +607,14 @@ class State(RawState):
         return f"{self.__class__.__name__} ({s})"
 
 
+@dataclass
+class StateQueryData:
+    """Data about state database queries."""
+
+    count: int = 0
+    old_state_ids: dict[str, int | None] = field(default_factory=dict)
+
+
 def get_states(
     args: ArgsNamespace,
 ) -> tuple[OrderedSet[str], OrderedSet[str], list[State], list[State]]:
@@ -624,22 +632,26 @@ def get_states(
     else:
         shared_attrs_str = "'{}'"
         join_str = ""
-    raw_states: list[RawState] = []
-    old_state_ids: dict[str, int] = {}
-    for last_updated, entity_id, attributes, state, old_state_id in cast(
-        list[tuple[dt.datetime, str, Items, str | None, int]],
-        con.execute(
+
+    def fetch_states(query_data: StateQueryData) -> Generator[RawState, None, None]:
+        """Fetch states from database."""
+        cur = con.execute(
             "SELECT last_updated_ts AS '[timestamp]', entity_id AS key"
             f", {shared_attrs_str} AS '[items]', state, old_state_id"
             " FROM states AS s"
             f" {join_str}"
             f" {where(entity_ids, 'last_updated_ts', args.start, args.end)}"
             " ORDER BY last_updated_ts"
-        ).fetchall(),
-    ):
-        raw_states.append(RawState(last_updated, entity_id, attributes, state))
-        if entity_id not in old_state_ids:
-            old_state_ids[entity_id] = old_state_id
+        )
+        while result := cast(
+            tuple[dt.datetime, str, Items, str | None, int | None], cur.fetchone()
+        ):
+            last_updated, entity_id, attributes, state, old_state_id = result
+            query_data.count += 1
+            if entity_id not in query_data.old_state_ids:
+                query_data.old_state_ids[entity_id] = old_state_id
+
+            yield RawState(last_updated, entity_id, attributes, state)
 
     def filter_states(
         state_exprs: IdItemsExprs,
@@ -659,12 +671,17 @@ def get_states(
                     global_attrs,
                 )
 
-    states = list(filter_states(args.state_exprs, args.global_attr_exprs, raw_states))
+    query_data = StateQueryData()
+    states = list(
+        filter_states(
+            args.state_exprs, args.global_attr_exprs, fetch_states(query_data)
+        )
+    )
 
-    if len(states) == len(raw_states) and args.start is not None:
+    if len(states) == query_data.count and args.start is not None:
 
-        def get_prev_raw_states() -> Generator[RawState, None, None]:
-            """Get previous states in raw form."""
+        def fetch_prev_states() -> Generator[RawState, None, None]:
+            """Fetch previous states from database."""
 
             prev_state_base_cmd = (
                 "SELECT last_updated_ts AS '[timestamp]', entity_id AS key"
@@ -673,7 +690,7 @@ def get_states(
                 f" {join_str}"
             )
 
-            for old_state_id in old_state_ids.values():
+            for old_state_id in query_data.old_state_ids.values():
                 if old_state_id is None:
                     continue
                 yield RawState(
@@ -685,7 +702,7 @@ def get_states(
                     )
                 )
 
-            for entity_id in entity_ids - OrderedSet(old_state_ids):
+            for entity_id in entity_ids - OrderedSet(query_data.old_state_ids):
                 result = cast(
                     tuple[dt.datetime, str, Items, str | None],
                     con.execute(
@@ -717,7 +734,7 @@ def get_states(
                 )
 
         prev_states = sorted(
-            convert_prev_states(args.state_exprs, get_prev_raw_states()),
+            convert_prev_states(args.state_exprs, fetch_prev_states()),
             key=lambda state: state.last_updated,
         )
     else:
@@ -781,20 +798,21 @@ def get_events(args: ArgsNamespace) -> list[Event]:
     else:
         shared_data_str = "'{}'"
         join_str = ""
-    return [
-        Event(time_fired, type, data)
-        for time_fired, type, data in cast(
-            list[tuple[dt.datetime, str, Items | None]],
-            con.execute(
-                "SELECT time_fired_ts AS '[timestamp]', event_type AS key"
-                f", {shared_data_str} AS '[items]'"
-                " FROM events AS e"
-                f" {join_str}"
-                f" {where(event_types, 'time_fired_ts', args.start, args.end)}"
-                " ORDER BY time_fired_ts"
-            ).fetchall(),
+
+    def fetch_events() -> Generator[Event, None, None]:
+        """Fetch events from database."""
+        cur = con.execute(
+            "SELECT time_fired_ts AS '[timestamp]', event_type AS key"
+            f", {shared_data_str} AS '[items]'"
+            " FROM events AS e"
+            f" {join_str}"
+            f" {where(event_types, 'time_fired_ts', args.start, args.end)}"
+            " ORDER BY time_fired_ts"
         )
-    ]
+        while result := cast(tuple[dt.datetime, str, Items | None], cur.fetchone()):
+            yield Event(*result)
+
+    return list(fetch_events())
 
 
 StateAttrs = tuple[str | None, Items, Items]
