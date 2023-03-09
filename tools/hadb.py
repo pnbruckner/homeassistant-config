@@ -182,7 +182,8 @@ class NameValueExpr:
     _value: re.Pattern | str | float | None = None
 
     def __init__(
-        self, nv_expr_str: str,
+        self,
+        nv_expr_str: str,
         name_regex_ok: bool = True,
         filter_ok: bool = True,
     ) -> None:
@@ -607,7 +608,7 @@ class RawState(Row):
     def entity_id(self) -> str:
         """Return entity ID."""
         return self.id
-    
+
     @property
     def attributes(self) -> Items:
         """Return attributes."""
@@ -640,7 +641,11 @@ class State(RawState):
             [
                 str(getattr(self, attr))
                 for attr in [
-                    "last_updated", "entity_id", "state", "attributes", "global_attrs"
+                    "last_updated",
+                    "entity_id",
+                    "state",
+                    "attributes",
+                    "global_attrs",
                 ]
             ]
         )
@@ -648,7 +653,7 @@ class State(RawState):
 
 
 def get_states(
-    args: ArgsNamespace
+    args: ArgsNamespace,
 ) -> tuple[OrderedSet[str], OrderedSet[str], list[State], list[State]]:
     """Get states."""
     entity_ids = args.state_exprs.matching_ids(get_unique("entity_id", "states"))
@@ -741,8 +746,7 @@ def get_states(
                 raw_result = cast(
                     tuple[float, str, str, str | None],
                     con.execute(
-                        prev_state_base_cmd +
-                        f" {where([entity_id], end=args.start)}"
+                        prev_state_base_cmd + f" {where([entity_id], end=args.start)}"
                         " ORDER BY ts DESC LIMIT 1"
                     ).fetchone(),
                 )
@@ -756,9 +760,10 @@ def get_states(
             """Convert RawState objects to State objects."""
             for raw_state in raw_states:
                 attrs = raw_state.attributes
-                attr_names = state_exprs.matching_item_names(
-                    raw_state.entity_id, attrs
-                ) - global_attr_names
+                attr_names = (
+                    state_exprs.matching_item_names(raw_state.entity_id, attrs)
+                    - global_attr_names
+                )
                 yield State(
                     raw_state.last_updated,
                     raw_state.entity_id,
@@ -790,7 +795,7 @@ class Event(Row):
     def type(self) -> str:
         """Return event type."""
         return self.id
-    
+
     @property
     def data(self) -> Items:
         """Return event data."""
@@ -896,10 +901,7 @@ class Printer:
             [state.entity_id for state in self._prev_states]
         )
         self._state_color = dict(
-            zip(
-                self._entity_ids & seen_entity_ids,
-                cycle(COLORS_STATES)
-            ),
+            zip(self._entity_ids & seen_entity_ids, cycle(COLORS_STATES)),
         )
 
         if self._prev_states:
@@ -928,7 +930,10 @@ class Printer:
 
         if self._prev_states or self._states:
             self._state_width = max(
-                max(map(lambda state: len(str(state.state)), self._prev_states), default=0),
+                max(
+                    map(lambda state: len(str(state.state)), self._prev_states),
+                    default=0,
+                ),
                 max(map(lambda state: len(str(state.state)), self._states), default=0),
                 len(STATE_HEADER),
             )
@@ -976,9 +981,9 @@ class Printer:
     def _print_sep_row(self) -> None:
         """Print separation row."""
         if not self._row_sep:
-            state_hdr = [
-                "-" * self._state_width
-            ] if self._prev_states or self._states else []
+            state_hdr = (
+                ["-" * self._state_width] if self._prev_states or self._states else []
+            )
             attr_hdrs = ["-" * attr_len for _, attr_len in self._attr_fields]
             self._row_sep = HDR_SEP.join(
                 ["-" * self._col_1_width, "-" * TS_WIDTH] + state_hdr + attr_hdrs
@@ -1008,7 +1013,9 @@ class Printer:
         ]
         if self._other_attrs:
             _attrs.append(
-                colored(", ".join(f"{k}={v}" for k, v in state.attributes.items()), color)
+                colored(
+                    ", ".join(f"{k}={v}" for k, v in state.attributes.items()), color
+                )
             )
         ts_str, sep = self._ts_str_sep(state.ts)
         print(
