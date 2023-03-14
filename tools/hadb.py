@@ -40,6 +40,7 @@ COL_SEP = " | "
 HDR_SEP = "-|-"
 MISSING = "¿¿¿"
 COLORS_STOP = ("white", "on_red")
+COLORS_CORE_EVENT = ("black", "on_light_green")
 COLORS_HA_EVENT = ("black", "on_cyan")
 COLORS_USER_EVENT = ("black", "on_yellow")
 COLOR_BANNER = "light_green"
@@ -820,7 +821,8 @@ def event_factory(cur: sqlite3.Cursor, row: tuple) -> Event:
 def get_events(args: ArgsNamespace) -> list[Event]:
     """Get events."""
     all_event_types = get_unique("event_type", "events")
-    event_types = args.event_exprs.matching_ids(all_event_types)
+    event_exprs_types = args.event_exprs.matching_ids(all_event_types)
+    event_types = event_exprs_types.copy()
     if args.core_event_types:
         event_types.update(CORE_EVENTS)
     if args.uppercase_event_types:
@@ -855,13 +857,16 @@ def get_events(args: ArgsNamespace) -> list[Event]:
     ) -> Generator[Event, None, None]:
         dummy = NameValueExprs()
         for event in events:
-            matches, data, _ = event_exprs.filter_row(event, dummy)
-            if matches:
-                yield Event(
-                    event.type,
-                    event.time_fired,
-                    data,
-                )
+            if event.type in event_exprs_types:
+                matches, data, _ = event_exprs.filter_row(event, dummy)
+                if matches:
+                    yield Event(
+                        event.type,
+                        event.time_fired,
+                        data,
+                    )
+            else:
+                yield event
 
     return list(filter_events(args.event_exprs, fetch_events()))
 
@@ -1062,13 +1067,16 @@ class Printer:
     def _print_event_row(self, event: Event) -> None:
         """Print event row."""
         event_str = f" {event.type} "
-        if event.type in CORE_EVENTS:
+        if event.type.islower():
             if event.type == "homeassistant_stop":
                 fill = "#"
                 colors = COLORS_STOP
             else:
                 fill = "="
-                colors = COLORS_HA_EVENT
+                if event.type in CORE_EVENTS:
+                    colors = COLORS_CORE_EVENT
+                else:
+                    colors = COLORS_HA_EVENT
         else:
             fill = "-"
             colors = COLORS_USER_EVENT
