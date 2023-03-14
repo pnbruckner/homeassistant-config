@@ -711,11 +711,12 @@ def get_states(
 
         def fetch_prev_states() -> Generator[RawState, None, None]:
             """Fetch previous states from database."""
-            old_state_ids = [
-                old_state_id
-                for old_state_id in query_data.old_state_ids.values()
-                if old_state_id is not None
-            ]
+            old_state_ids = cast(
+                dict[str, int],
+                dict(
+                    filter(lambda x: x[1] is not None, query_data.old_state_ids.items())
+                ),
+            )
             if old_state_ids:
                 cur = con.execute(
                     "SELECT last_updated_ts AS ts, entity_id"
@@ -725,14 +726,13 @@ def get_states(
                     ", state_id AS key"
                     " FROM states AS s"
                     f" {join_str}"
-                    f" {where(old_state_ids)}"
+                    f" {where(old_state_ids.values())}"
                 )
                 cur.row_factory = raw_state_factory
                 while raw_state := cast(RawState, cur.fetchone()):
                     yield raw_state
 
-            prev_state_entity_ids = entity_ids - OrderedSet(query_data.old_state_ids)
-            if prev_state_entity_ids:
+            for entity_id in entity_ids - set(old_state_ids):
                 cur = con.execute(
                     "SELECT last_updated_ts AS ts, entity_id AS key"
                     ", last_updated_ts AS '[timestamp]'"
@@ -740,11 +740,13 @@ def get_states(
                     ", state, old_state_id"
                     " FROM states AS s"
                     f" {join_str}"
-                    f" {where(prev_state_entity_ids, end=args.start)}"
+                    f" {where([entity_id], end=args.start)}"
+                    " ORDER BY last_updated_ts DESC LIMIT 1"
                 )
                 cur.row_factory = raw_state_factory
-                while raw_state := cast(RawState, cur.fetchone()):
-                    yield raw_state
+                if (prev_state := cast(RawState | None, cur.fetchone())):
+                    yield prev_state
+                
 
         def convert_prev_states(
             state_exprs: IdItemsExprs,
