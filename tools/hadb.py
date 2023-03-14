@@ -691,14 +691,13 @@ def get_states(
                 raw_state, global_attr_exprs
             )
             if matches:
-                state = State(
+                yield State(
                     raw_state.entity_id,
                     raw_state.last_updated,
                     attributes,
                     raw_state.state,
                     global_attrs,
                 )
-                yield state
 
     query_data = StateQueryData()
     states = list(
@@ -851,7 +850,20 @@ def get_events(args: ArgsNamespace) -> list[Event]:
         cur.row_factory = event_factory
         return iter(cur.fetchone, None)
 
-    return list(fetch_events())
+    def filter_events(
+        event_exprs: IdItemsExprs, events: Iterable[Event]
+    ) -> Generator[Event, None, None]:
+        dummy = NameValueExprs()
+        for event in events:
+            matches, data, _ = event_exprs.filter_row(event, dummy)
+            if matches:
+                yield Event(
+                    event.type,
+                    event.time_fired,
+                    data,
+                )
+
+    return list(filter_events(args.event_exprs, fetch_events()))
 
 
 StateAttrs = tuple[str | None, Items, Items]
