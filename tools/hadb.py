@@ -142,11 +142,12 @@ def where(
     end: dt.datetime | None = None,
 ) -> str:
     """Create WHERE clause."""
+    keys = tuple(keys)
     exprs: list[str] = []
     if len(keys) == 1:
         exprs.append(f"key = {keys[0]!r}")
     elif len(keys) > 1:
-        exprs.append(f"key IN {tuple(keys)!r}")
+        exprs.append(f"key IN {keys!r}")
     if start is not None:
         exprs.append(f"ts >= {start.timestamp()}")
     if end is not None:
