@@ -89,7 +89,7 @@ def pull_image(repo_tag: str, verbose: bool) -> bool:
 def image_version(repo_tag: str, verbose: bool) -> str | None:
     """Retrieve version of docker image."""
     try:
-        result = docker("inspect", repo_tag)
+        result = docker("inspect", repo_tag, capture_stderr=True)
     except CalledProcessError as exc:
         print("docker inspect:", cast(str, exc.stderr).strip(), file=sys.stderr)
         return None
