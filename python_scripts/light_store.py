@@ -90,10 +90,10 @@ else:
                     attributes = {}
                     if entity_id.startswith('light.') and cur_state.state == 'on':
                         for attr in GEN_ATTRS:
-                            if attr in cur_state.attributes:
+                            if attr in cur_state.attributes and cur_state.attributes[attr] is not None:
                                 attributes[attr] = cur_state.attributes[attr]
                         for attr in COLOR_ATTRS:
-                            if attr in cur_state.attributes:
+                            if attr in cur_state.attributes and cur_state.attributes[attr] is not None:
                                 attributes[attr] = cur_state.attributes[attr]
                                 break
                     hass.states.set(store_entity_id(store_name, entity_id),
