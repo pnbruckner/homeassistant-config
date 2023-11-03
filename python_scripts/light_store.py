@@ -110,6 +110,8 @@ else:
                 component = entity_id.split('.')[0]
                 if component == 'light' and turn_on and old_state.attributes:
                     service_data.update(old_state.attributes)
+                if service_data[ATTR_EFFECT] == 'None':
+                    service_data.pop(ATTR_EFFECT)
                 hass.services.call(component,
                                    'turn_on' if turn_on else 'turn_off',
                                    service_data)
