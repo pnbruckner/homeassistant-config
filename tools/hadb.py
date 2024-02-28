@@ -24,10 +24,11 @@ from termcolor import colored, cprint
 
 DEF_DATABASE = "~/homeassistant/production/config/home-assistant_v2.db"
 CORE_EVENTS = [
+    "core_config_updated",
     "homeassistant_start",
     "homeassistant_started",
     "homeassistant_stop",
-    "core_config_updated",
+    "homeassistant_final_write",
 ]
 REGEX_PREFIX = "%"
 
@@ -94,8 +95,9 @@ def find_stop(stops: int) -> dt.datetime | None:
         list[tuple[dt.datetime]],
         con.execute(
             "SELECT time_fired_ts AS '[timestamp]'"
-            " FROM events"
-            " WHERE event_type = 'homeassistant_stop'"
+            " FROM events AS e"
+            " INNER JOIN event_types AS t ON e.event_type_id = t.event_type_id"
+            " WHERE t.event_type = 'homeassistant_stop'"
             " ORDER BY time_fired_ts DESC LIMIT ?",
             (stops,),
         ).fetchall(),
@@ -521,9 +523,8 @@ def process_args(args: ArgsNamespace, params: Params) -> int:
     return 0
 
 
-def print_banner(args: ArgsNamespace) -> None:
-    """Print banner."""
-    cprint(f"Schema version: {get_schema_version()}", COLOR_BANNER)
+def print_time_window(args: ArgsNamespace) -> None:
+    """Print time window."""
     if args.start is None:
         start_str = f"beginning ({find_oldest()})"
     else:
@@ -649,7 +650,7 @@ def get_states(
     args: ArgsNamespace,
 ) -> tuple[OrderedSet[str], OrderedSet[str], list[State], list[State]]:
     """Get states."""
-    entity_ids = args.state_exprs.matching_ids(get_unique("entity_id", "states"))
+    entity_ids = args.state_exprs.matching_ids(get_unique("entity_id", "states_meta"))
     global_attr_names = args.global_attr_exprs.all_str_names
     if not entity_ids:
         return entity_ids, global_attr_names, [], []
@@ -666,10 +667,11 @@ def get_states(
     def fetch_raw_states(query_data: StateQueryData) -> Generator[RawState, None, None]:
         """Fetch raw states from database."""
         cur = con.execute(
-            "SELECT last_updated_ts AS ts, entity_id AS key"
+            "SELECT last_updated_ts AS ts, m.entity_id AS key"
             f", last_updated_ts AS '[timestamp]', {shared_attrs_str} AS '[items]'"
             ", state, old_state_id"
             " FROM states AS s"
+            " INNER JOIN states_meta AS m ON s.metadata_id = m.metadata_id"
             f" {join_str}"
             f" {where(entity_ids, args.start, args.end)}"
             " ORDER BY last_updated_ts"
@@ -720,12 +722,13 @@ def get_states(
             )
             if old_state_ids:
                 cur = con.execute(
-                    "SELECT last_updated_ts AS ts, entity_id"
+                    "SELECT last_updated_ts AS ts, m.entity_id"
                     ", last_updated_ts AS '[timestamp]'"
                     f", {shared_attrs_str} AS '[items]'"
                     ", state, old_state_id"
                     ", state_id AS key"
                     " FROM states AS s"
+                    " INNER JOIN states_meta AS m ON s.metadata_id = m.metadata_id"
                     f" {join_str}"
                     f" {where(old_state_ids.values())}"
                 )
@@ -735,11 +738,12 @@ def get_states(
 
             for entity_id in entity_ids - set(old_state_ids):
                 cur = con.execute(
-                    "SELECT last_updated_ts AS ts, entity_id AS key"
+                    "SELECT last_updated_ts AS ts, m.entity_id AS key"
                     ", last_updated_ts AS '[timestamp]'"
                     f", {shared_attrs_str} AS '[items]'"
                     ", state, old_state_id"
                     " FROM states AS s"
+                    " INNER JOIN states_meta AS m ON s.metadata_id = m.metadata_id"
                     f" {join_str}"
                     f" {where([entity_id], end=args.start)}"
                     " ORDER BY last_updated_ts DESC LIMIT 1"
@@ -821,7 +825,7 @@ def event_factory(cur: sqlite3.Cursor, row: tuple) -> Event:
 
 def get_events(args: ArgsNamespace) -> list[Event]:
     """Get events."""
-    all_event_types = get_unique("event_type", "events")
+    all_event_types = get_unique("event_type", "event_types")
     event_exprs_types = args.event_exprs.matching_ids(all_event_types)
     event_types = event_exprs_types.copy()
     if args.core_event_types:
@@ -843,9 +847,10 @@ def get_events(args: ArgsNamespace) -> list[Event]:
     def fetch_events() -> Iterator[Event]:
         """Fetch events from database."""
         cur = con.execute(
-            "SELECT time_fired_ts AS ts, event_type AS key"
+            "SELECT time_fired_ts AS ts, t.event_type AS key"
             f", time_fired_ts AS '[timestamp]', {shared_data_str} AS '[items]'"
             " FROM events AS e"
+            " INNER JOIN event_types AS t ON e.event_type_id = t.event_type_id"
             f" {join_str}"
             f" {where(event_types, args.start, args.end)}"
             " ORDER BY time_fired_ts"
@@ -1125,10 +1130,11 @@ def main(args: ArgsNamespace, params: Params) -> str | int | None:
     )
 
     try:
+        cprint(f"Schema version: {get_schema_version()}", COLOR_BANNER)
+
         if err := process_args(args, params):
             return err
-
-        print_banner(args)
+        print_time_window(args)
 
         entity_ids, global_attr_names, prev_states, states = get_states(args)
         events = get_events(args)
