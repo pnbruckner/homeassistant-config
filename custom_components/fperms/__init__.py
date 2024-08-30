@@ -6,7 +6,7 @@ import logging
 import os
 from pathlib import Path
 
-from homeassistant.const import EVENT_HOMEASSISTANT_CLOSE
+from homeassistant.const import EVENT_HOMEASSISTANT_CLOSE, MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
@@ -74,5 +74,10 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         hass.async_add_executor_job(update_files)
 
     remove = async_track_time_interval(hass, cb, INTERVAL)
-    hass.bus.async_listen(EVENT_HOMEASSISTANT_CLOSE, cb, run_immediately=True)
+    # run_immediately was removed in 2024.5.
+    # It's default used to be False, but now it behaves the way True did.
+    if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 5):
+        hass.bus.async_listen(EVENT_HOMEASSISTANT_CLOSE, cb)
+    else:
+        hass.bus.async_listen(EVENT_HOMEASSISTANT_CLOSE, cb, run_immediately=True)
     return True
