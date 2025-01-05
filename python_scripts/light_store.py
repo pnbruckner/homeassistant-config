@@ -14,12 +14,12 @@ ATTR_ENTITY_ID  = 'entity_id'
 ATTR_BRIGHTNESS = "brightness"
 ATTR_EFFECT = "effect"
 ATTR_WHITE_VALUE = "white_value"
-ATTR_COLOR_TEMP = "color_temp"
+ATTR_COLOR_TEMP_KLEVIN = "color_temp_kelvin"
 ATTR_HS_COLOR = "hs_color"
 # Save any of these attributes.
 GEN_ATTRS = [ATTR_BRIGHTNESS, ATTR_EFFECT]
 # Save only one of these attributes, in order of precedence.
-COLOR_ATTRS = [ATTR_WHITE_VALUE, ATTR_COLOR_TEMP, ATTR_HS_COLOR]
+COLOR_ATTRS = [ATTR_WHITE_VALUE, ATTR_COLOR_TEMP_KELVIN, ATTR_HS_COLOR]
 
 def store_entity_id(store_name, entity_id):
     return '{}.{}'.format(store_name, entity_id.replace('.', '_'))
