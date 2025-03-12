@@ -38,7 +38,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 or any(path.match(glob) for glob in IGNORE_GLOBS)
             ):
                 continue
-            stat = path.stat()
+            try:
+                stat = path.stat()
+            except Exception as exc:
+                updates.append(f"Error: {exc} getting stat of {path}")
+                continue
             want_perms = 0o070 if path.is_dir() else 0o060
             cur_perms = stat.st_mode
             add_perms = ~cur_perms & want_perms
