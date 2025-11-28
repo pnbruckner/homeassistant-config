@@ -1,11 +1,14 @@
-VERSION = '1.3.0'
+VERSION = '1.4.0'
 
 DOMAIN = 'light_store'
 
 ATTR_OPERATION  = 'operation'
 ATTR_OP_SAVE    = 'save'
+ATTR_OP_REMOVE  = 'remove'
 ATTR_OP_RESTORE = 'restore'
 ATTR_OVERWRITE  = 'overwrite'
+# debug no-op, only provide entities in `output` global variable
+ATTR_OP_DEBUG   = 'debug'
 
 ATTR_STORE_NAME = 'store_name'
 ATTR_ENTITY_ID  = 'entity_id'
@@ -26,7 +29,7 @@ def store_entity_id(store_name, entity_id):
 
 # Get operation (default to save.)
 operation = data.get(ATTR_OPERATION, ATTR_OP_SAVE)
-if operation not in [ATTR_OP_SAVE, ATTR_OP_RESTORE]:
+if operation not in [ATTR_OP_SAVE, ATTR_OP_RESTORE, ATTR_OP_REMOVE, ATTR_OP_DEBUG]:
     logger.error('Invalid operation. Expected {} or {}, got: {}'.format(
         ATTR_OP_SAVE, ATTR_OP_RESTORE, operation))
 else:
@@ -48,10 +51,10 @@ else:
     while entity_id and expanded_a_group:
         expanded_a_group = False
         for e in entity_id:
-            if e.startswith('group.'):
-                entity_id.remove(e)
+            if e.startswith('group.') or e.startswith('light.'):
                 g = hass.states.get(e)
                 if g and 'entity_id' in g.attributes:
+                    entity_id.remove(e)
                     entity_id.extend(g.attributes['entity_id'])
                     expanded_a_group = True
 
@@ -73,6 +76,8 @@ else:
     # all existing switches and lights that were previously saved.
     if entity_id:
         entity_ids = tuple(set(entity_ids).intersection(set(entity_id)))
+
+    output = {}
 
     if operation == ATTR_OP_SAVE:
         # Only save if not already saved, or if overwite is True.
@@ -96,9 +101,12 @@ else:
                             if attr in cur_state.attributes and cur_state.attributes[attr] is not None:
                                 attributes[attr] = cur_state.attributes[attr]
                                 break
+                    output[entity_id] = {}
+                    output[entity_id]["state"] = cur_state.state
+                    output[entity_id]["attributes"] = attributes
                     hass.states.set(store_entity_id(store_name, entity_id),
                                     cur_state.state, attributes)
-    else:
+    elif operation == ATTR_OP_RESTORE:
         # Restore selected switches and lights from store.
         for entity_id in entity_ids:
             old_state = hass.states.get(store_entity_id(store_name, entity_id))
@@ -114,6 +122,10 @@ else:
                                    'turn_on' if turn_on else 'turn_off',
                                    service_data)
 
-        # Remove saved states now that we're done with them.
+    # Remove saved states
+    if operation == ATTR_OP_RESTORE or operation == ATTR_OP_REMOVE:
         for entity_id in saved:
+            output[entity_id] = {}
+            output[entity_id]["state"] = hass.states.get(entity_id).state
+            output[entity_id]["attributes"] = hass.states.get(entity_id).attributes
             hass.states.remove(entity_id)
