@@ -21,7 +21,7 @@ See [Python Scripts](https://www.home-assistant.io/components/python_script/) fo
 ## Script variables
 - **store_name** (*Optional*): The “domain” name to use for the entities created in the State Machine to hold the saved states and attributes. The default is `light_store`.
 - **entity_id** (*Optional*): The entity_id(s) of the entities to save/restore. (Currently only entities of the switch, light or group domains are supported. Groups will be expanded recursively into the individual entities they contain.) Can be a single entity_id, a list of entity_id’s, or a string containing a comma separated list of entity_id’s. When saving, the default is to save all existing switch and light entities. When restoring, the default is to restore all previously saved entities.
-- **operation** (*Optional*): If specified must be `save` or `restore`. The default is `save`.
+- **operation** (*Optional*): If specified must be `save`, `restore`, `remove` or `debug`. The default is `save`.
 - **overwrite** (*Optional*): Only applies to saving. If True will overwrite any previously saved states. If False, will only save current states if they have not already been saved, otherwise will skip saving. The default is True.
 ## Operation
 When saving, the script will create an entity in the State Machine named `<store_name>.<domain>_<object_id>` for each saved entity (where `<entity_id>` = `<domain>.<object_id>`.) The state will be the state of the entity, and if the entity is a light then appropriate attributes will also be saved (see below.)
@@ -62,8 +62,6 @@ script:
           store_name: flash_store
           operation: restore
 ```
-## Caveats
-If you have any light groups (i.e., an entity of the light domain that is actually a group of other lights), then you should not use the default for entity_id (when saving.) Rather, you should specify the list of individual light entity_id’s, or the light group, but not both. Unfortunately, a python_script cannot tell the difference between a light entity that is an actual light and a light entity that is a group of other lights. If both are saved & later restored, the result will not be what you want.
 ## Release Notes
 Date | Version | Notes
 -|:-:|-
@@ -71,3 +69,4 @@ Date | Version | Notes
 20190114 | [1.1.0](https://github.com/pnbruckner/homeassistant-config/blob/c405e9ed1f37a67918d5b43152307aa47e75c094/python_scripts/light_store.py) | Save and restore light effect attribute.
 20190204 | [1.2.0](https://github.com/pnbruckner/homeassistant-config/blob/aa04afe8e32777414abb5a9265c00a90efa5d67c/python_scripts/light_store.py) | Add optional `overwrite` parameter.
 20231103 | [1.3.0](https://github.com/pnbruckner/homeassistant-config/blob/b246ca2d34949eae6bfad83461f22a86e48718e2/python_scripts/light_store.py) | Do not save entity attributes whose value is None.
+20251128 | [1.4.0](TBD) | Add support for light groups. Add `remove` and `debug` operations.
