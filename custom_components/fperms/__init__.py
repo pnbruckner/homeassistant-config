@@ -10,11 +10,14 @@ from homeassistant.const import EVENT_HOMEASSISTANT_CLOSE, MAJOR_VERSION, MINOR_
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
-from homeassistant.util import dt as dt_util
 
-INTERVAL = timedelta(minutes=5)
+INTERVAL = timedelta(minutes=1)
 IGNORE_GLOBS = [
-    "*.log*", "home-assistant*.db*", "core.restore_state", "trace.saved_traces"
+    "*.log*",
+    "home-assistant*.db*",
+    # "core.restore_state",
+    "trace.saved_traces",
+    "tmp*",
 ]
 _LOGGER = logging.getLogger(__name__)
 
@@ -22,53 +25,57 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up integration."""
     config_path = Path(hass.config.path(""))
-    ha_gid = config_path.stat().st_gid
+
+    def get_config_gid() -> int:
+        """Get config path & gid."""
+        return config_path.stat().st_gid
+
+    ha_gid = await hass.async_add_executor_job(get_config_gid)
     _LOGGER.info("Config path: %s, gid: %d", config_path, ha_gid)
+
+    mode_chgd: list[str] = []
+    grp_chgd: list[str] = []
 
     def update_files() -> None:
         """Update file permissions & ownership."""
-        start = dt_util.now()
-
         cc_path = config_path / "custom_components"
 
-        updates = []
         for path in config_path.rglob("*"):
             if (
                 path.is_relative_to(cc_path)
                 or any(path.match(glob) for glob in IGNORE_GLOBS)
             ):
                 continue
+            path_str = str(path)
             try:
                 stat = path.stat()
             except Exception as exc:
-                updates.append(f"Error: {exc} getting stat of {path}")
+                _LOGGER.error("%s getting stat of %s", exc, path_str)
                 continue
             want_perms = 0o070 if path.is_dir() else 0o060
             cur_perms = stat.st_mode
             add_perms = ~cur_perms & want_perms
             chown = stat.st_gid != ha_gid
-            if add_perms or chown:
+            if not (add_perms or chown):
+                continue
+            if add_perms:
                 try:
-                    if add_perms:
-                        path.chmod(path.stat().st_mode | add_perms)
-                    if chown:
-                        os.chown(path, -1, ha_gid)
+                    path.chmod(path.stat().st_mode | add_perms)
                 except Exception as exc:
-                    updates.append(f"Error: {exc} processing {path}")
+                    _LOGGER.error("%s changing mode of %s", exc, path_str)
                 else:
-                    items = []
-                    if add_perms:
-                        items.append("mode")
-                    if chown:
-                        items.append("group")
-                    updates.append(f"Changed: {', '.join(items)} of {path}")
-
-        if updates:
-            with (config_path / "fperms.log").open("a") as f:
-                print("=" * 10, start, "=" * 10, file=f)
-                for update in updates:
-                    print(update, file=f)
-                print(dt_util.now() - start, file=f)
+                    if path_str not in mode_chgd:
+                        _LOGGER.info("Changed mode of %s", path_str)
+                        mode_chgd.append(path_str)
+            if chown:
+                try:
+                    os.chown(path, -1, ha_gid)
+                except Exception as exc:
+                    _LOGGER.error("%s changing group of %s", exc, path_str)
+                else:
+                    if path_str not in grp_chgd:
+                        _LOGGER.info("Changed group of %s", path_str)
+                        mode_chgd.append(path_str)
 
     @callback
     def cb(data: Event | datetime) -> None:
@@ -77,6 +84,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             remove()
         hass.async_add_executor_job(update_files)
 
+    hass.async_add_executor_job(update_files)
     remove = async_track_time_interval(hass, cb, INTERVAL)
     # run_immediately was removed in 2024.5.
     # It's default used to be False, but now it behaves the way True did.
