@@ -1,13 +1,15 @@
 """File Permissions."""
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timedelta
+from functools import partial
 import logging
 import os
 from pathlib import Path
 
-from homeassistant.const import EVENT_HOMEASSISTANT_CLOSE, MAJOR_VERSION, MINOR_VERSION
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.const import EVENT_HOMEASSISTANT_FINAL_WRITE
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.typing import ConfigType
 
@@ -77,19 +79,24 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                         _LOGGER.info("Changed group of %s", path_str)
                         mode_chgd.append(path_str)
 
-    @callback
-    def cb(data: Event | datetime) -> None:
-        """Create thread to update files."""
-        if isinstance(data, Event):
-            remove()
-        hass.async_add_executor_job(update_files)
+    async def do_update(
+        data: datetime | Event | None = None,
+        /,
+        *,
+        stop_periodic_update: bool = False,
+        wait_time: float | None = None,
+    ) -> None:
+        """Do an update."""
+        if stop_periodic_update:
+            remove_periodic_update()
+        if wait_time:
+            await asyncio.sleep(wait_time)
+        await hass.async_add_executor_job(update_files)
 
-    hass.async_add_executor_job(update_files)
-    remove = async_track_time_interval(hass, cb, INTERVAL)
-    # run_immediately was removed in 2024.5.
-    # It's default used to be False, but now it behaves the way True did.
-    if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 5):
-        hass.bus.async_listen(EVENT_HOMEASSISTANT_CLOSE, cb)
-    else:
-        hass.bus.async_listen(EVENT_HOMEASSISTANT_CLOSE, cb, run_immediately=True)
+    hass.async_create_background_task(do_update(wait_time=3), "First fperms update")
+    remove_periodic_update = async_track_time_interval(hass, do_update, INTERVAL)
+    hass.bus.async_listen(
+        EVENT_HOMEASSISTANT_FINAL_WRITE,
+        partial(do_update, stop_periodic_update=True, wait_time=3),
+    )
     return True
